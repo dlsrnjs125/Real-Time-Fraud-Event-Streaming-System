@@ -8,7 +8,8 @@ public record FraudRiskEventMessage(
         String userId,
         RiskLevel riskLevel,
         int riskScore,
-        List<String> matchedRules,
+        List<String> matchedRuleCodes,
+        List<String> skippedRuleCodes,
         boolean degraded,
         OffsetDateTime detectedAt,
         String traceId

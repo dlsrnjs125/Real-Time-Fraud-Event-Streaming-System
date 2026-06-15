@@ -4,7 +4,9 @@ export function transactionEventPayload(userId = 'user-1001') {
   return JSON.stringify({
     userId,
     accountId: `acc-${userId}`,
+    eventType: 'PAYMENT',
     amount: 1500000,
+    currency: 'KRW',
     merchantId: 'merchant-777',
     deviceId: 'device-abc',
     location: 'KR',
