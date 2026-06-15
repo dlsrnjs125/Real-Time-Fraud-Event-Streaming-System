@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: app-consumer
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: fraud-detection-consumer
+      enable-auto-commit: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fraud
+    username: fraud
+    password: fraud
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

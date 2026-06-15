@@ -1,0 +1,9 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'com.fasterxml.jackson.core:jackson-annotations'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
