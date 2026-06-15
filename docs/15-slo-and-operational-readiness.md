@@ -60,6 +60,45 @@ Phase별 기능 구현 후 아래 항목을 확인합니다.
 - Fraud detection latency p95 목표 초과
 - Duplicate FraudResult conflict 발생
 
-## 6. Known Limits
+## 6. Dashboard 구성
+
+Prometheus/Grafana dashboard는 최소 4개 관점으로 나눕니다.
+
+### API Dashboard
+
+- API request count
+- API p50/p95/p99 latency
+- API error rate
+- Kafka publish success/failure
+
+### Consumer Dashboard
+
+- Consumed event count
+- Consumer processing latency
+- Fraud detection latency
+- Consumer Lag
+- Retry count
+- DLT count
+- Duplicate skip count
+
+### Redis/PostgreSQL Dashboard
+
+- Redis command latency
+- Redis error count
+- Redis degraded count
+- PostgreSQL connection pool usage
+- DB insert latency
+- DB constraint violation count
+
+### Fraud Detection Dashboard
+
+- RiskLevel count
+- Rule matched count
+- Rule skipped count
+- High risk event count
+- Degraded fraud result count
+- False-positive review count, if implemented
+
+## 7. Known Limits
 
 초기 SLO는 로컬 개발과 부하 재현 기준입니다. 운영 환경의 실제 SLO는 트래픽 규모, partition 수, Consumer 수, DB/Redis 리소스, 네트워크 조건에 따라 다시 산정합니다.

@@ -86,6 +86,9 @@ Kafka topic 초안 생성:
 - [13. Development Roadmap](docs/13-development-roadmap.md)
 - [14. Security and Privacy](docs/14-security-and-privacy.md)
 - [15. SLO and Operational Readiness](docs/15-slo-and-operational-readiness.md)
+- [16. Fraud Detection Strategy](docs/16-fraud-detection-strategy.md)
+- [17. DevOps Architecture](docs/17-devops-architecture.md)
+- [18. Runbook](docs/18-runbook.md)
 
 ## 현재 구현 범위
 

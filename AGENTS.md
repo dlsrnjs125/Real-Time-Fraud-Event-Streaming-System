@@ -52,7 +52,7 @@ app-common/
   Shared event schemas, common DTOs, enums, exceptions, logging keys, trace/event context utilities.
 
 docs/
-  Design documents, architecture decisions, Kafka topic design, data model, API contract, Redis design, consistency/reprocessing policy, observability design, load-test plan, failure scenarios, troubleshooting logs, AI review notes, development roadmap.
+  Design documents, architecture decisions, Kafka topic design, data model, API contract, Redis design, consistency/reprocessing policy, observability design, load-test plan, failure scenarios, troubleshooting logs, AI review notes, development roadmap, security/privacy rules, SLO/readiness, fraud detection strategy, DevOps architecture, and runbooks.
 
 infra/
   Local infrastructure configuration.
@@ -135,6 +135,17 @@ app-common/
 docs/03-kafka-topic-design.md
 docs/07-consistency-and-reprocessing.md
 docs/08-observability.md
+docs/16-fraud-detection-strategy.md
+app-consumer/
+app-common/
+```
+
+#### Fraud Detection Strategy
+
+```text
+docs/16-fraud-detection-strategy.md
+docs/06-redis-sliding-window.md
+docs/08-observability.md
 app-consumer/
 app-common/
 ```
@@ -168,10 +179,29 @@ app-api/
 
 ```text
 docs/08-observability.md
+docs/15-slo-and-operational-readiness.md
 infra/prometheus/
 infra/grafana/
 app-api/
 app-consumer/
+```
+
+#### Security / Privacy
+
+```text
+docs/14-security-and-privacy.md
+docs/07-consistency-and-reprocessing.md
+docs/10-failure-scenarios.md
+```
+
+#### DevOps / Runbook
+
+```text
+docs/15-slo-and-operational-readiness.md
+docs/17-devops-architecture.md
+docs/18-runbook.md
+infra/
+scripts/
 ```
 
 #### Load Test
@@ -383,6 +413,10 @@ Scope:
 
 * CI/CD gates
 * deployment safety
+* security/privacy hardening
+* SLO dashboard and alert hardening
+* DevOps architecture validation
+* runbook updates
 * Nginx reverse proxy
 * optional blue-green simulation
 * optional blog drafts
@@ -1093,6 +1127,11 @@ docs/09-load-test-plan.md
 docs/10-failure-scenarios.md
 docs/11-troubleshooting-log.md
 docs/12-ai-review.md
+docs/14-security-and-privacy.md
+docs/15-slo-and-operational-readiness.md
+docs/16-fraud-detection-strategy.md
+docs/17-devops-architecture.md
+docs/18-runbook.md
 ```
 
 Documentation tone:
