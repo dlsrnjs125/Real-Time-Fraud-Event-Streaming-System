@@ -46,10 +46,10 @@ INCR + TTL 방식은 구현이 단순하지만 고정 윈도우 경계에서 탐
 
 ## 6. TTL and Cleanup
 
-- 각 이벤트 처리 시 window 범위 밖 데이터를 제거합니다.
+- 각 이벤트 처리 시 `ZREMRANGEBYSCORE`로 window 범위 밖 이벤트를 제거합니다.
 - ZSET key에는 window보다 긴 TTL을 둡니다.
 - 예: window = 60초, key TTL = 10분
-- 오래된 userId의 key가 무기한 남지 않도록 합니다.
+- TTL은 사용자가 더 이상 거래하지 않을 때 Redis key가 무기한 남지 않도록 하기 위한 메모리 보호 장치입니다.
 
 ## 7. Clock Skew 기준
 

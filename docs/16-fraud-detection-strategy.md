@@ -23,6 +23,8 @@
 -> HIGH면 fraud-alert-events 발행
 ```
 
+초기 구현에서 HIGH risk는 거래 차단을 의미하지 않습니다. 이 프로젝트는 실제 승인/원장 시스템을 구현하지 않으므로, HIGH 이벤트는 운영자 검토 또는 알림 대상으로 분류합니다.
+
 ## 3. Risk Score 기준
 
 | Score | RiskLevel |

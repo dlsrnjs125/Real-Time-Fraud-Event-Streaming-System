@@ -79,7 +79,8 @@ Response:
 {
   "dlqId": 1,
   "status": "REPROCESSING",
-  "reprocessAttemptId": "attempt-..."
+  "reprocessAttemptId": "attempt-20260615-000001",
+  "traceId": "trace-..."
 }
 ```
 
@@ -94,7 +95,17 @@ Request:
 ```json
 {
   "operatorId": "local-admin",
-  "reason": "payload contains unsupported schema version"
+  "reason": "invalid payload cannot be safely reprocessed"
+}
+```
+
+Response:
+
+```json
+{
+  "dlqId": 1,
+  "status": "DISCARDED",
+  "traceId": "trace-..."
 }
 ```
 

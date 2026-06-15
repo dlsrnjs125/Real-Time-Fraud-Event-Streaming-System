@@ -53,7 +53,7 @@ log       = 192.168.10.xxx
 
 | Field | 민감도 | DB 저장 | 로그 | Metric Label | 비고 |
 |---|---|---|---|---|---|
-| `eventId` | 낮음 | 가능 | 가능 | 제한적 가능 | 추적 키 |
+| `eventId` | 낮음 | 가능 | 가능 | 금지 또는 제한 | 추적 키, 고카디널리티 주의 |
 | `traceId` | 낮음 | 가능 | 가능 | 가능 | 요청 추적 |
 | `userId` | 중간 | 가능 | hash/masking | 금지 | 운영 가정에서는 pseudonymization |
 | `accountId` | 높음 | 가능 | masking | 금지 | 마지막 4자리만 |
