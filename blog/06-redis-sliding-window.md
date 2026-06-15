@@ -1,5 +1,8 @@
 # Redis ZSET 기반 Sliding Window 탐지
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 사용자별 최근 N초 거래 횟수를 정확히 계산하려면 고정 윈도우보다 sliding window가 적합합니다.

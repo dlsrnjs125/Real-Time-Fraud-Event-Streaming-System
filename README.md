@@ -84,6 +84,8 @@ Kafka topic 초안 생성:
 - [11. Troubleshooting Log](docs/11-troubleshooting-log.md)
 - [12. AI Review](docs/12-ai-review.md)
 - [13. Development Roadmap](docs/13-development-roadmap.md)
+- [14. Security and Privacy](docs/14-security-and-privacy.md)
+- [15. SLO and Operational Readiness](docs/15-slo-and-operational-readiness.md)
 
 ## 현재 구현 범위
 

@@ -1,5 +1,8 @@
 # Consumer Lag과 Detection Latency 관측
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 API가 빠르게 응답해도 Consumer Lag이 누적되면 이상거래 탐지는 늦어집니다.

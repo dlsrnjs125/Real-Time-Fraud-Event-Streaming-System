@@ -1,5 +1,8 @@
 # Consumer Offset Commit과 재처리 전략
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 처리 완료 전에 offset을 commit하면 Consumer 장애 시 처리되지 않은 이벤트가 처리된 것처럼 보일 수 있습니다.

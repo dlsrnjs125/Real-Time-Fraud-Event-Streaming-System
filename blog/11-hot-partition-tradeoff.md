@@ -1,5 +1,8 @@
 # Partition Hot Spot과 userId key의 트레이드오프
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 `userId` key는 사용자별 순서 보장에 유리하지만 특정 사용자 이벤트가 몰리면 hot partition이 생길 수 있습니다.

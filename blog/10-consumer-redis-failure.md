@@ -1,5 +1,8 @@
 # Consumer 장애와 Redis 장애 실험
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 Consumer나 Redis 장애가 발생해도 이벤트 유실과 조용한 탐지 누락이 없어야 합니다.

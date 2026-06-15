@@ -1,5 +1,8 @@
 # Kafka Topic과 Partition Key 설계
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 이상거래 탐지는 사용자별 최근 거래 순서에 영향을 받습니다. Kafka는 partition 내부 순서만 보장하므로 key 선택이 중요합니다.

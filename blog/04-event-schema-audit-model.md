@@ -1,5 +1,8 @@
 # 거래 이벤트 스키마와 PostgreSQL 감사 모델 설계
 
+> Status: Draft
+> 이 글은 구현과 측정 결과가 추가되면서 갱신됩니다.
+
 ## 문제
 
 Kafka 이벤트는 재처리와 후속 Consumer 확장의 기준이고, PostgreSQL은 조회와 감사의 기준입니다.

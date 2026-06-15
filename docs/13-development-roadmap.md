@@ -165,3 +165,19 @@ API latency, Consumer processing latency, detection latency, DLQ count, Redis de
 - `docker compose -f infra/docker-compose.yml config`
 - `bash -n scripts/*.sh`
 - markdown link check
+
+## Phase 10+. Hardening
+
+### 목표
+
+초기 기능 구현 이후 운영 안정성, 보안, 배포 안전성을 보강합니다.
+
+### 후보 작업
+
+- CI/CD gate
+- 인증/인가
+- secret 관리
+- Nginx reverse proxy
+- 운영 환경용 Kafka listener 분리
+- 보안/개인정보 점검
+- SLO 기반 dashboard와 alert 정리

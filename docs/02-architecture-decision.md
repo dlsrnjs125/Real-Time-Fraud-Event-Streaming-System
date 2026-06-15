@@ -86,3 +86,27 @@ API Server는 거래 이벤트를 검증하고 Kafka에 발행한 뒤 빠르게 
 - `metrics`: Consumer 처리 지연과 탐지 지표
 - `support.exception`: Consumer 예외 처리
 - `support.logging`: topic, partition, offset 로깅 지원
+
+## 9. app-common 경계
+
+`app-common`은 공유 계약과 cross-cutting 상수만 둡니다.
+
+허용:
+
+- event message
+- enum
+- 공통 error code
+- trace/event id utility
+- logging field name
+
+금지:
+
+- Kafka 설정
+- JPA Entity
+- Repository
+- Redis util
+- Service
+- Rule Engine
+- Controller DTO
+
+`app-common`이 모듈별 구현 세부사항을 담기 시작하면 API와 Consumer 분리 의미가 약해지므로, 공유가 필요한지보다 소유권이 어디인지 먼저 판단합니다.
