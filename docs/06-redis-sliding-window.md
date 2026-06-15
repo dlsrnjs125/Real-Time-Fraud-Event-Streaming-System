@@ -43,3 +43,16 @@ INCR + TTL 방식은 구현이 단순하지만 고정 윈도우 경계에서 탐
 - Redis 장애 중 처리된 이벤트 수
 - `degraded=true` 탐지 결과 수
 - Redis 기반 rule skipped count
+
+## 6. TTL and Cleanup
+
+- 각 이벤트 처리 시 window 범위 밖 데이터를 제거합니다.
+- ZSET key에는 window보다 긴 TTL을 둡니다.
+- 예: window = 60초, key TTL = 10분
+- 오래된 userId의 key가 무기한 남지 않도록 합니다.
+
+## 7. Clock Skew 기준
+
+`eventTime`이 `receivedAt`보다 과도하게 미래인 경우 Redis window 계산이 왜곡될 수 있습니다.
+
+허용 가능한 clock skew를 초과하면 validation failure 또는 DLT 대상으로 분류합니다. 이 기준은 `docs/10-failure-scenarios.md`의 Future eventTime 시나리오와 함께 검증합니다.

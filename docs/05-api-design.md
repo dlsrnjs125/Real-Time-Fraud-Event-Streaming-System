@@ -32,11 +32,31 @@ Response:
 }
 ```
 
+Validation 기준:
+
+- `userId`, `accountId`, `eventType`, `amount`, `currency`, `eventTime`은 필수입니다.
+- `amount`는 0보다 커야 합니다.
+- `currency`는 초기에는 `KRW`를 기본으로 합니다.
+- `eventTime`이 `receivedAt`보다 과도하게 미래이면 validation failure 또는 DLT 대상으로 분류합니다.
+- 모든 응답에는 추적 가능한 `traceId`를 포함합니다.
+
+실패 Response 예시:
+
+```json
+{
+  "code": "INVALID_TRANSACTION_EVENT",
+  "message": "amount must be greater than zero",
+  "traceId": "trace-..."
+}
+```
+
 ## 2. DLQ 조회
 
 ### GET `/api/v1/admin/dlq-events`
 
 DLQ에 쌓인 실패 이벤트를 조회합니다.
+
+초기 admin API는 local-only로 제한합니다.
 
 ## 3. DLQ 재처리
 
@@ -44,11 +64,39 @@ DLQ에 쌓인 실패 이벤트를 조회합니다.
 
 재처리 가능한 DLQ 이벤트를 `transaction-events`로 다시 발행합니다.
 
+Request:
+
+```json
+{
+  "operatorId": "local-admin",
+  "reason": "schema mapping fixed and payload is reprocessable"
+}
+```
+
+Response:
+
+```json
+{
+  "dlqId": 1,
+  "status": "REPROCESSING",
+  "reprocessAttemptId": "attempt-..."
+}
+```
+
 ## 4. DLQ 폐기
 
 ### PATCH `/api/v1/admin/dlq-events/{dlqId}/discard`
 
 재처리 불가능한 DLQ 이벤트를 폐기 상태로 변경합니다.
+
+Request:
+
+```json
+{
+  "operatorId": "local-admin",
+  "reason": "payload contains unsupported schema version"
+}
+```
 
 ## 5. 운영 조회
 

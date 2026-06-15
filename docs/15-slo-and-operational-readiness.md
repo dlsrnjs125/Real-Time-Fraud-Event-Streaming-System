@@ -48,7 +48,19 @@ Phase별 기능 구현 후 아래 항목을 확인합니다.
 - Redis 장애 시 degraded mode 확인
 - 중복 `eventId` 재처리 시 FraudResult 중복 미생성
 
-## 5. Alert 후보
+## 5. Exit Criteria
+
+각 Phase는 코드 작성 여부가 아니라, 검증 명령과 증빙이 남았는지를 기준으로 완료 처리합니다.
+
+완료 처리 기준:
+
+- 실행한 검증 명령이 문서에 남아 있음
+- 실패한 검증이 있다면 원인과 후속 작업이 남아 있음
+- 관련 README/docs가 구현 상태와 일치함
+- 주요 metric 또는 로그로 동작을 확인할 수 있음
+- 남은 한계가 명시되어 있음
+
+## 6. Alert 후보
 
 초기에는 알림 시스템을 구현하지 않지만, 관측 기준은 다음과 같이 둡니다.
 
@@ -60,7 +72,7 @@ Phase별 기능 구현 후 아래 항목을 확인합니다.
 - Fraud detection latency p95 목표 초과
 - Duplicate FraudResult conflict 발생
 
-## 6. Dashboard 구성
+## 7. Dashboard 구성
 
 Prometheus/Grafana dashboard는 최소 4개 관점으로 나눕니다.
 
@@ -99,6 +111,6 @@ Prometheus/Grafana dashboard는 최소 4개 관점으로 나눕니다.
 - Degraded fraud result count
 - False-positive review count, if implemented
 
-## 7. Known Limits
+## 8. Known Limits
 
 초기 SLO는 로컬 개발과 부하 재현 기준입니다. 운영 환경의 실제 SLO는 트래픽 규모, partition 수, Consumer 수, DB/Redis 리소스, 네트워크 조건에 따라 다시 산정합니다.

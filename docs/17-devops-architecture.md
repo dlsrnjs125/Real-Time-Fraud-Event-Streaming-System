@@ -105,3 +105,18 @@ Dashboard는 다음 4개로 분리합니다.
 - Fraud Detection Dashboard
 
 중요한 것은 탐지 건수 자체보다 어떤 rule이 얼마나 매칭되었고, 장애 상황에서 어떤 rule이 skipped 되었는지를 관측하는 것입니다.
+
+## 10. CI Gate 초안
+
+초기 CI는 배포 자동화보다 변경사항이 로컬 실행 가능성을 깨뜨리지 않는지 검증하는 데 집중합니다.
+
+최소 gate:
+
+- Gradle build/test
+- markdown link check
+- docker compose config
+- shell script syntax check
+- secret scan
+- dependency vulnerability check
+
+Kafka, Redis, PostgreSQL을 포함한 통합 테스트는 Phase가 진행되면서 Testcontainers 또는 Docker Compose 기반 검증으로 확장합니다.

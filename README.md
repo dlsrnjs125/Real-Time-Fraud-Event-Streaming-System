@@ -36,6 +36,8 @@ API 서버와 Consumer Worker를 분리해 API latency와 Consumer processing la
 - Redis는 실시간 탐지를 위한 단기 상태 저장소로만 사용합니다.
 - Consumer 장애, Redis 장애, DLQ 재처리를 처음부터 검증 대상으로 둡니다.
 
+Kafka를 선택한 이유는 거래 이벤트가 지속적으로 대량 유입되고, 탐지·저장·알림·통계 처리를 서로 분리해야 하며, Consumer 장애 이후에도 이벤트 로그를 기준으로 재처리할 수 있어야 하기 때문입니다. 또한 Consumer Lag을 통해 비동기 탐지 지연을 관측하고, `userId` 기반 partition key로 사용자별 이벤트 순서를 유지하는 것을 핵심 설계 기준으로 둡니다.
+
 ## 기술 스택
 
 - Java 17

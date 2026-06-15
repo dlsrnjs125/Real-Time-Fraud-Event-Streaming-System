@@ -37,6 +37,8 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `risk_level`: `LOW`, `MEDIUM`, `HIGH`
 - `risk_score`: 위험 점수
 - `matched_rules`: 매칭된 rule 목록
+- `skipped_rules`: Redis 장애 또는 fallback 실패로 실행하지 못한 rule 목록
+- `rule_results`: ruleCode, score, matched, skipped, reason을 담는 JSONB 확장 후보
 - `degraded`: Redis 장애 등으로 일부 rule이 생략되었는지 여부
 - `detected_at`: 탐지 완료 시각
 
@@ -84,7 +86,9 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 추가 unique constraint:
 
 - `event_processing_logs(topic, partition_no, offset_no)`
-- `dlq_events(event_id, topic)`
+- `dlq_events(original_topic, original_partition, original_offset)`
+
+`event_id`는 DLQ 조회와 중복 방어를 위한 index로 둡니다. Kafka 실패 이벤트의 원천 식별자는 `original_topic`, `original_partition`, `original_offset`이 더 정확합니다.
 
 ## 4. 시간 기준
 

@@ -49,6 +49,23 @@
 - `detectedAt`
 - `traceId`
 
+예시:
+
+```json
+{
+  "eventId": "evt-001",
+  "riskLevel": "HIGH",
+  "riskScore": 75,
+  "matchedRuleCodes": [
+    "HIGH_AMOUNT",
+    "VELOCITY"
+  ],
+  "skippedRuleCodes": [],
+  "degraded": false,
+  "detectedAt": "2026-06-15T21:30:00+09:00"
+}
+```
+
 ## 4. 초기 Rule 후보
 
 각 rule은 탐지 목적, 필요 데이터, Redis 필요 여부, 위험 점수, 오탐 가능성, 장애 시 동작, 측정 지표를 함께 정의합니다.
@@ -128,7 +145,35 @@ ZSET score는 `eventTime` epoch millis, value는 `eventId`입니다.
 | 오탐 가능성 | 사용자가 비밀번호를 여러 번 잘못 입력한 정상 케이스 |
 | 측정 지표 | matched count, skipped count, degraded count |
 
-## 5. Rule 기반 탐지 선택 이유
+## 5. Rule 실행 순서
+
+1. 단건 이벤트 기반 Rule
+   - `HIGH_AMOUNT`
+   - Redis 장애와 무관하게 수행 가능
+
+2. Redis Sliding Window 기반 Rule
+   - `VELOCITY`
+   - `FAILED_THEN_SUCCESS`
+   - Redis 장애 시 `skippedRuleCodes`에 기록
+
+3. 사용자 Context 기반 Rule
+   - `NEW_DEVICE`
+   - `LOCATION_CHANGE`
+   - Redis 또는 PostgreSQL fallback 여부를 구현 단계에서 결정
+
+이 순서로 실행하는 이유는 Redis 장애가 발생해도 단건 기반 Rule은 계속 수행하고, Redis 의존 Rule만 명확히 SKIPPED 처리하기 위함입니다.
+
+## 6. Rule Test Matrix
+
+| Rule | 정상 케이스 | 탐지 케이스 | 장애 케이스 | 기대 결과 |
+|---|---|---|---|---|
+| `HIGH_AMOUNT` | 50,000원 거래 | 1,000,000원 이상 거래 | Redis 장애 | Redis와 무관하게 평가 |
+| `VELOCITY` | 60초 내 2건 | 60초 내 5건 이상 | Redis down | `skippedRuleCodes` 기록 |
+| `NEW_DEVICE` | 기존 deviceId | 신규 deviceId | Redis down | skipped 또는 fallback |
+| `LOCATION_CHANGE` | 동일 국가 | 30분 내 국가 변경 | Redis down | skipped 또는 fallback |
+| `FAILED_THEN_SUCCESS` | 실패 1회 후 성공 | 실패 3회 후 성공 | Redis down | `skippedRuleCodes` 기록 |
+
+## 7. Rule 기반 탐지 선택 이유
 
 장점:
 
@@ -145,7 +190,7 @@ ZSET score는 `eventTime` epoch millis, value는 `eventId`입니다.
 - 오탐이 발생할 수 있습니다.
 - 사용자별 정상 패턴 차이를 충분히 반영하기 어렵습니다.
 
-## 6. ML 기반 탐지 확장 후보
+## 8. ML 기반 탐지 확장 후보
 
 ML 기반 탐지는 이번 구현 범위에서 제외합니다.
 
@@ -164,10 +209,14 @@ ML 기반 탐지는 이번 구현 범위에서 제외합니다.
 - model drift
 - 개인정보 보호
 - 모델 버전 관리
+- `model_version`
+- feature store 후보
 - batch scoring 또는 stream scoring 구조
+- false positive / false negative 평가
+- human review feedback label
 - 모델 서빙 장애 시 fallback rule
 
-## 7. 확장 구조
+## 9. 확장 구조
 
 ML 기반 탐지는 다음 방식 중 하나로 확장합니다.
 

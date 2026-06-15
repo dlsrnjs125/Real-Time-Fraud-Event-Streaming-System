@@ -260,3 +260,229 @@ grep -R "deviceId" logs/ || true
 
 - logging field allowlist 적용
 - 보안 리뷰 체크리스트에 로그 샘플 검토 추가
+
+## 8. Hot Partition 발생
+
+장애 상황:
+
+- 특정 `userId`에 이벤트가 집중되어 일부 partition lag이 급증합니다.
+
+탐지 지표:
+
+- partition별 consumer lag
+- partition별 message count
+- hot userId load-test 결과
+
+영향:
+
+- 사용자별 순서는 유지되지만 해당 partition의 탐지 지연이 증가합니다.
+
+확인 명령:
+
+```bash
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events
+```
+
+대응 방법:
+
+- Kafka UI에서 partition별 lag 확인
+- 특정 userId 집중 여부 확인
+- Consumer concurrency가 partition 수 이하인지 확인
+
+복구 확인:
+
+- hot partition lag이 감소합니다.
+- detection latency가 목표 범위로 돌아옵니다.
+
+재발 방지:
+
+- hot partition 부하 테스트 추가
+- key 전략 변경 필요 시 사용자별 순서 보장 영향 재검토
+
+## 9. Invalid schemaVersion 이벤트 유입
+
+장애 상황:
+
+- Consumer가 지원하지 않는 `schemaVersion` 이벤트를 수신합니다.
+
+탐지 지표:
+
+- DLT count
+- unsupported schema version failure_reason
+- schema validation error count
+
+영향:
+
+- 해당 이벤트는 자동 처리되지 않고 운영자 확인 대상이 됩니다.
+
+확인 명령:
+
+```bash
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events.dlt
+```
+
+대응 방법:
+
+- schemaVersion 확인
+- 호환 가능한 변환인지 판단
+- 임의 변환하지 않고 재처리 가능 여부를 운영자가 판단
+
+복구 확인:
+
+- DLT 이벤트 status가 `REPROCESSED`, `DISCARDED`, `FAILED_PERMANENT` 중 하나로 정리됩니다.
+
+재발 방지:
+
+- schema compatibility test 추가
+- producer/consumer schemaVersion 변경 절차 문서화
+
+## 10. Consumer Rebalance 후 중복 처리 증가
+
+장애 상황:
+
+- Consumer scale out 또는 재시작 중 rebalance가 발생하고 같은 메시지가 다시 소비됩니다.
+
+탐지 지표:
+
+- duplicate skip count
+- DB unique constraint conflict count
+- consumer rebalance count
+
+영향:
+
+- 처리량이 일시적으로 흔들릴 수 있지만 FraudResult 중복 생성은 없어야 합니다.
+
+확인 명령:
+
+```bash
+docker logs fraud-kafka --tail 100
+```
+
+대응 방법:
+
+- duplicate skip이 정상적으로 기록되는지 확인
+- unique constraint conflict가 FraudResult 중복 생성으로 이어지지 않는지 확인
+
+복구 확인:
+
+- Consumer Lag이 정상화됩니다.
+- Duplicate FraudResult count가 0입니다.
+
+재발 방지:
+
+- idempotency test 추가
+- rebalance 상황에서 manual ack 동작 검증
+
+## 11. DLT 재처리 중 Duplicate FraudResult Conflict
+
+장애 상황:
+
+- 이미 처리된 `eventId`를 가진 DLT 이벤트를 재처리합니다.
+
+탐지 지표:
+
+- DB unique constraint conflict count
+- duplicate reprocess count
+- reprocessing_history result
+
+영향:
+
+- 중복 FraudResult가 생성되면 안 됩니다.
+
+확인 명령:
+
+```bash
+docker exec fraud-postgres psql -U fraud -d fraud -c "select event_id, count(*) from fraud_results group by event_id having count(*) > 1;"
+```
+
+대응 방법:
+
+- 재처리 결과를 duplicate 또는 already processed로 기록
+- DLQ status와 reprocessing_history 확인
+
+복구 확인:
+
+- 중복 FraudResult row가 없습니다.
+- 재처리 이력이 남아 있습니다.
+
+재발 방지:
+
+- `fraud_results.event_id` unique constraint 유지
+- reprocess API 중복 요청 테스트 추가
+
+## 12. Prometheus Target Down
+
+장애 상황:
+
+- Prometheus에서 app-api 또는 app-consumer target이 DOWN으로 표시됩니다.
+
+탐지 지표:
+
+- Prometheus target status
+- missing application metrics
+- Grafana no data panel
+
+영향:
+
+- 비즈니스 처리는 계속될 수 있지만 운영자가 지표를 볼 수 없습니다.
+
+확인 명령:
+
+```bash
+docker compose -f infra/docker-compose.yml ps prometheus grafana
+curl -fsS http://localhost:8080/actuator/health
+curl -fsS http://localhost:8081/actuator/health
+```
+
+대응 방법:
+
+- 애플리케이션 health 확인
+- Prometheus scrape target 설정 확인
+- host.docker.internal 접근 가능 여부 확인
+
+복구 확인:
+
+- Prometheus target이 UP으로 돌아옵니다.
+- Grafana dashboard에 데이터가 표시됩니다.
+
+재발 방지:
+
+- smoke test에 prometheus target 확인 추가
+
+## 13. Future eventTime 이벤트 유입
+
+장애 상황:
+
+- `eventTime`이 `receivedAt`보다 허용 범위를 초과해 미래입니다.
+
+탐지 지표:
+
+- validation failure count
+- future eventTime DLT count
+- negative ingest_delay count
+
+영향:
+
+- Redis sliding window 계산이 왜곡될 수 있습니다.
+
+확인 명령:
+
+```bash
+docker logs fraud-kafka --tail 100
+```
+
+대응 방법:
+
+- 허용 가능한 clock skew인지 확인
+- 초과 시 validation failure 또는 DLT로 분류
+- 원본 producer의 clock 설정 확인
+
+복구 확인:
+
+- 음수 ingest_delay가 더 이상 발생하지 않습니다.
+- Future eventTime 이벤트가 DLT 또는 validation failure로 분류됩니다.
+
+재발 방지:
+
+- producer clock skew 모니터링
+- eventTime validation test 추가
