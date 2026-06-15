@@ -65,3 +65,24 @@ API Server는 거래 이벤트를 검증하고 Kafka에 발행한 뒤 빠르게 
 2. `fraud-detection-service`
 3. `admin-service`
 4. `auth-service`
+
+## 8. 패키지 경계
+
+`app-api`는 Controller -> Service -> Producer 흐름을 기준으로 패키지를 나눕니다.
+
+- `transaction`: 거래 이벤트 접수 API
+- `admin`: DLQ, 탐지 결과 운영 조회 API
+- `kafka`: Kafka producer 설정과 발행 어댑터
+- `support.exception`: API 예외 처리
+- `support.logging`: traceId, eventId 로깅 지원
+
+`app-consumer`는 Listener -> Application -> Rule/Repository 흐름을 기준으로 패키지를 나눕니다.
+
+- `kafka`: Kafka listener, consumer 설정, error handler
+- `application`: 탐지 use case와 결과 저장 orchestration
+- `rule`: FraudRule, AmountRule, VelocityRule, NewDeviceRule
+- `redis`: 사용자별 최근 거래 상태 저장소
+- `persistence`: FraudResult, EventProcessingLog, DLQ entity
+- `metrics`: Consumer 처리 지연과 탐지 지표
+- `support.exception`: Consumer 예외 처리
+- `support.logging`: topic, partition, offset 로깅 지원

@@ -16,15 +16,18 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 ### transaction_event_receipts
 
 - `event_id`: 거래 이벤트 ID
+- `schema_version`: 이벤트 스키마 버전
 - `user_id`: 사용자 ID
 - `account_id`: 계좌 ID
+- `event_type`: 거래 유형
 - `amount`: 거래 금액
+- `currency`: 통화
 - `merchant_id`: 가맹점 ID
 - `device_id`: 기기 ID
 - `location`: 거래 위치
 - `event_time`: 거래 발생 시각
-- `trace_id`: 요청 추적 ID
 - `received_at`: API 접수 시각
+- `trace_id`: 요청 추적 ID
 
 ### fraud_results
 
@@ -63,3 +66,28 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 ## 3. 중복 방어 기준
 
 `fraud_results.event_id`에 unique constraint를 둡니다. 재처리로 같은 이벤트가 다시 들어와도 중복 탐지 결과를 만들지 않습니다.
+
+추가 unique constraint:
+
+- `event_processing_logs(topic, partition_no, offset_no)`
+- `dlq_events(event_id, topic)`
+
+## 4. 시간 기준
+
+- `eventTime`: 실제 거래 발생 시각
+- `receivedAt`: API 서버가 이벤트를 받은 시각
+- `detectedAt`: Consumer가 이상거래 탐지를 완료한 시각
+
+측정 기준:
+
+- `ingest_delay = receivedAt - eventTime`
+- `detection_latency = detectedAt - receivedAt`
+- `end_to_end_latency = detectedAt - eventTime`
+
+## 5. Outbox 결정
+
+초기 구현에서는 API Server가 Kafka 발행 성공 이후 `ACCEPTED`를 반환합니다. 별도 transaction outbox는 구현하지 않습니다.
+
+이유는 이 프로젝트의 핵심 범위가 API 접수 정합성보다 Consumer 처리 지연, 재처리, 장애 복구 검증이기 때문입니다.
+
+향후 API 접수 기록과 Kafka 발행 원자성이 필요해지면 `outbox_events` 테이블과 outbox publisher를 추가합니다.

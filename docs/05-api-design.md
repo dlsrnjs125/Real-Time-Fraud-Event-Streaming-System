@@ -12,7 +12,9 @@ Request:
 {
   "userId": "user-1001",
   "accountId": "acc-3001",
+  "eventType": "PAYMENT",
   "amount": 1500000,
+  "currency": "KRW",
   "merchantId": "merchant-777",
   "deviceId": "device-abc",
   "location": "KR",
@@ -51,3 +53,7 @@ DLQ에 쌓인 실패 이벤트를 조회합니다.
 ## 5. 운영 조회
 
 향후 탐지 결과, 처리 지연, rule 매칭 결과, degraded mode 발생 여부를 조회하는 API를 추가합니다.
+
+초기에는 `app-api`가 운영자 조회를 위해 PostgreSQL read-only 접근을 가질 수 있습니다. 한 달 범위의 초기 구현에서는 이 방식이 단순합니다.
+
+다만 Consumer 소유 데이터 처리 경계를 더 엄격하게 유지해야 하는 단계가 오면, `app-api`는 reprocess command topic에 명령을 발행하고 `app-consumer`가 이를 소비해 재처리하는 구조를 검토합니다.
