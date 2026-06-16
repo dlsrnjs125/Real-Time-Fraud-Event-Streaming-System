@@ -15,6 +15,8 @@
 
 초기 스캐폴딩에서는 두 Spring Boot 애플리케이션을 별도 모듈로 둡니다.
 
+Phase 1 실행 검증에서는 `app-api`와 `app-consumer`가 각각 별도 Spring Boot 실행 단위로 기동되고, 서로 다른 포트의 Actuator health endpoint로 상태를 확인할 수 있는지 먼저 검증합니다.
+
 ## 측정 또는 재현
 
 API p95 latency와 Consumer processing latency를 별도로 수집합니다.

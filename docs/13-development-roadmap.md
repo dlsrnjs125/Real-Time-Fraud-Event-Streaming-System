@@ -4,8 +4,8 @@
 
 | Phase | Status | 현재 상태 | 주요 산출물 | 다음 작업 |
 |---:|---|---|---|---|
-| Phase 0 | In Progress | 초기 기획/설계와 스캐폴딩 작성 중 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Gradle Wrapper 추가 후 build/test 검증 |
-| Phase 1 | Not Started | 로컬 인프라 실행 검증 전 | Docker Compose, topic script 초안 | Kafka/PostgreSQL/Redis/Prometheus/Grafana health 확인 |
+| Phase 0 | Done | 초기 기획/설계와 스캐폴딩 작성 완료 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Phase 1 검증 결과 기준으로 기능 구현 준비 |
+| Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | 거래 이벤트 스키마와 Kafka Producer 구현 |
 | Phase 2 | Not Started | 이벤트 스키마 초안만 작성 | app-common event records | 거래 이벤트 접수 API와 Kafka producer 구현 |
 | Phase 3 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
 | Phase 4 | Not Started | Rule Engine 미구현 | 설계 문서 | AmountRule, VelocityRule, NewDeviceRule 구현 |
@@ -36,15 +36,66 @@ Status 기준:
 - docker compose config 통과
 - create-topics.sh 실행 가능
 
-### 현재 제한
+### 결과
 
-로컬에 Gradle CLI와 Gradle Wrapper가 없으면 `./gradlew build` 검증을 실행할 수 없습니다. 다음 작업 단위에서 Gradle Wrapper를 추가하고 build/test gate를 고정합니다.
+Gradle Wrapper를 추가하고 `./gradlew clean build`, module test, Docker Compose config, topic script 실행, `app-api`/`app-consumer` Actuator health 검증까지 완료했습니다.
 
 ## Phase 1. Local Infrastructure Validation
 
 ### 목표
 
 Kafka, PostgreSQL, Redis, Prometheus, Grafana를 로컬에서 실행하고 health를 확인합니다.
+
+### Status
+
+Done
+
+### Completed
+
+- Gradle Wrapper 추가 및 multi-module build 검증
+- `app-common`, `app-api`, `app-consumer` module test task 검증
+- `app-api` 독립 실행 및 `/actuator/health` 확인
+- `app-consumer` 독립 실행 및 `/actuator/health` 확인
+- Docker Compose config와 서비스 기동 검증
+- Kafka topic 생성 스크립트 실행 및 topic 목록 확인
+- shell script syntax check와 smoke script 실행 검증
+- Prometheus scrape target `app-api`, `app-consumer` UP 확인
+
+### Commands
+
+```bash
+./gradlew clean build
+./gradlew :app-common:test :app-api:test :app-consumer:test
+docker compose -f infra/docker-compose.yml config --quiet
+docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml ps
+bash -n scripts/create-topics.sh scripts/reset-local-env.sh scripts/run-smoke-test.sh scripts/wait-for-kafka.sh
+./scripts/create-topics.sh
+./scripts/run-smoke-test.sh
+curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Gradle multi-module build | PASS | `./gradlew clean build` 성공 |
+| Module tests | PASS | 현재 test source는 `NO-SOURCE`이나 각 module task 성공 |
+| Docker Compose config | PASS | `infra/docker-compose.yml` config 검증 성공 |
+| Docker Compose services | PASS | Kafka, Kafka UI, PostgreSQL, Redis, Prometheus, Grafana 기동 확인 |
+| Kafka topic script | PASS | 설계 topic 5개 생성 확인 |
+| Script syntax | PASS | `scripts/*.sh` 주요 script syntax check 성공 |
+| app-api health | PASS | `{"status":"UP"}` |
+| app-consumer health | PASS | `{"status":"UP"}` |
+| Prometheus targets | PASS | `app-api`, `app-consumer` target `up` |
+
+### Notes
+
+- 기존 Docker Compose의 Kafka image tag와 Kafka CLI 경로가 실제 로컬 실행 환경과 맞지 않아 수정했습니다.
+- Kafka UI는 Docker network 내부에서 `kafka:29092`를 사용하고, host에서 실행하는 Spring Boot 앱은 `localhost:9092`를 사용합니다.
+- `app-consumer`는 worker 성격이지만 Phase 1 health endpoint 검증을 위해 embedded web server를 띄우도록 `spring-boot-starter-web`을 추가했습니다.
+- 실제 transaction event API, Kafka producer, Kafka listener, rule engine, Redis sliding window, DLQ API는 구현하지 않았습니다.
 
 ### 완료 기준
 
