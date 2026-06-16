@@ -96,7 +96,7 @@ curl http://localhost:8081/actuator/health
 - [09. Load Test Plan](docs/09-load-test-plan.md)
 - [10. Failure Scenarios](docs/10-failure-scenarios.md)
 - [11. Troubleshooting Log](docs/11-troubleshooting-log.md)
-- [12. AI Review](docs/12-ai-review.md)
+- [12. Review](docs/12-review.md)
 - [13. Development Roadmap](docs/13-development-roadmap.md)
 - [14. Security and Privacy](docs/14-security-and-privacy.md)
 - [15. SLO and Operational Readiness](docs/15-slo-and-operational-readiness.md)
@@ -106,4 +106,4 @@ curl http://localhost:8081/actuator/health
 
 ## 현재 구현 범위
 
-현재는 초기 기획과 설계 이후, Gradle multi-module 빌드와 로컬 Docker Compose 인프라, `app-api`/`app-consumer` Actuator health 실행 검증을 완료한 단계입니다. 실제 거래 이벤트 API, Kafka Producer/Consumer 비즈니스 로직, Rule Engine은 다음 단계에서 구현합니다.
+현재는 초기 기획과 설계 이후, Gradle multi-module 빌드와 로컬 Docker Compose 인프라, `app-api`/`app-consumer` Actuator health 실행 검증을 완료한 단계입니다. 다음 단계는 API 계약, DTO, validation, OpenAPI 기준을 먼저 확정한 뒤 거래 이벤트 접수 API와 Kafka Producer를 구현하는 것입니다. 실제 Consumer 비즈니스 로직과 Rule Engine은 이후 Phase에서 구현합니다.

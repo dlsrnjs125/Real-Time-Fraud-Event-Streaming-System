@@ -1,4 +1,4 @@
-# AI Review
+# Review
 
 ## 1. 검토 목적
 
@@ -32,9 +32,9 @@
 9. `receivedAt`, `detectedAt` 기준으로 지연 시간을 계산할 수 있는가?
 10. 로그에 민감 식별자가 원문 그대로 남지 않는가?
 
-## Phase 1 AI Review
+## Phase 1 Review
 
-### AI/Codex가 제안한 내용
+### 제안 또는 변경한 내용
 
 - Gradle Wrapper를 추가해 로컬 Gradle CLI 유무와 무관하게 build/test gate를 실행하도록 했습니다.
 - `settings.gradle`의 repository 중앙 관리 정책과 충돌하는 root `build.gradle` repository 선언을 제거했습니다.
@@ -68,3 +68,38 @@
 - `app-api` `/actuator/health` 확인
 - `app-consumer` `/actuator/health` 확인
 - Prometheus `app-api`, `app-consumer` target `up` 확인
+
+## API/Development Planning Review
+
+### 제안 또는 변경한 내용
+
+- `docs/05-api-design.md`를 API 계약 중심으로 확장했습니다.
+- 거래 이벤트 접수 API 응답에 `receivedAt`을 포함하도록 문서화했습니다.
+- 거래 이벤트 접수 상태 조회, FraudResult 목록/상세 조회, FraudRule 조회, DLQ 목록/재처리/폐기, ProcessingLog 조회, 운영 요약 API 계약을 추가했습니다.
+- Admin API는 초기에는 local/development-only이며, raw DLQ payload와 민감 식별자를 기본 응답에 노출하지 않는 원칙을 명시했습니다.
+- `docs/13-development-roadmap.md`를 API Contract, Transaction Intake, Consumer Log, Basic FraudResult, Rule Engine, Redis, DLT, Observability, Load/Failure Test 순서로 세분화했습니다.
+- `transaction_event_receipts`를 Phase 3부터 저장하되 Outbox는 도입하지 않는 결정을 `docs/04-data-model.md`에 보강했습니다.
+
+### 검토한 기준
+
+- API 계약이 프로젝트 핵심 목표인 detection latency, Consumer Lag, degraded mode, DLQ 재처리를 설명할 수 있는가
+- API Server와 Consumer Worker 책임 경계가 유지되는가
+- FraudResult 상세 조회가 matched/skipped rule과 latency를 설명할 수 있는가
+- DLQ API가 raw payload를 직접 노출하지 않는가
+- 로드맵이 구현 순서와 테스트 기준을 함께 제시하는가
+- 완료되지 않은 기능을 구현 완료로 표현하지 않는가
+
+### 수정 또는 거절한 이유
+
+- Rule 설정 변경 API는 초기 구현 범위에서 제외하고 Phase 13+ 후보로 두었습니다.
+- 운영 요약 API는 Prometheus/Grafana의 대체가 아니라 local 검증 보조 수단으로 제한했습니다.
+- Outbox는 초기 목표보다 범위를 키우므로 도입하지 않았습니다. 대신 receipt 저장과 Kafka publish 실패 한계를 명시했습니다.
+- Redis 기반 VelocityRule은 Rule Engine 초기 Phase에서 분리해, Redis 없는 AmountRule과 RiskScore를 먼저 검증하도록 순서를 조정했습니다.
+
+### 최종 반영 내용
+
+- API 계약과 OpenAPI 기준 보강
+- 개발 Phase 세분화
+- Data Model의 receipt 저장/Outbox 한계 보강
+- Load Test Plan의 target API와 측정 항목 보강
+- SLO 문서의 API별 확인 기준 보강

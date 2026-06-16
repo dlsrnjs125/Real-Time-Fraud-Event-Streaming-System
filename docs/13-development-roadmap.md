@@ -4,17 +4,20 @@
 
 | Phase | Status | 현재 상태 | 주요 산출물 | 다음 작업 |
 |---:|---|---|---|---|
-| Phase 0 | Done | 초기 기획/설계와 스캐폴딩 작성 완료 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Phase 1 검증 결과 기준으로 기능 구현 준비 |
-| Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | 거래 이벤트 스키마와 Kafka Producer 구현 |
-| Phase 2 | Not Started | 이벤트 스키마 초안만 작성 | app-common event records | 거래 이벤트 접수 API와 Kafka producer 구현 |
-| Phase 3 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
-| Phase 4 | Not Started | Rule Engine 미구현 | 설계 문서 | AmountRule, VelocityRule, NewDeviceRule 구현 |
-| Phase 5 | Not Started | Redis sliding window 미구현 | Redis 설계 문서 | ZSET 기반 velocity repository 구현 |
-| Phase 6 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리 흐름 구현 |
-| Phase 7 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
-| Phase 8 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
-| Phase 9 | Not Started | 결과 문서 템플릿 준비 | troubleshooting/failure docs | 측정 결과와 설계 변경 기록 |
-| Phase 10+ | Not Started | 운영/보안 확장 후보 정리 | security, SLO, DevOps, runbook docs | CI/CD, 인증/인가, alert hardening |
+| Phase 0 | Done | 초기 기획/설계와 스캐폴딩 작성 완료 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Phase 1 검증 |
+| Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | API 계약과 DTO 확정 |
+| Phase 2 | Not Started | API 계약 보강 완료, 코드 미구현 | `docs/05-api-design.md` | DTO, validation, OpenAPI 구현 |
+| Phase 3 | Not Started | 이벤트 스키마 초안만 작성 | app-common event records | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 |
+| Phase 4 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
+| Phase 5 | Not Started | FraudResult 저장 미구현 | Data model/API contract | 기본 LOW FraudResult 저장과 조회 API 구현 |
+| Phase 6 | Not Started | Redis 없는 rule engine 미구현 | Fraud strategy docs | AmountRule, RiskScore, rule result detail 구현 |
+| Phase 7 | Not Started | Redis sliding window 미구현 | Redis 설계 문서 | VelocityRule, Redis degraded mode 구현 |
+| Phase 8 | Not Started | context rule 미구현 | Fraud strategy docs | NewDevice/Location rule 후보 구현 또는 범위 조정 |
+| Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
+| Phase 10 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
+| Phase 11 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
+| Phase 12 | Not Started | 결과 문서 템플릿 준비 | troubleshooting/failure docs | 측정 결과와 설계 변경 기록 |
+| Phase 13+ | Not Started | 운영/보안 확장 후보 정리 | security, SLO, DevOps, runbook docs | CI/CD, 인증/인가, alert hardening |
 
 Status 기준:
 
@@ -97,128 +100,290 @@ curl http://localhost:8081/actuator/health
 - `app-consumer`는 worker 성격이지만 Phase 1 health endpoint 검증을 위해 embedded web server를 띄우도록 `spring-boot-starter-web`을 추가했습니다.
 - 실제 transaction event API, Kafka producer, Kafka listener, rule engine, Redis sliding window, DLQ API는 구현하지 않았습니다.
 
-### 완료 기준
-
-- Kafka UI 접속 가능
-- PostgreSQL 연결 가능
-- Redis ping 성공
-- Prometheus target UP
-- Grafana 접속 가능
-
-## Phase 2. Event Schema and Producer
+## Phase 2. API Contract and Event Schema
 
 ### 목표
 
-거래 이벤트 요청을 받아 `transaction-events` topic으로 발행합니다.
+기능 구현 전에 API request/response, validation, error response, OpenAPI 기준, 공통 event message 계약을 확정합니다.
+
+### 범위
+
+- `TransactionEventRequest`
+- `TransactionEventAcceptedResponse`
+- `TransactionEventReceiptResponse`
+- `ErrorResponse`
+- `FraudResultSummaryResponse`
+- `FraudResultDetailResponse`
+- `DlqEventSummaryResponse`
+- `ProcessingLogResponse`
+- `TransactionEventMessage`
+- OpenAPI/Swagger 설정
+- `traceId`, `eventId`, `schemaVersion`, `receivedAt` 정책
 
 ### 완료 기준
 
-- `POST /api/v1/transactions/events` 구현
-- `userId`가 Kafka key로 사용됨
-- `eventId`, `traceId`, `schemaVersion`, `receivedAt`이 message에 포함됨
-- k6 normal-load에서 Kafka publish 성공률 측정 가능
+- Swagger UI 또는 OpenAPI JSON에서 API 계약 확인 가능
+- request validation 테스트 작성
+- error response 테스트 작성
+- `docs/05-api-design.md`와 DTO 필드 일치
+- `app-common`에는 공유 event schema와 enum만 포함
 
-## Phase 3. Consumer Processing Log
+### 범위 제외
+
+- 실제 Kafka publish
+- Consumer processing
+- Fraud rule execution
+- DLQ reprocessing 동작
+
+## Phase 3. Transaction Event Intake and Kafka Producer
+
+### 목표
+
+거래 이벤트 요청을 받아 접수 기록을 남기고 `transaction-events` topic으로 발행합니다.
+
+### 범위
+
+- `POST /api/v1/transactions/events`
+- `GET /api/v1/transactions/events/{eventId}`
+- `receivedAt` 생성
+- `schemaVersion` 포함
+- `eventId` 생성 정책
+- `transaction_event_receipts` 저장
+- Kafka key = `userId`
+- Kafka publish success/failure metric foundation
+- Kafka publish 실패 시 503 응답
+
+### 완료 기준
+
+- API 호출 시 Kafka 메시지 발행 확인
+- `transaction_event_receipts` 저장 확인
+- Kafka record key가 `userId`인지 확인
+- message에 `eventId`, `traceId`, `schemaVersion`, `eventTime`, `receivedAt` 포함
+- validation 실패 시 Kafka publish가 발생하지 않음
+- Kafka publish 실패 정책과 Outbox 미적용 한계가 문서에 남아 있음
+
+## Phase 4. Consumer Manual Ack and Processing Log
 
 ### 목표
 
 Consumer가 `transaction-events`를 소비하고 처리 로그를 PostgreSQL에 저장합니다.
 
-### 완료 기준
+### 범위
 
+- Kafka listener
 - `enable-auto-commit=false`
-- 처리 성공 후 manual ack
-- EventProcessingLog 저장
+- manual ack
+- `event_processing_logs` 저장
+- `event_processing_logs(topic, partition_no, offset_no)` unique constraint
+- 처리 성공 후 ack
+- 처리 실패 시 ack하지 않는 기본 정책
+- `GET /api/v1/admin/events/{eventId}/processing-log`
+
+### 완료 기준
+
+- 처리 성공 후 manual ack 확인
 - Consumer 재시작 후 미처리 이벤트 재소비 확인
+- processing log 조회 API로 topic/partition/offset/status 확인
+- 중복 offset 처리 시 duplicate log가 생성되지 않음
 
-## Phase 4. Fraud Rule Engine
+## Phase 5. Basic FraudResult Persistence and Query
 
 ### 목표
 
-고액 거래, 반복 거래, 새 기기 거래 rule을 구현합니다.
+Rule Engine 전에 Consumer 처리 결과 저장 골격과 조회 API를 먼저 닫습니다.
+
+### 범위
+
+- 기본 `LOW` FraudResult 저장
+- `fraud_results.event_id` unique constraint
+- duplicate `eventId` skip 처리
+- `GET /api/v1/admin/fraud-results`
+- `GET /api/v1/admin/fraud-results/{eventId}`
+- `detectedAt`, `detectionLatencyMs`, `endToEndLatencyMs` 계산 기초
 
 ### 완료 기준
 
-- AmountRule
+- Consumer가 event 소비 후 FraudResult를 저장
+- 같은 `eventId` 재소비 시 중복 FraudResult가 생성되지 않음
+- FraudResult 목록/상세 API에서 결과 조회 가능
+- duplicate skip count metric foundation 추가
+
+## Phase 6. Rule Engine without Redis
+
+### 목표
+
+Redis에 의존하지 않는 rule부터 구현해 탐지 결과 설명 가능성을 확보합니다.
+
+### 범위
+
+- `FraudRule` interface
+- `AmountRule`
+- `RiskScoreService`
+- `RiskLevel` 결정
+- `matchedRuleCodes`
+- `ruleResults`
+- `HIGH_AMOUNT` rule result reason
+
+### 완료 기준
+
+- 고액 거래가 rule에 매칭됨
+- risk score와 risk level이 deterministic하게 계산됨
+- FraudResult 상세 API에서 `matchedRuleCodes`와 `ruleResults` 확인 가능
+- 순수 rule logic unit test 작성
+
+## Phase 7. Redis Sliding Window Rule
+
+### 목표
+
+Redis ZSET 기반 사용자별 최근 거래 window를 구현하고 Redis 장애 시 degraded mode를 기록합니다.
+
+### 범위
+
+- `fraud:velocity:{userId}` ZSET
+- score = `eventTime` epoch millis
+- value = `eventId`
+- window 밖 이벤트 cleanup
 - VelocityRule
-- NewDeviceRule
-- FraudResult 저장
-- `eventId` unique constraint로 중복 결과 방지
-
-## Phase 5. Redis Sliding Window
-
-### 목표
-
-Redis ZSET 기반 사용자별 최근 거래 window를 구현합니다.
+- Redis command latency metric
+- Redis unavailable handling
+- `skippedRuleCodes`
+- `degraded=true` FraudResult
 
 ### 완료 기준
 
-- userId별 ZSET 저장
-- window 밖 이벤트 제거
-- Redis 장애 시 degraded mode 기록
+- window 내 거래 횟수 기준으로 VelocityRule 매칭
+- Redis 장애 시 Redis 의존 rule이 skipped 처리됨
+- Redis 장애 중에도 Redis 비의존 rule은 실행됨
+- FraudResult 상세 API에서 `degraded`, `skippedRuleCodes` 확인 가능
+- Redis sliding window unit/integration test 작성
 
-## Phase 6. Retry and DLT
-
-### 목표
-
-Consumer 처리 실패를 retry와 DLT로 분리합니다.
-
-### 완료 기준
-
-- 일시 실패는 retry
-- 영구 실패는 DLT
-- DLT 이벤트 조회
-- DLT 재처리 시 중복 FraudResult 생성 없음
-
-## Phase 7. Observability
+## Phase 8. Context Rules
 
 ### 목표
 
-API latency, Consumer processing latency, detection latency, DLQ count, Redis degraded count를 수집합니다.
+기기/위치 기반 rule을 추가하거나, 초기 범위에서 제외할 경우 그 이유와 후속 작업을 명확히 기록합니다.
+
+### 범위 후보
+
+- `NEW_DEVICE`
+- `LOCATION_CHANGE`
+- 최근 device/location context 저장 정책
+- context 데이터 부재 시 fallback 정책
+- 오탐 가능성 문서화
 
 ### 완료 기준
 
-- `/actuator/prometheus` 노출
-- custom metric 확인
-- Grafana dashboard 초안 생성
+- 구현 시 rule result와 risk score 반영
+- 제외 시 `docs/16-fraud-detection-strategy.md`에 제외 이유와 다음 Phase 조건 기록
 
-## Phase 8. Load and Failure Test
+## Phase 9. Retry, DLT, and Reprocessing
 
 ### 목표
 
-정상 부하, 피크 부하, Consumer 장애, Redis 장애, hot partition을 재현합니다.
+Consumer 처리 실패를 retry와 DLT로 분리하고, DLQ 이벤트를 안전하게 조회/재처리/폐기합니다.
+
+### 범위
+
+- retry topic handling
+- DLT handling
+- `dlq_events` 저장
+- `GET /api/v1/admin/dlq-events`
+- `POST /api/v1/admin/dlq-events/{dlqId}/reprocess`
+- `PATCH /api/v1/admin/dlq-events/{dlqId}/discard`
+- `reprocessing_history`
+- 원본 `eventId` 보존
+- 중복 FraudResult 방어
 
 ### 완료 기준
 
-- p50/p95/p99 기록
+- invalid payload 또는 unsupported schemaVersion이 DLT로 이동
+- DLQ metadata 조회 가능
+- raw payload가 기본 API 응답에 노출되지 않음
+- 재처리 이력이 저장됨
+- DLT 재처리 후에도 중복 FraudResult가 생성되지 않음
+
+## Phase 10. Observability
+
+### 목표
+
+API latency, Kafka publish result, Consumer processing latency, detection latency, Consumer Lag, DLQ count, Redis degraded count를 수집합니다.
+
+### 범위
+
+- `/actuator/prometheus`
+- API request count/error/latency
+- Kafka publish success/failure
+- consumed event count
+- consumer processing latency
+- fraud detection latency
+- Consumer Lag
+- retry count
+- DLT count
+- duplicate skip count
+- Redis degraded count
+- rule matched/skipped count
+- Grafana dashboard 초안
+- `GET /api/v1/admin/operations/summary`
+
+### 완료 기준
+
+- Prometheus에서 custom metric 확인
+- Grafana에서 API/Consumer/Redis/DLQ 관점 dashboard 확인
+- 운영 요약 API로 DB 기반 count 확인
+- 로그에 `traceId`, `eventId`, topic/partition/offset 포함
+- 민감 식별자 원문 logging 없음
+
+## Phase 11. Load and Failure Test
+
+### 목표
+
+정상 부하, 피크 부하, Consumer 장애, Redis 장애, hot partition, invalid schemaVersion을 재현합니다.
+
+### 범위
+
+- normal load
+- peak load
+- consumer down/restart
+- redis down
+- hot partition
+- invalid schemaVersion
+- future eventTime validation
+
+### 완료 기준
+
+- p50/p95/p99 API latency 기록
 - Consumer Lag 최대값 기록
 - Lag 회복 시간 기록
+- fraud detection latency 기록
 - DLQ count 기록
 - Redis degraded count 기록
+- duplicate result count 기록
+- 테스트 조건, VU, duration, event count, local environment notes 기록
 
-## Phase 9. Result Documentation
+## Phase 12. Result Documentation and Hardening
 
 ### 목표
 
-초기 설계와 실제 구현 차이를 문서화합니다.
+초기 설계와 실제 구현 차이, 장애 재현 결과, 알려진 한계를 문서화합니다.
+
+### 범위
+
+- `docs/10-failure-scenarios.md`
+- `docs/11-troubleshooting-log.md`
+- `docs/12-review.md`
+- `docs/13-development-roadmap.md`
+- README 구현 상태
+- benchmark 결과 표
+- known limitations
 
 ### 완료 기준
 
-- troubleshooting-log 업데이트
-- load-test 결과 표 작성
-- failure-scenario 결과 작성
-- README 정리
+- 실행한 검증 명령과 결과가 남아 있음
+- 실패한 검증의 원인과 후속 작업이 남아 있음
+- README/docs가 실제 구현 상태와 일치함
+- 완료되지 않은 기능을 완료로 표현하지 않음
 
-## Minimum Verification Gate
-
-다음 PR부터 최소 검증 기준으로 사용합니다.
-
-- `./gradlew test`
-- `docker compose -f infra/docker-compose.yml config`
-- `bash -n scripts/*.sh`
-- markdown link check
-
-## Phase 10+. Hardening
+## Phase 13+. Operational and Security Hardening
 
 ### 목표
 
@@ -233,3 +398,16 @@ API latency, Consumer processing latency, detection latency, DLQ count, Redis de
 - 운영 환경용 Kafka listener 분리
 - 보안/개인정보 점검
 - SLO 기반 dashboard와 alert 정리
+- optional blue-green simulation
+
+## Minimum Verification Gate
+
+다음 PR부터 최소 검증 기준으로 사용합니다.
+
+```bash
+./gradlew test
+docker compose -f infra/docker-compose.yml config
+bash -n scripts/*.sh
+```
+
+문서만 변경한 경우에는 markdown 구조와 링크, Phase 상태 정합성을 확인합니다.
