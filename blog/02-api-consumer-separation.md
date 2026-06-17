@@ -17,6 +17,8 @@
 
 Phase 1 실행 검증에서는 `app-api`와 `app-consumer`가 각각 별도 Spring Boot 실행 단위로 기동되고, 서로 다른 포트의 Actuator health endpoint로 상태를 확인할 수 있는지 먼저 검증합니다.
 
+Phase 2에서는 실제 Kafka publish를 구현하기 전에 API DTO, validation, ErrorResponse, OpenAPI 계약을 먼저 고정합니다. 이렇게 해야 Phase 3에서 Producer를 붙일 때 API 계약 변경과 Kafka 처리 구현 변경을 분리해서 검토할 수 있습니다.
+
 ## 측정 또는 재현
 
 API p95 latency와 Consumer processing latency를 별도로 수집합니다.

@@ -370,3 +370,37 @@ Phase 1의 health endpoint 검증을 위해 `app-consumer`에 `spring-boot-start
 ### 남은 한계
 
 실제 Consumer processing, manual ack, EventProcessingLog 저장은 다음 Phase 이후에 구현해야 합니다.
+
+---
+
+## Phase 2. app-common test에서 AssertJ 의존성 누락
+
+### 초기 설계
+
+`app-common`은 공유 event schema와 enum만 포함하고, 테스트에서는 AssertJ assertion을 사용했습니다.
+
+### 발생한 문제
+
+`./gradlew test` 실행 시 `app-common` test compile 단계에서 AssertJ package를 찾지 못했습니다.
+
+### 재현 방법
+
+```bash
+./gradlew test
+```
+
+### 원인 분석
+
+`app-common`은 Spring Boot starter test를 사용하지 않고 `org.junit.jupiter:junit-jupiter`만 test dependency로 둡니다. 따라서 AssertJ는 test classpath에 포함되지 않았습니다.
+
+### 변경한 설계
+
+불필요한 test dependency를 추가하지 않고, `TransactionEventMessageTest`를 JUnit 기본 assertion으로 수정했습니다.
+
+### 개선 결과
+
+`./gradlew test`가 통과했습니다.
+
+### 남은 한계
+
+현재 `app-common` test는 event schema의 기본 필드 계약만 확인합니다. schema compatibility test는 Kafka producer/consumer 구현 이후 확장합니다.

@@ -103,3 +103,39 @@
 - Data Model의 receipt 저장/Outbox 한계 보강
 - Load Test Plan의 target API와 측정 항목 보강
 - SLO 문서의 API별 확인 기준 보강
+
+## Phase 2 Review
+
+### 제안 또는 변경한 내용
+
+- `app-common`에 `TransactionEventMessage`, `FraudRiskEventMessage`, `FraudAlertEventMessage`와 enum 기반 계약을 정리했습니다.
+- `app-api`에 transaction/admin request-response DTO와 공통 `ErrorResponse`를 추가했습니다.
+- `POST /api/v1/transactions/events` validation과 Phase 2 contract skeleton controller를 추가했습니다.
+- springdoc OpenAPI 설정을 추가해 `/swagger-ui/index.html`과 `/v3/api-docs`에서 API 계약을 확인할 수 있게 했습니다.
+- Java/Spring 반복 검증을 위한 루트 `Makefile`을 추가했습니다.
+
+### 검토한 기준
+
+- `app-common`이 `app-api` 또는 `app-consumer` 구현에 의존하지 않는가
+- `app-common`에 Controller, Repository, Kafka listener, Redis logic이 들어가지 않았는가
+- `TransactionEventRequest` validation 기준이 `docs/05-api-design.md`와 일치하는가
+- Controller skeleton이 실제 Kafka publish나 DB 저장을 수행하지 않는가
+- OpenAPI 설명에 Phase 2 contract-only 성격이 드러나는가
+- ErrorResponse가 raw payload나 민감 식별자를 포함하지 않는가
+- Makefile target이 실제 repository script와 일치하는가
+
+### 수정 또는 거절한 이유
+
+- Phase 2에서 실제 Kafka publish, PostgreSQL receipt persistence, FraudResult query, DLQ reprocessing은 구현하지 않았습니다.
+- `app-common` test에서 AssertJ dependency를 추가하지 않고 JUnit 기본 assertion으로 변경했습니다. 공유 모듈의 test dependency를 가볍게 유지하기 위한 결정입니다.
+- Fraud rule 설정 변경 API는 계속 Phase 13+ 후보로 유지했습니다.
+
+### 최종 반영 내용
+
+- app-common event schema와 enum 정리
+- app-api DTO, validation, ErrorResponse, ControllerAdvice 추가
+- Phase 2 contract-only controller skeleton 추가
+- OpenAPI 설정과 smoke test 추가
+- validation MVC test 추가
+- Makefile 추가
+- docs/05, docs/13, docs/17, docs/11 업데이트

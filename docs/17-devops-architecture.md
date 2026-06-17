@@ -123,3 +123,20 @@ Dashboard는 다음 4개로 분리합니다.
 - dependency vulnerability check
 
 Kafka, Redis, PostgreSQL을 포함한 통합 테스트는 Phase가 진행되면서 Testcontainers 또는 Docker Compose 기반 검증으로 확장합니다.
+
+## 11. Local Makefile
+
+Phase 2부터 루트 `Makefile`로 반복 검증 명령을 제공합니다.
+
+주요 target:
+
+- `make build`: 전체 Gradle clean build
+- `make test`: 전체 test
+- `make test-common`: `app-common` test
+- `make test-api`: `app-api` test
+- `make test-consumer`: `app-consumer` test
+- `make infra-config`: Docker Compose config 검증
+- `make scripts-check`: shell script syntax check
+- `make final-check`: build, Docker Compose config, script syntax check
+
+Makefile은 macOS/Linux 로컬 개발 기준입니다. Windows shell 대응은 초기 범위에서 제외합니다.

@@ -74,6 +74,19 @@ curl http://localhost:8080/actuator/health
 curl http://localhost:8081/actuator/health
 ```
 
+Local commands:
+
+```bash
+make build
+make test
+make infra-up
+make api
+make consumer
+make final-check
+```
+
+OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
+
 로컬 포트:
 
 - Kafka: `localhost:9092`
@@ -106,4 +119,4 @@ curl http://localhost:8081/actuator/health
 
 ## 현재 구현 범위
 
-현재는 초기 기획과 설계 이후, Gradle multi-module 빌드와 로컬 Docker Compose 인프라, `app-api`/`app-consumer` Actuator health 실행 검증을 완료한 단계입니다. 다음 단계는 API 계약, DTO, validation, OpenAPI 기준을 먼저 확정한 뒤 거래 이벤트 접수 API와 Kafka Producer를 구현하는 것입니다. 실제 Consumer 비즈니스 로직과 Rule Engine은 이후 Phase에서 구현합니다.
+현재는 초기 기획과 설계, 로컬 scaffold 검증 이후 Phase 2에서 API 계약, DTO, validation, OpenAPI 기반을 정리하는 단계입니다. 실제 Kafka Producer, Consumer 비즈니스 로직, Rule Engine은 이후 Phase에서 구현합니다.
