@@ -508,6 +508,10 @@ make topics
 make api
 ```
 
+Consumer startup prerequisite:
+
+app-consumer는 runtime Flyway를 실행하지 않으므로, 로컬에서 빈 DB를 사용할 때는 app-api를 먼저 실행하거나 migration owner를 먼저 실행해 schema를 생성해야 합니다. schema가 없는 상태에서 app-consumer를 먼저 실행하면 JPA validate 단계에서 실패하는 것이 정상입니다.
+
 Consumer를 중지한 상태에서 `POST /api/v1/transactions/events`로 이벤트를 발행한 뒤 Consumer를 시작합니다.
 
 ```bash

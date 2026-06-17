@@ -405,6 +405,8 @@ Evidence:
 - Phase 4에서는 FraudResult를 저장하지 않습니다.
 - Retry/DLT는 Phase 9 범위입니다.
 - Consumer Lag과 custom metric은 Phase 10 범위입니다.
+- Phase 4에서는 eventId 기준 전체 processing log를 조회합니다. Retry/DLT와 재처리 API가 추가되면 `limit`, `page`, `processedAt` range 조건을 추가합니다.
+- Phase 4에서는 app-consumer write model과 app-api read model을 분리하기 위해 entity를 모듈별로 유지했습니다. status enum과 column 정의 drift를 막기 위해 후속 Phase에서 shared enum 또는 projection 기반 조회를 검토합니다.
 - 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 ack 가능하게 처리합니다. 이 정책은 processing log 기준이며, eventId 기준 business idempotency는 Phase 5 이후에서 구현합니다.
 - `FAILED` processing status는 Phase 4에서는 예약 상태입니다. DB 자체가 저장 불가능한 실패는 ack하지 않고 재소비 가능성을 열어두며, 저장 가능한 business failure/DLT 기록은 Phase 9에서 구체화합니다.
 
