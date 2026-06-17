@@ -538,3 +538,81 @@ Application clock은 server default timezone을 사용했고, Entity lifecycle t
 ### 남은 한계
 
 Entity lifecycle timestamp는 아직 JPA callback 기준입니다. JPA auditing 또는 service clock 주입 방식으로 timestamp 기준을 통일하는 작업은 후속 개선 대상으로 둡니다.
+
+---
+
+## Phase 4-A. Consumer 구현 전 Minimum CI Gate 선반영
+
+### 문제 상황
+
+Phase 3까지는 로컬에서 `make test`, `make build`, `make final-check`를 직접 실행하며 검증했습니다. 하지만 Phase 4부터 Kafka Consumer, manual ack, processing log, 이후 Redis Sliding Window와 Retry/DLT가 추가될 예정이라 로컬 검증만으로는 회귀 버그를 안정적으로 막기 어렵다고 판단했습니다.
+
+### 원인
+
+Consumer 작업은 offset commit 시점, DB 저장 성공 여부, 중복 offset 처리처럼 작은 변경에도 동작이 달라질 수 있는 영역입니다. 자동화된 CI Gate가 없으면 main 브랜치에 깨진 코드가 들어갈 위험이 커집니다.
+
+### 판단
+
+Consumer 구현 전에 GitHub Actions 기반 최소 CI Gate를 먼저 추가했습니다. push와 pull request 시점에 `make ci-check`를 자동 실행하여 기본 회귀 검증을 자동화했습니다.
+
+### 선택한 방식
+
+초기 CI는 Java 17, Gradle cache, `./gradlew test`, `./gradlew assemble` 중심의 `make ci-check`로 구성했습니다. `workflow_dispatch`로 수동 재검증을 허용하고, workflow 권한은 `contents: read`로 제한했습니다. Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 검증은 개발 속도와 안정성을 고려해 후속 Phase로 분리했습니다.
+
+### 트레이드오프
+
+초기 CI는 빠르고 안정적이지만 Kafka end-to-end 처리, Consumer Lag, Redis 장애, DLT 재처리까지 검증하지는 못합니다. 대신 후속 Phase에서 `ci-integration.yml` 또는 nightly workflow로 확장할 수 있도록 범위를 분리했습니다.
+
+### 검증 기준
+
+- push 시 GitHub Actions CI가 실행됩니다.
+- unit test와 artifact assembly가 통과해야 합니다.
+- CI 실패 시 main merge를 보류합니다.
+- 인프라 의존 검증은 로컬 `make infra-up`, `make api`, `make consumer`로 별도 수행합니다.
+
+## Phase 4. Consumer Manual Ack and Processing Log
+
+### 문제 상황
+
+Kafka Consumer에서 메시지를 처리했지만 offset commit 시점과 DB 저장 시점의 순서가 명확하지 않으면 processing log 누락 또는 중복 처리가 발생할 수 있습니다.
+
+### 원인
+
+auto commit을 사용하면 DB 저장 실패와 무관하게 offset이 commit될 수 있습니다. 반대로 DB 저장 성공 후 ack 직전에 Consumer가 죽으면 같은 offset이 재소비될 수 있습니다.
+
+### 판단
+
+Phase 4에서는 `enable-auto-commit=false`와 `AckMode.MANUAL_IMMEDIATE`를 사용하고, `event_processing_logs` 저장 성공 후 acknowledge를 수행합니다. 즉시 commit 의도를 코드에서 명확히 표현하기 위해 `MANUAL` 대신 `MANUAL_IMMEDIATE`를 선택했습니다.
+
+Consumer가 처음 생성된 group ID로 시작될 때 이미 topic에 쌓인 미처리 이벤트를 읽을 수 있도록 local 설정은 `auto-offset-reset=earliest`로 둡니다.
+
+### 대안
+
+- auto commit 사용
+- listener 진입 즉시 ack
+- DB 저장 성공 후 ack
+
+### 선택
+
+DB 저장 성공 후 ack
+
+### 트레이드오프
+
+DB 저장은 성공했지만 ack 직전에 Consumer가 죽으면 같은 offset이 재소비될 수 있습니다. 이를 `(topic, partition_no, offset_no)` unique constraint와 service의 duplicate skip 정책으로 방어합니다.
+
+Flyway migration은 `app-api`를 schema owner로 두고, app-consumer runtime은 Flyway를 실행하지 않고 JPA validate만 수행합니다. 같은 DB를 바라보는 두 애플리케이션이 각각 Flyway를 실행하면 checksum drift로 한쪽 서비스가 부팅 실패할 수 있기 때문입니다. app-consumer module test에서는 H2 검증을 위해 test resources에만 migration을 둡니다.
+
+### 검증
+
+- processing log 저장 성공 시 ack 호출 테스트
+- 이미 처리된 offset 재소비 시 ack 호출 테스트
+- 저장 실패 시 ack 미호출 테스트
+- 동일 offset 재처리 시 duplicate log가 생성되지 않는지 검증
+- 같은 eventId라도 offset이 다르면 별도 log가 생성되는지 검증
+- eventId 조회 시 `processedAt desc` 정렬 검증
+
+### 남은 한계
+
+- Retry/DLT는 Phase 9 범위입니다.
+- FraudResult 저장과 eventId 기준 idempotency는 Phase 5 이후 범위입니다.
+- `FAILED` processing status는 Phase 4에서는 예약 상태입니다. DB 자체가 실패 로그를 저장할 수 없는 경우에는 ack하지 않고 재소비 가능성을 열어두며, 저장 가능한 business failure와 DLT 기록은 Phase 9에서 구체화합니다.

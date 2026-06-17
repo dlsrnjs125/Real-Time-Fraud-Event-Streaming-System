@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:fraud-consumer-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: fraud-event-consumer
+      enable-auto-commit: false
+      auto-offset-reset: earliest

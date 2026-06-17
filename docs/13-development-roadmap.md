@@ -8,7 +8,7 @@
 | Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | API 계약과 DTO 확정 |
 | Phase 2 | Done | API 계약, DTO, validation, OpenAPI skeleton 구현 완료 | app-common event schema, app-api DTO/controller skeleton, Makefile | Phase 3 Kafka Producer 구현 |
 | Phase 3 | Done | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 완료 | transaction_event_receipts, Kafka producer, intake service tests | Phase 4 Consumer manual ack와 processing log 구현 |
-| Phase 4 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
+| Phase 4 | Done | Kafka Consumer manual ack와 processing log 저장/조회 구현 완료 | Kafka listener, event_processing_logs, processing log query API | 기본 LOW FraudResult 저장과 조회 API 구현 |
 | Phase 5 | Not Started | FraudResult 저장 미구현 | Data model/API contract | 기본 LOW FraudResult 저장과 조회 API 구현 |
 | Phase 6 | Not Started | Redis 없는 rule engine 미구현 | Fraud strategy docs | AmountRule, RiskScore, rule result detail 구현 |
 | Phase 7 | Not Started | Redis sliding window 미구현 | Redis 설계 문서 | VelocityRule, Redis degraded mode 구현 |
@@ -297,9 +297,38 @@ Evidence:
 
 ## Phase 4. Consumer Manual Ack and Processing Log
 
+### Phase 4-A. Minimum CI Gate
+
+Consumer 구현 전에 GitHub Actions 기반 최소 CI Gate를 먼저 추가했습니다.
+
+#### 배경
+
+Phase 4부터 Kafka Consumer, manual ack, processing log, 이후 Rule Engine과 Retry/DLT가 추가될 예정이므로 로컬 테스트만으로는 회귀 버그를 안정적으로 막기 어렵다고 판단했습니다.
+
+#### 구현
+
+- `.github/workflows/ci.yml` 추가
+- `workflow_dispatch` 수동 실행 지원
+- workflow 권한은 `contents: read`로 제한
+- push/pull request 시 `make ci-check` 실행
+- `make ci-check`는 `./gradlew test`와 `./gradlew assemble`을 실행해 test 중복 실행을 피함
+- Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 검증은 후속 Phase로 분리
+
+#### 선택 이유
+
+초기 CI는 빠르고 안정적인 test/assemble Gate로 구성하고, 무거운 E2E 검증은 기능 안정화 이후 별도 workflow로 확장하기로 했습니다.
+
+#### 한계
+
+현재 CI는 Kafka end-to-end consume, Redis 장애, DLT 재처리, k6 부하 테스트까지 검증하지 않습니다.
+
 ### 목표
 
 Consumer가 `transaction-events`를 소비하고 처리 로그를 PostgreSQL에 저장합니다.
+
+### Status
+
+Done
 
 ### 범위
 
@@ -318,6 +347,72 @@ Consumer가 `transaction-events`를 소비하고 처리 로그를 PostgreSQL에 
 - Consumer 재시작 후 미처리 이벤트 재소비 확인
 - processing log 조회 API로 topic/partition/offset/status 확인
 - 중복 offset 처리 시 duplicate log가 생성되지 않음
+
+### Completed
+
+- app-consumer Kafka listener 구현
+- `enable-auto-commit=false`, `AckMode.MANUAL_IMMEDIATE` 설정
+- `auto-offset-reset=earliest`로 Consumer 중지 중 발행된 미처리 이벤트 재소비 확인 가능
+- Consumer group ID를 `fraud-event-consumer`로 명시
+- `app-api`를 Flyway schema owner로 두고 app-consumer runtime은 `ddl-auto=validate`만 수행하도록 정리
+- app-consumer module test 전용 Flyway migration은 `src/test/resources`에 분리
+- `event_processing_logs(topic, partition_no, offset_no)` unique constraint 추가
+- `EventProcessingLogEntity`, repository, service 구현
+- DB processing log 저장 성공 후 acknowledge 수행
+- 처리 실패 시 ack하지 않고 exception을 전파하는 listener test 추가
+- 이미 처리된 offset 재소비 시 duplicate log를 만들지 않고 ack 가능한 정책 구현
+- 이미 처리된 offset 재소비 시에도 acknowledge하는 listener test 추가
+- 같은 eventId라도 offset이 다르면 별도 log를 저장하는 test 추가
+- eventId 조회 결과의 `processedAt desc` 정렬 test 추가
+- `GET /api/v1/admin/events/{eventId}/processing-log` 조회 API 구현
+- Consumer structured log에 `traceId`, `eventId`, `userId`, `topic`, `partition`, `offset` 포함
+
+### Commands
+
+```bash
+make ci-check
+make test
+make build
+make final-check
+./scripts/reset-local-env.sh
+make infra-up
+make topics
+make api
+make consumer
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Makefile ci-check | PASS | `./gradlew test`, `./gradlew assemble` 성공 |
+| Makefile test | PASS | `make test` 성공 |
+| Makefile build | PASS | `make build` 성공 |
+| Makefile final-check | PASS | build, Docker Compose config, script syntax check 성공 |
+| Manual API publish | PASS | Consumer 중지 상태에서 `evt-phase4-manual-001` 발행, `202 Accepted` |
+| Manual pre-consumer lookup | PASS | Consumer 시작 전 processing log 조회 결과 `logs: []` |
+| Manual consumer restart | PASS | Consumer 시작 후 `evt-phase4-manual-001` 소비, log에 `partition=4`, `offset=0`, `duplicateSkipped=false` 확인 |
+| Manual processing log lookup | PASS | `GET /api/v1/admin/events/evt-phase4-manual-001/processing-log` returned status `PROCESSED` |
+
+Evidence:
+
+- Local review record: `docs/12-review.md#phase-4-review`
+- Troubleshooting and decision notes: `docs/11-troubleshooting-log.md`
+- Runbook procedure: `docs/18-runbook.md#14-consumer-재시작-후-미처리-이벤트-재소비-확인`
+
+### Known Limitations
+
+- Phase 4에서는 FraudResult를 저장하지 않습니다.
+- Retry/DLT는 Phase 9 범위입니다.
+- Consumer Lag과 custom metric은 Phase 10 범위입니다.
+- Phase 4에서는 eventId 기준 전체 processing log를 조회합니다. Retry/DLT와 재처리 API가 추가되면 `limit`, `page`, `processedAt` range 조건을 추가합니다.
+- Phase 4에서는 app-consumer write model과 app-api read model을 분리하기 위해 entity를 모듈별로 유지했습니다. status enum과 column 정의 drift를 막기 위해 후속 Phase에서 shared enum 또는 projection 기반 조회를 검토합니다.
+- 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 ack 가능하게 처리합니다. 이 정책은 processing log 기준이며, eventId 기준 business idempotency는 Phase 5 이후에서 구현합니다.
+- `FAILED` processing status는 Phase 4에서는 예약 상태입니다. DB 자체가 저장 불가능한 실패는 ack하지 않고 재소비 가능성을 열어두며, 저장 가능한 business failure/DLT 기록은 Phase 9에서 구체화합니다.
+
+### Next
+
+- Phase 5에서 기본 `LOW` FraudResult 저장과 조회 API를 구현합니다.
 
 ## Phase 5. Basic FraudResult Persistence and Query
 

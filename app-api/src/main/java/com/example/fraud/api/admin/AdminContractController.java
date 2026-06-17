@@ -13,6 +13,7 @@ import com.example.fraud.api.admin.dto.FraudRuleResultResponse;
 import com.example.fraud.api.admin.dto.OperationSummaryResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
 import com.example.fraud.api.admin.dto.ProcessingLogResponse;
+import com.example.fraud.api.admin.processing.ProcessingLogQueryService;
 import com.example.fraud.api.support.exception.ErrorResponse;
 import com.example.fraud.api.support.logging.TraceIdResolver;
 import com.example.fraud.common.event.FraudRuleCode;
@@ -36,10 +37,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 
-@Tag(name = "Admin Contracts", description = "Phase 2 contract-only admin APIs")
+@Tag(name = "Admin APIs", description = "Admin query APIs for local development and verification")
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminContractController {
+
+    private final ProcessingLogQueryService processingLogQueryService;
+
+    public AdminContractController(ProcessingLogQueryService processingLogQueryService) {
+        this.processingLogQueryService = processingLogQueryService;
+    }
 
     @Operation(summary = "List fraud results", description = "Phase 2 empty stub. Actual query is implemented in Phase 5.")
     @GetMapping("/fraud-results")
@@ -145,10 +152,10 @@ public class AdminContractController {
         return new DlqDiscardResponse(dlqId, "DISCARDED", TraceIdResolver.resolve(servletRequest));
     }
 
-    @Operation(summary = "Get event processing log", description = "Phase 2 empty stub. Actual processing log query is implemented in Phase 4.")
+    @Operation(summary = "Get event processing log", description = "Looks up Consumer processing logs by eventId.")
     @GetMapping("/events/{eventId}/processing-log")
     public ProcessingLogResponse getProcessingLog(@PathVariable String eventId) {
-        return new ProcessingLogResponse(eventId, List.of());
+        return processingLogQueryService.getProcessingLog(eventId);
     }
 
     @Operation(summary = "Get operational summary", description = "Phase 2 zero-value stub. Actual metrics summary is implemented in Phase 10.")

@@ -486,3 +486,46 @@ docker logs fraud-kafka --tail 100
 
 - producer clock skew 모니터링
 - eventTime validation test 추가
+
+## 14. Consumer 재시작 후 미처리 이벤트 재소비 확인
+
+장애 상황:
+
+- Consumer가 중지된 동안 `transaction-events`에 이벤트가 쌓입니다.
+- Consumer 재시작 후 ack되지 않은 이벤트가 다시 소비되는지 확인해야 합니다.
+
+탐지 지표:
+
+- Kafka UI consumer group lag
+- `event_processing_logs` row count
+- app-consumer structured log의 `traceId`, `eventId`, `topic`, `partition`, `offset`
+
+확인 명령:
+
+```bash
+make infra-up
+make topics
+make api
+```
+
+Consumer startup prerequisite:
+
+app-consumer는 runtime Flyway를 실행하지 않으므로, 로컬에서 빈 DB를 사용할 때는 app-api를 먼저 실행하거나 migration owner를 먼저 실행해 schema를 생성해야 합니다. schema가 없는 상태에서 app-consumer를 먼저 실행하면 JPA validate 단계에서 실패하는 것이 정상입니다.
+
+Consumer를 중지한 상태에서 `POST /api/v1/transactions/events`로 이벤트를 발행한 뒤 Consumer를 시작합니다.
+
+```bash
+make consumer
+curl http://localhost:8080/api/v1/admin/events/{eventId}/processing-log
+```
+
+복구 확인:
+
+- app-consumer 로그에 해당 `eventId`, `traceId`, `topic`, `partition`, `offset`이 출력됩니다.
+- `GET /api/v1/admin/events/{eventId}/processing-log` 응답에 status `PROCESSED` log가 표시됩니다.
+- 동일 offset이 재소비되어도 `(topic, partition_no, offset_no)` unique constraint 때문에 duplicate processing log가 계속 쌓이지 않습니다.
+
+남은 한계:
+
+- Retry/DLT는 Phase 9 범위입니다.
+- FraudResult 저장과 eventId 기준 business idempotency는 Phase 5 이후 범위입니다.

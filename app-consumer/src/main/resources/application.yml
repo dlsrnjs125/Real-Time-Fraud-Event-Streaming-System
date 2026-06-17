@@ -4,12 +4,19 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: fraud-detection-consumer
+      group-id: fraud-event-consumer
       enable-auto-commit: false
+      auto-offset-reset: earliest
+  flyway:
+    enabled: false
   datasource:
     url: jdbc:postgresql://localhost:5432/fraud
     username: fraud
     password: fraud
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
   data:
     redis:
       host: localhost
