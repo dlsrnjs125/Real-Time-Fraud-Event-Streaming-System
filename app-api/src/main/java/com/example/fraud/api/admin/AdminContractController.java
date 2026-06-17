@@ -9,12 +9,14 @@ import com.example.fraud.api.admin.dto.FraudResultDetailResponse;
 import com.example.fraud.api.admin.dto.FraudResultSummaryResponse;
 import com.example.fraud.api.admin.dto.FraudRuleListResponse;
 import com.example.fraud.api.admin.dto.FraudRuleResponse;
+import com.example.fraud.api.admin.dto.FraudRuleResultResponse;
 import com.example.fraud.api.admin.dto.OperationSummaryResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
 import com.example.fraud.api.admin.dto.ProcessingLogResponse;
 import com.example.fraud.api.support.exception.ErrorResponse;
 import com.example.fraud.api.support.logging.TraceIdResolver;
 import com.example.fraud.common.event.FraudRuleCode;
+import com.example.fraud.common.event.RiskLevel;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Tag(name = "Admin Contracts", description = "Phase 2 contract-only admin APIs")
 @RestController
@@ -41,6 +44,11 @@ public class AdminContractController {
     @Operation(summary = "List fraud results", description = "Phase 2 empty stub. Actual query is implemented in Phase 5.")
     @GetMapping("/fraud-results")
     public PageResponse<FraudResultSummaryResponse> listFraudResults(
+            @RequestParam(required = false) RiskLevel riskLevel,
+            @RequestParam(required = false) Boolean degraded,
+            @RequestParam(required = false) FraudRuleCode ruleCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
@@ -54,12 +62,27 @@ public class AdminContractController {
         return new FraudResultDetailResponse(
                 eventId,
                 "user-1001",
-                null,
-                0,
-                List.of(),
+                RiskLevel.HIGH,
+                75,
+                List.of(FraudRuleCode.HIGH_AMOUNT, FraudRuleCode.VELOCITY),
                 List.of(),
                 false,
-                List.of(),
+                List.of(
+                        new FraudRuleResultResponse(
+                                FraudRuleCode.HIGH_AMOUNT,
+                                true,
+                                false,
+                                40,
+                                "amount >= 1000000 KRW"
+                        ),
+                        new FraudRuleResultResponse(
+                                FraudRuleCode.VELOCITY,
+                                true,
+                                false,
+                                35,
+                                "5 transactions within 60 seconds"
+                        )
+                ),
                 eventTime,
                 eventTime.plusSeconds(1),
                 eventTime.plusSeconds(2),
@@ -81,6 +104,9 @@ public class AdminContractController {
     @Operation(summary = "List DLQ events", description = "Phase 2 empty stub. Actual DLQ query is implemented in Phase 9.")
     @GetMapping("/dlq-events")
     public PageResponse<DlqEventSummaryResponse> listDlqEvents(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {

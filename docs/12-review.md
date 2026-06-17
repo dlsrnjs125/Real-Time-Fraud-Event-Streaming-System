@@ -139,3 +139,12 @@
 - validation MVC test 추가
 - Makefile 추가
 - docs/05, docs/13, docs/17, docs/11 업데이트
+
+### PR 피드백 반영
+
+- FraudResult 목록 API의 `riskLevel`, `degraded`, `ruleCode`, `from`, `to` query parameter를 controller skeleton에 추가해 OpenAPI 계약과 문서를 맞췄습니다.
+- DLQ 목록 API의 `status`, `from`, `to` query parameter를 controller skeleton에 추가했습니다.
+- FraudResult 상세 stub response를 문서 예시와 같은 설명 가능한 HIGH risk fixture로 변경했습니다.
+- raw `List` 사용 여부를 확인했고, 현재 DTO와 event schema는 `List<FraudRuleCode>` 또는 `List<FraudRuleResultResponse>`로 명시되어 있음을 확인했습니다.
+- `eventTime` future validation은 Phase 3에서 `receivedAt` 생성 정책과 함께 구현하기로 문서화했습니다.
+- Phase 2에서는 validation error mapping만 구현하고, 실제 service/domain exception mapping은 Phase 3 이후 TODO로 남겼습니다.

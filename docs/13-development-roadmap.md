@@ -199,6 +199,8 @@ curl http://localhost:8080/v3/api-docs
 - `transaction_event_receipts` persistence 구현
 - Kafka record key가 `userId`인지 검증
 - Kafka publish success/failure metric foundation 구현
+- `eventTime` future validation을 `receivedAt` 생성 정책과 함께 구현
+- 실제 service/domain exception에 대한 `ErrorResponse` mapping 구현
 
 ### 범위 제외
 

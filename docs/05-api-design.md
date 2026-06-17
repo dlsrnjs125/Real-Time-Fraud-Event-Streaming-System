@@ -112,7 +112,8 @@ Validation 기준:
 - `eventId`, `userId`, `accountId`, `currency`는 blank 값을 허용하지 않습니다.
 - `amount`는 0보다 커야 하며 Java 구현에서는 `BigDecimal`을 사용합니다.
 - 초기 통화는 `KRW`만 허용합니다.
-- `eventTime`이 `receivedAt`보다 과도하게 미래이면 validation failure로 처리합니다.
+- Phase 2에서는 `eventTime` null 여부만 검증합니다.
+- `eventTime`이 `receivedAt`보다 과도하게 미래인지 확인하는 cross-field validation은 Phase 3에서 `receivedAt` 생성 정책과 함께 구현합니다.
 - `merchantId`, `deviceId`, `location`은 rule 확장을 위해 선택 값으로 둘 수 있습니다.
 
 처리 흐름:
@@ -129,8 +130,10 @@ Phase 2 skeleton 동작:
 
 - request DTO validation을 수행합니다.
 - validation 실패 시 `ErrorResponse`를 반환합니다.
+- Phase 2 code에서는 validation error mapping만 구현합니다.
 - 유효한 요청은 `202 Accepted`와 contract response를 반환합니다.
 - Kafka publish, DB 저장, Consumer 처리 상태 변경은 수행하지 않습니다.
+- `EVENT_NOT_FOUND`, `DLQ_EVENT_NOT_FOUND`, `KAFKA_PUBLISH_FAILED`, `INTERNAL_ERROR` 등 service/domain exception mapping은 실제 service layer가 생기는 Phase 3 이후에 구현합니다.
 
 ### GET `/api/v1/transactions/events/{eventId}`
 

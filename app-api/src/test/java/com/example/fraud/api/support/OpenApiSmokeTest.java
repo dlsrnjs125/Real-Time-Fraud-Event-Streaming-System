@@ -1,6 +1,7 @@
 package com.example.fraud.api.support;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,5 +26,19 @@ class OpenApiSmokeTest {
                 .andExpect(jsonPath("$.info.title").value("Real-Time Fraud Event Streaming System API"))
                 .andExpect(jsonPath("$.info.description", containsString("Phase 2 contract-only")))
                 .andExpect(jsonPath("$.paths['/api/v1/transactions/events'].post").exists());
+    }
+
+    @Test
+    void adminListQueryParametersAreExposed() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/admin/fraud-results'].get.parameters[*].name",
+                        hasItems("riskLevel", "degraded", "ruleCode", "from", "to", "page", "size")
+                ))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/admin/dlq-events'].get.parameters[*].name",
+                        hasItems("status", "from", "to", "page", "size")
+                ));
     }
 }
