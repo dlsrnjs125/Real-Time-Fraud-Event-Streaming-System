@@ -93,6 +93,11 @@ curl http://localhost:8081/actuator/health
 | app-consumer health | PASS | `{"status":"UP"}` |
 | Prometheus targets | PASS | `app-api`, `app-consumer` target `up` |
 
+### Evidence
+
+- Local command result and review record: `docs/12-review.md#phase-1-review`
+- Runbook/troubleshooting record: `docs/11-troubleshooting-log.md`
+
 ### Notes
 
 - 기존 Docker Compose의 Kafka image tag와 Kafka CLI 경로가 실제 로컬 실행 환경과 맞지 않아 수정했습니다.
