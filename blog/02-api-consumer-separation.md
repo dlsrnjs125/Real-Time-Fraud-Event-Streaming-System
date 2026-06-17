@@ -19,6 +19,8 @@ Phase 1 실행 검증에서는 `app-api`와 `app-consumer`가 각각 별도 Spri
 
 Phase 2에서는 실제 Kafka publish를 구현하기 전에 API DTO, validation, ErrorResponse, OpenAPI 계약을 먼저 고정합니다. 이렇게 해야 Phase 3에서 Producer를 붙일 때 API 계약 변경과 Kafka 처리 구현 변경을 분리해서 검토할 수 있습니다.
 
+Phase 3에서는 `app-api`가 실제 transaction event receipt를 저장하고 Kafka에 원본 이벤트를 발행합니다. Consumer 처리는 여전히 분리되어 있으며, manual ack와 processing log 저장은 다음 Phase에서 구현합니다.
+
 ## 측정 또는 재현
 
 API p95 latency와 Consumer processing latency를 별도로 수집합니다.

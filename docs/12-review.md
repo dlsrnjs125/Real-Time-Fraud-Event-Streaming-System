@@ -148,3 +148,48 @@
 - raw `List` 사용 여부를 확인했고, 현재 DTO와 event schema는 `List<FraudRuleCode>` 또는 `List<FraudRuleResultResponse>`로 명시되어 있음을 확인했습니다.
 - `eventTime` future validation은 Phase 3에서 `receivedAt` 생성 정책과 함께 구현하기로 문서화했습니다.
 - Phase 2에서는 validation error mapping만 구현하고, 실제 service/domain exception mapping은 Phase 3 이후 TODO로 남겼습니다.
+
+## Phase 3 Review
+
+### 제안 또는 변경한 내용
+
+- `POST /api/v1/transactions/events`를 contract skeleton에서 실제 intake service 호출로 전환했습니다.
+- `transaction_event_receipts` Flyway migration, JPA entity, repository를 추가했습니다.
+- `TransactionEventIntakeService`가 validation, receipt 저장, Kafka publish, status 변경을 orchestration하도록 했습니다.
+- `TransactionEventProducer`와 Kafka adapter를 분리해 Controller가 KafkaTemplate에 직접 의존하지 않게 했습니다.
+- `TransactionEventMessageMapper`로 request/receipt/message 변환 책임을 분리했습니다.
+- duplicate `eventId`는 `409 CONFLICT`로 처리하고 idempotent replay는 구현하지 않았습니다.
+
+### 검토한 기준
+
+- Controller가 Repository 또는 KafkaTemplate을 직접 호출하지 않는가
+- Kafka key가 `userId`인지 테스트로 확인했는가
+- `TransactionEventMessage`에 `schemaVersion`, `eventId`, `userId`, `receivedAt`, `traceId`가 포함되는가
+- `OffsetDateTime` fields가 Kafka JSON payload에서 ISO 문자열로 직렬화되는가
+- Kafka publish 실패를 무시하고 202를 반환하지 않는가
+- Kafka publish 실패 시 receipt 상태가 `PUBLISH_FAILED`로 남는가
+- `eventId` unique constraint와 duplicate handling이 문서화되어 있는가
+- app-common이 JPA/Kafka/Spring Web에 의존하지 않는가
+
+### 수정 또는 거절한 이유
+
+- Phase 3에서는 Outbox Pattern을 구현하지 않았습니다. Producer intake 구현이 목표이며, 자동 재발행 publisher는 후속 hardening 후보입니다.
+- DB transaction과 Kafka publish를 원자적으로 묶지 않으므로 DB 저장 성공 후 Kafka publish 실패, Kafka publish 성공 후 DB commit 실패가 모두 남은 한계입니다.
+- 중복 `eventId` 요청을 replay처럼 반환하지 않았습니다. 동일 body 비교와 idempotency response는 별도 정책이 필요하기 때문입니다.
+- `PUBLISH_FAILED` 상태의 동일 `eventId` 재요청도 Phase 3에서는 `409 CONFLICT`로 막고, failed receipt 재발행 flow는 후속 hardening 대상으로 둡니다.
+- application clock은 UTC 기준으로 변경했습니다. 다만 Entity lifecycle timestamp는 현재 JPA callback에서 생성하므로, JPA auditing 또는 service clock 주입 방식으로 통일하는 개선 여지가 있습니다.
+- `publish_error_message`는 raw payload를 저장하지 않는 요약 메시지로 제한하고, entity에서 500자 truncate를 적용했습니다.
+- Kafka Consumer, manual ack, retry/DLT, FraudResult 저장은 구현하지 않았습니다.
+
+### 최종 반영 내용
+
+- transaction event receipt persistence 구현
+- Kafka producer adapter 구현
+- `userId` Kafka key 검증 test 추가
+- duplicate `eventId` 409 test 추가
+- Kafka publish failure 503 및 `PUBLISH_FAILED` status test 추가
+- future `eventTime` validation test 추가
+- `PUBLISH_FAILED` receipt 재요청 409 policy test 추가
+- `TransactionEventMessage` time field JSON serialization test 추가
+- local Kafka consume으로 `transaction-events` key=`userId`, ISO time payload 확인
+- docs/04, docs/05, docs/07, docs/11, docs/13 업데이트

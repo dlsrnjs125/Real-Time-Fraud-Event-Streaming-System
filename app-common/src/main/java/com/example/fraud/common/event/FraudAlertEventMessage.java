@@ -1,5 +1,6 @@
 package com.example.fraud.common.event;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -10,7 +11,9 @@ public record FraudAlertEventMessage(
         RiskLevel riskLevel,
         int riskScore,
         List<FraudRuleCode> matchedRuleCodes,
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         OffsetDateTime detectedAt,
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         OffsetDateTime alertCreatedAt,
         String traceId
 ) {
