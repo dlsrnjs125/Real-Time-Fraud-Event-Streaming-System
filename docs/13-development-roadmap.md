@@ -7,7 +7,7 @@
 | Phase 0 | Done | 초기 기획/설계와 스캐폴딩 작성 완료 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Phase 1 검증 |
 | Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | API 계약과 DTO 확정 |
 | Phase 2 | Done | API 계약, DTO, validation, OpenAPI skeleton 구현 완료 | app-common event schema, app-api DTO/controller skeleton, Makefile | Phase 3 Kafka Producer 구현 |
-| Phase 3 | Not Started | 이벤트 스키마 초안만 작성 | app-common event records | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 |
+| Phase 3 | Done | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 완료 | transaction_event_receipts, Kafka producer, intake service tests | Phase 4 Consumer manual ack와 processing log 구현 |
 | Phase 4 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
 | Phase 5 | Not Started | FraudResult 저장 미구현 | Data model/API contract | 기본 LOW FraudResult 저장과 조회 API 구현 |
 | Phase 6 | Not Started | Redis 없는 rule engine 미구현 | Fraud strategy docs | AmountRule, RiskScore, rule result detail 구현 |
@@ -215,6 +215,10 @@ curl http://localhost:8080/v3/api-docs
 
 거래 이벤트 요청을 받아 접수 기록을 남기고 `transaction-events` topic으로 발행합니다.
 
+### Status
+
+Done
+
 ### 범위
 
 - `POST /api/v1/transactions/events`
@@ -235,6 +239,57 @@ curl http://localhost:8080/v3/api-docs
 - message에 `eventId`, `traceId`, `schemaVersion`, `eventTime`, `receivedAt` 포함
 - validation 실패 시 Kafka publish가 발생하지 않음
 - Kafka publish 실패 정책과 Outbox 미적용 한계가 문서에 남아 있음
+
+### Completed
+
+- `POST /api/v1/transactions/events`를 contract skeleton에서 실제 intake service 호출로 전환
+- `GET /api/v1/transactions/events/{eventId}` receipt 조회 구현
+- `transaction_event_receipts` Flyway migration 추가
+- `TransactionEventReceiptEntity`, repository, status 구현
+- `TransactionEventIntakeService`에서 validation, receipt 저장, Kafka publish orchestration 구현
+- Kafka topic 상수와 `TransactionEventProducer` adapter 구현
+- Kafka key가 `userId`임을 unit test로 검증
+- 중복 `eventId`는 `409 CONFLICT`로 처리
+- Kafka publish 실패는 receipt를 `PUBLISH_FAILED`로 남기고 `503 SERVICE_UNAVAILABLE` 반환
+- `eventTime`이 `receivedAt + 5분`을 초과하면 validation failure 처리
+
+### Commands
+
+```bash
+make test
+make build
+make final-check
+make infra-up
+make topics
+make api
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Makefile test | PASS | `make test` 성공 |
+| Makefile build | PASS | `make build` 성공 |
+| Makefile final-check | PASS | build, Docker Compose config, script syntax check 성공 |
+| Manual API publish | PASS | `POST /api/v1/transactions/events` returned `202 Accepted` for `evt-manual-phase3-002` |
+| Manual receipt lookup | PASS | `GET /api/v1/transactions/events/evt-manual-phase3-002` returned receipt status `PUBLISHED` |
+| Manual Kafka consume | PASS | `transaction-events` record key was `user-1001`; payload included `schemaVersion`, `eventId`, `traceId`, `eventTime`, `receivedAt` |
+
+Evidence:
+
+- Local review record: `docs/12-review.md#phase-3-review`
+- Troubleshooting and decision notes: `docs/11-troubleshooting-log.md`
+
+### Known Limitations
+
+- Phase 3에서는 Outbox Pattern을 구현하지 않습니다.
+- DB receipt 저장 성공 후 Kafka publish 실패 가능성이 있습니다.
+- `PUBLISH_FAILED` receipt 자동 재발행은 후속 hardening 후보입니다.
+- Kafka Consumer, manual ack, `event_processing_logs` 저장은 Phase 4 범위입니다.
+
+### Next
+
+- Phase 4에서 Kafka Consumer, manual ack, `event_processing_logs` 저장을 구현합니다.
 
 ## Phase 4. Consumer Manual Ack and Processing Log
 

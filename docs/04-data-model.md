@@ -15,12 +15,13 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 
 ### transaction_event_receipts
 
+- `id`: 접수 기록 ID
 - `event_id`: 거래 이벤트 ID
 - `schema_version`: 이벤트 스키마 버전
 - `user_id`: 사용자 ID
 - `account_id`: 계좌 ID
 - `event_type`: 거래 유형
-- `amount`: 거래 금액
+- `amount`: 거래 금액. Phase 3에서는 `BigDecimal`과 PostgreSQL `numeric(19,2)`를 사용
 - `currency`: 통화
 - `merchant_id`: 가맹점 ID
 - `device_id`: 기기 ID
@@ -28,8 +29,10 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `event_time`: 거래 발생 시각
 - `received_at`: API 접수 시각
 - `trace_id`: 요청 추적 ID
-- `status`: 접수/발행 상태. 초기 값은 `ACCEPTED`
-- `publish_error_message`: Kafka 발행 실패 시 원인 요약. 초기 구현에서는 nullable
+- `status`: 접수/발행 상태. `RECEIVED`, `PUBLISHED`, `PUBLISH_FAILED`
+- `publish_error_message`: Kafka 발행 실패 시 원인 요약. nullable
+- `created_at`: row 생성 시각
+- `updated_at`: row 수정 시각
 
 ### fraud_results
 
@@ -87,6 +90,7 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 
 추가 unique constraint:
 
+- `transaction_event_receipts(event_id)`
 - `event_processing_logs(topic, partition_no, offset_no)`
 - `dlq_events(original_topic, original_partition, original_offset)`
 
@@ -116,7 +120,8 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 
 - DB 저장 성공 후 Kafka publish 실패가 발생할 수 있습니다.
 - 초기 구현에서는 이 상황을 Outbox로 자동 보정하지 않습니다.
-- Kafka publish 실패는 API 503으로 응답하고, receipt 상태와 보정 정책은 후속 hardening 대상입니다.
+- Kafka publish 실패는 receipt 상태를 `PUBLISH_FAILED`로 남기고 API 503으로 응답합니다.
+- `PUBLISH_FAILED` receipt 자동 재발행은 후속 hardening 대상입니다.
 
 향후 API 접수 기록과 Kafka 발행 원자성이 필요해지면 `outbox_events` 테이블과 outbox publisher를 추가합니다.
 

@@ -1,8 +1,23 @@
 spring:
   application:
     name: app-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fraud
+    username: fraud
+    password: fraud
+  flyway:
+    enabled: true
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
 
 server:
   port: 8080

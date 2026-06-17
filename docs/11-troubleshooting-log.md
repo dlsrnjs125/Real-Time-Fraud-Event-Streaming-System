@@ -404,3 +404,79 @@ Phase 1의 health endpoint 검증을 위해 `app-consumer`에 `spring-boot-start
 ### 남은 한계
 
 현재 `app-common` test는 event schema의 기본 필드 계약만 확인합니다. schema compatibility test는 Kafka producer/consumer 구현 이후 확장합니다.
+
+---
+
+## Phase 3. Kafka publish 실패 시 receipt 상태 보존
+
+### 초기 상태
+
+거래 이벤트 접수 흐름은 request validation, receipt 저장, Kafka publish, accepted response 순서로 설계했습니다.
+
+### 발생한 문제
+
+DB receipt 저장 후 Kafka publish가 실패하면 API는 실패를 반환해야 하지만, 운영 추적을 위해 실패한 receipt 상태도 남아야 합니다.
+
+### 재현 방법
+
+```bash
+make test
+```
+
+`TransactionEventControllerTest`에서 Producer mock이 `KafkaPublishFailedException`을 던지도록 설정합니다.
+
+### 원인 분석
+
+receipt 저장과 Kafka publish를 하나의 원자적 transaction으로 묶는 Outbox Pattern은 Phase 3 범위가 아닙니다. 일반 runtime exception으로 rollback되면 `PUBLISH_FAILED` 상태도 사라질 수 있습니다.
+
+### 수정 내용
+
+`TransactionEventIntakeService`에서 Kafka publish 실패 시 receipt를 `PUBLISH_FAILED`로 변경하고 API는 `KAFKA_PUBLISH_FAILED` 503을 반환하도록 했습니다. 해당 exception은 transaction rollback 대상에서 제외했습니다.
+
+### 검증 명령
+
+```bash
+make test
+```
+
+### 남은 한계
+
+`PUBLISH_FAILED` receipt를 자동으로 재발행하는 outbox publisher는 아직 없습니다. 후속 hardening 후보로 둡니다.
+
+---
+
+## Phase 3. 중복 eventId와 idempotency 정책 분리
+
+### 초기 상태
+
+`eventId`는 transaction event의 중복 방어 기준입니다.
+
+### 발생한 문제
+
+중복 `eventId` 요청을 기존 receipt replay처럼 반환할지, 명확한 conflict로 처리할지 결정이 필요했습니다.
+
+### 재현 방법
+
+```bash
+make test
+```
+
+동일 `eventId`로 `POST /api/v1/transactions/events`를 두 번 호출합니다.
+
+### 원인 분석
+
+동일 body 비교와 replay response는 별도 idempotency 정책이 필요합니다. Phase 3은 idempotent replay 구현 단계가 아니라 Producer intake 구현 단계입니다.
+
+### 수정 내용
+
+Phase 3에서는 중복 `eventId`를 `409 CONFLICT`와 `DUPLICATE_TRANSACTION_EVENT`로 처리합니다.
+
+### 검증 명령
+
+```bash
+make test
+```
+
+### 남은 한계
+
+idempotent replay 정책은 필요성이 확인되면 별도 Phase에서 설계합니다.

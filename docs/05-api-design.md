@@ -54,6 +54,8 @@ API는 거래 이벤트를 빠르게 접수하고, 비동기 Consumer 처리 결
 |---|---:|---|
 | `INVALID_TRANSACTION_EVENT` | 400 | 거래 이벤트 요청 validation 실패 |
 | `UNSUPPORTED_SCHEMA_VERSION` | 400 | 지원하지 않는 schema version |
+| `DUPLICATE_TRANSACTION_EVENT` | 409 | 중복 eventId 접수 |
+| `DATABASE_WRITE_FAILED` | 500 | 접수 기록 저장 실패 |
 | `EVENT_NOT_FOUND` | 404 | eventId 기준 데이터 없음 |
 | `FRAUD_RESULT_NOT_FOUND` | 404 | 탐지 결과 없음 |
 | `DLQ_EVENT_NOT_FOUND` | 404 | DLQ 이벤트 없음 |
@@ -74,9 +76,7 @@ Validation failure는 재시도해도 성공하지 않는 입력 오류입니다
 
 ### POST `/api/v1/transactions/events`
 
-거래 이벤트를 검증하고 `transaction-events` topic으로 발행합니다.
-
-Phase 2에서는 이 API를 contract skeleton으로만 제공합니다. Request validation, response schema, OpenAPI 노출을 검증하며, 실제 Kafka publish와 receipt persistence는 Phase 3에서 구현합니다.
+거래 이벤트를 검증하고 접수 기록을 저장한 뒤 `transaction-events` topic으로 발행합니다.
 
 Request:
 
@@ -100,7 +100,7 @@ Response:
 ```json
 {
   "eventId": "evt-20260615-000001",
-  "status": "ACCEPTED",
+  "status": "PUBLISHED",
   "receivedAt": "2026-06-15T10:30:01+09:00",
   "traceId": "trace-20260615-000001"
 }
@@ -112,8 +112,7 @@ Validation 기준:
 - `eventId`, `userId`, `accountId`, `currency`는 blank 값을 허용하지 않습니다.
 - `amount`는 0보다 커야 하며 Java 구현에서는 `BigDecimal`을 사용합니다.
 - 초기 통화는 `KRW`만 허용합니다.
-- Phase 2에서는 `eventTime` null 여부만 검증합니다.
-- `eventTime`이 `receivedAt`보다 과도하게 미래인지 확인하는 cross-field validation은 Phase 3에서 `receivedAt` 생성 정책과 함께 구현합니다.
+- `eventTime`이 `receivedAt`보다 5분을 초과해 미래이면 validation failure로 처리합니다.
 - `merchantId`, `deviceId`, `location`은 rule 확장을 위해 선택 값으로 둘 수 있습니다.
 
 처리 흐름:
@@ -126,14 +125,14 @@ Validation 기준:
 
 초기 구현은 Outbox를 사용하지 않습니다. 따라서 DB 저장 성공 후 Kafka publish 실패가 발생할 수 있고, 이 경우 receipt status와 재발행 보정 정책은 별도 Phase에서 보강합니다.
 
-Phase 2 skeleton 동작:
+Phase 3 동작:
 
 - request DTO validation을 수행합니다.
 - validation 실패 시 `ErrorResponse`를 반환합니다.
-- Phase 2 code에서는 validation error mapping만 구현합니다.
-- 유효한 요청은 `202 Accepted`와 contract response를 반환합니다.
-- Kafka publish, DB 저장, Consumer 처리 상태 변경은 수행하지 않습니다.
-- `EVENT_NOT_FOUND`, `DLQ_EVENT_NOT_FOUND`, `KAFKA_PUBLISH_FAILED`, `INTERNAL_ERROR` 등 service/domain exception mapping은 실제 service layer가 생기는 Phase 3 이후에 구현합니다.
+- 중복 `eventId`는 `409 CONFLICT`와 `DUPLICATE_TRANSACTION_EVENT`로 처리합니다.
+- Kafka publish 실패는 receipt를 `PUBLISH_FAILED`로 남기고 `503 SERVICE_UNAVAILABLE`과 `KAFKA_PUBLISH_FAILED`로 처리합니다.
+- 유효한 요청은 receipt 저장과 Kafka publish 성공 후 `202 Accepted`를 반환합니다.
+- Consumer 처리 상태 변경은 수행하지 않습니다.
 
 ### GET `/api/v1/transactions/events/{eventId}`
 

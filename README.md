@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 초기 기획과 설계, 로컬 scaffold 검증 이후 Phase 2에서 API 계약, DTO, validation, OpenAPI 기반을 정리하는 단계입니다. 실제 Kafka Producer, Consumer 비즈니스 로직, Rule Engine은 이후 Phase에서 구현합니다.
+현재는 초기 기획과 설계, 로컬 scaffold 검증, API 계약 정리 이후 Phase 3에서 거래 이벤트 접수 API와 Kafka Producer를 구현한 단계입니다. Kafka Consumer 비즈니스 로직과 Rule Engine은 이후 Phase에서 구현합니다.
