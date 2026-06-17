@@ -198,11 +198,13 @@
 
 ### 잘한 점
 
-Consumer 구현 전에 최소 CI Gate를 먼저 추가하여 이후 Phase의 회귀 검증 기반을 마련했습니다. 특히 Kafka Consumer 작업은 offset commit과 DB 저장 순서가 중요하므로, test/build 자동화가 먼저 들어간 점은 운영 안정성 관점에서 의미가 있습니다.
+Consumer 구현 전에 최소 CI Gate를 먼저 추가하여 이후 Phase의 회귀 검증 기반을 마련했습니다. 특히 Kafka Consumer 작업은 offset commit과 DB 저장 순서가 중요하므로, `make ci-check` 자동화가 먼저 들어간 점은 운영 안정성 관점에서 의미가 있습니다.
 
 ### 의도적으로 제외한 것
 
 Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 테스트는 이번 CI에 포함하지 않았습니다. 초기부터 무거운 통합 테스트를 CI에 넣으면 workflow가 불안정해지고 개발 속도가 떨어질 수 있기 때문입니다.
+
+`./gradlew build`는 test를 다시 실행할 수 있으므로 CI에서는 `./gradlew test`와 `./gradlew assemble`을 묶은 `make ci-check`를 사용했습니다.
 
 ### 다음 보완
 
@@ -213,14 +215,16 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 ### 제안 또는 변경한 내용
 
 - app-consumer에 `transaction-events` Kafka listener를 추가했습니다.
-- Kafka consumer 설정을 `enable-auto-commit=false`, manual ack mode로 명시했습니다.
-- `event_processing_logs` migration, JPA entity, repository, service를 추가했습니다.
+- Kafka consumer 설정을 `enable-auto-commit=false`, `AckMode.MANUAL_IMMEDIATE`로 명시했습니다.
+- `event_processing_logs` migration은 `app-api` schema owner 기준으로 두고, app-consumer runtime Flyway는 비활성화했습니다.
+- app-consumer에는 processing log JPA entity, repository, service를 추가했습니다.
 - `(topic, partition_no, offset_no)` unique constraint로 같은 Kafka record의 duplicate processing log 생성을 방어했습니다.
 - `GET /api/v1/admin/events/{eventId}/processing-log`를 실제 DB 조회 API로 전환했습니다.
 
 ### 검토한 기준
 
 - ack가 processing log 저장 성공 이후 호출되는가
+- duplicate offset으로 이미 processing log가 있는 경우에도 ack 가능한가
 - service 처리 실패 시 ack하지 않는가
 - listener가 긴 비즈니스 로직을 직접 수행하지 않고 service로 위임하는가
 - eventId unique를 `event_processing_logs`에 걸지 않았는가
@@ -232,12 +236,15 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Phase 4에서는 FraudResult 저장, Rule Engine, Redis, Retry/DLT를 구현하지 않았습니다.
 - 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 duplicate log를 만들지 않은 뒤 ack 가능하게 처리했습니다.
 - eventId 기준 business idempotency는 FraudResult 저장이 들어오는 Phase 5 이후로 남겼습니다.
+- `FAILED` processing status는 Phase 9 Retry/DLT에서 사용할 예약 상태로 남겼습니다.
 
 ### 최종 반영 내용
 
 - Kafka Consumer manual ack 구현
 - processing log 저장 구현
 - processing log 조회 API 구현
-- ack success/failure unit test 추가
+- ack success/failure/duplicate unit test 추가
 - duplicate offset 방어 test 추가
+- same eventId different offset test 추가
+- `processedAt desc` 정렬 test 추가
 - docs/04, docs/05, docs/07, docs/08, docs/11, docs/13, docs/18 업데이트

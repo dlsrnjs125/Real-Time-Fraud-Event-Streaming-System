@@ -43,7 +43,7 @@ public class KafkaConsumerConfig {
     ) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, TransactionEventMessage>();
         factory.setConsumerFactory(transactionEventConsumerFactory);
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
 }

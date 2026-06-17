@@ -308,12 +308,15 @@ Phase 4부터 Kafka Consumer, manual ack, processing log, 이후 Rule Engine과 
 #### 구현
 
 - `.github/workflows/ci.yml` 추가
-- push/pull request 시 Gradle test/build 실행
+- `workflow_dispatch` 수동 실행 지원
+- workflow 권한은 `contents: read`로 제한
+- push/pull request 시 `make ci-check` 실행
+- `make ci-check`는 `./gradlew test`와 `./gradlew assemble`을 실행해 test 중복 실행을 피함
 - Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 검증은 후속 Phase로 분리
 
 #### 선택 이유
 
-초기 CI는 빠르고 안정적인 test/build Gate로 구성하고, 무거운 E2E 검증은 기능 안정화 이후 별도 workflow로 확장하기로 했습니다.
+초기 CI는 빠르고 안정적인 test/assemble Gate로 구성하고, 무거운 E2E 검증은 기능 안정화 이후 별도 workflow로 확장하기로 했습니다.
 
 #### 한계
 
@@ -348,21 +351,26 @@ Done
 ### Completed
 
 - app-consumer Kafka listener 구현
-- `enable-auto-commit=false`, manual ack mode 설정
+- `enable-auto-commit=false`, `AckMode.MANUAL_IMMEDIATE` 설정
 - `auto-offset-reset=earliest`로 Consumer 중지 중 발행된 미처리 이벤트 재소비 확인 가능
 - Consumer group ID를 `fraud-event-consumer`로 명시
-- `event_processing_logs` Flyway migration 추가
+- `app-api`를 Flyway schema owner로 두고 app-consumer runtime은 `ddl-auto=validate`만 수행하도록 정리
+- app-consumer module test 전용 Flyway migration은 `src/test/resources`에 분리
 - `event_processing_logs(topic, partition_no, offset_no)` unique constraint 추가
 - `EventProcessingLogEntity`, repository, service 구현
-- DB processing log 저장 성공 후 ack 수행
+- DB processing log 저장 성공 후 acknowledge 수행
 - 처리 실패 시 ack하지 않고 exception을 전파하는 listener test 추가
 - 이미 처리된 offset 재소비 시 duplicate log를 만들지 않고 ack 가능한 정책 구현
+- 이미 처리된 offset 재소비 시에도 acknowledge하는 listener test 추가
+- 같은 eventId라도 offset이 다르면 별도 log를 저장하는 test 추가
+- eventId 조회 결과의 `processedAt desc` 정렬 test 추가
 - `GET /api/v1/admin/events/{eventId}/processing-log` 조회 API 구현
 - Consumer structured log에 `traceId`, `eventId`, `userId`, `topic`, `partition`, `offset` 포함
 
 ### Commands
 
 ```bash
+make ci-check
 make test
 make build
 make final-check
@@ -377,6 +385,7 @@ make consumer
 
 | Check | Result | Notes |
 |---|---|---|
+| Makefile ci-check | PASS | `./gradlew test`, `./gradlew assemble` 성공 |
 | Makefile test | PASS | `make test` 성공 |
 | Makefile build | PASS | `make build` 성공 |
 | Makefile final-check | PASS | build, Docker Compose config, script syntax check 성공 |
@@ -397,6 +406,7 @@ Evidence:
 - Retry/DLT는 Phase 9 범위입니다.
 - Consumer Lag과 custom metric은 Phase 10 범위입니다.
 - 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 ack 가능하게 처리합니다. 이 정책은 processing log 기준이며, eventId 기준 business idempotency는 Phase 5 이후에서 구현합니다.
+- `FAILED` processing status는 Phase 4에서는 예약 상태입니다. DB 자체가 저장 불가능한 실패는 ack하지 않고 재소비 가능성을 열어두며, 저장 가능한 business failure/DLT 기록은 Phase 9에서 구체화합니다.
 
 ### Next
 

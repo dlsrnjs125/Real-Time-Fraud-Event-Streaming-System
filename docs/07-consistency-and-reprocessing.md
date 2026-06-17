@@ -43,11 +43,13 @@ Phase 5 이후 처리 완료 기준:
 ## 3. 설정 기준
 
 - `enable-auto-commit=false`
-- `AckMode.MANUAL` 또는 `AckMode.MANUAL_IMMEDIATE`
+- `AckMode.MANUAL_IMMEDIATE`
 - `auto-offset-reset=earliest`로 commit 없는 local consumer group의 미처리 이벤트를 재소비
 - Phase 4 Consumer group ID는 `fraud-event-consumer`
 - Phase 4 중복 processing log 방어 기준은 `(topic, partition_no, offset_no)`
 - FraudResult 중복 방어를 위한 `eventId` idempotency는 Phase 5 이후 구현
+
+Phase 4에서는 processing log 저장 성공 후 application code가 acknowledge 호출 시점을 통제합니다. 즉시 commit 의도를 명확히 하기 위해 Spring Kafka container는 `MANUAL_IMMEDIATE` ack mode를 사용합니다.
 
 ## 4. Consumer 장애 시 동작
 

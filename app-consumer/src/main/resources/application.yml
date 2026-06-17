@@ -8,7 +8,7 @@ spring:
       enable-auto-commit: false
       auto-offset-reset: earliest
   flyway:
-    enabled: true
+    enabled: false
   datasource:
     url: jdbc:postgresql://localhost:5432/fraud
     username: fraud

@@ -86,6 +86,53 @@ class EventProcessingLogServiceTest {
     }
 
     @Test
+    void sameEventIdWithDifferentOffsetsCreatesSeparateLogs() {
+        TransactionEventMessage message = message("evt-processing-log-same-event");
+
+        ProcessingLogResult firstResult = service.recordProcessedEvent(
+                message,
+                "transaction-events",
+                0,
+                100L,
+                "fraud-event-consumer"
+        );
+        ProcessingLogResult secondResult = service.recordProcessedEvent(
+                message,
+                "transaction-events",
+                0,
+                101L,
+                "fraud-event-consumer"
+        );
+
+        assertThat(firstResult.duplicateSkipped()).isFalse();
+        assertThat(secondResult.duplicateSkipped()).isFalse();
+        assertThat(repository.findByEventIdOrderByProcessedAtDesc("evt-processing-log-same-event"))
+                .hasSize(2);
+    }
+
+    @Test
+    void findsLogsByEventIdWithLatestProcessedAtFirst() {
+        insertProcessingLog(
+                "evt-processing-log-order",
+                "transaction-events",
+                0,
+                200L,
+                OffsetDateTime.parse("2026-06-17T10:00:02Z")
+        );
+        insertProcessingLog(
+                "evt-processing-log-order",
+                "transaction-events",
+                0,
+                201L,
+                OffsetDateTime.parse("2026-06-17T10:00:05Z")
+        );
+
+        assertThat(repository.findByEventIdOrderByProcessedAtDesc("evt-processing-log-order"))
+                .extracting(EventProcessingLogEntity::getOffsetNo)
+                .containsExactly(201L, 200L);
+    }
+
+    @Test
     void databaseUniqueConstraintRejectsDuplicateOffsetDirectly() {
         OffsetDateTime processedAt = OffsetDateTime.parse("2026-06-17T10:00:02Z");
 

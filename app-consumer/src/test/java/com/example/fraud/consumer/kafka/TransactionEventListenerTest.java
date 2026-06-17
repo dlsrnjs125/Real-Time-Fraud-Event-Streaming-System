@@ -49,6 +49,30 @@ class TransactionEventListenerTest {
     }
 
     @Test
+    void acknowledgesWhenDuplicateOffsetIsAlreadyProcessed() {
+        TransactionEventMessage message = message("evt-listener-duplicate");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                15L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                15L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.duplicate());
+
+        listener.onMessage(record, acknowledgment);
+
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
     void doesNotAcknowledgeWhenProcessingLogSaveFails() {
         TransactionEventMessage message = message("evt-listener-fail");
         ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
