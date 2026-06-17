@@ -6,7 +6,7 @@
 |---:|---|---|---|---|
 | Phase 0 | Done | 초기 기획/설계와 스캐폴딩 작성 완료 | README, docs, Gradle multi-module, app skeleton, Docker Compose skeleton | Phase 1 검증 |
 | Phase 1 | Done | 로컬 실행 기반과 scaffold 검증 완료 | Gradle Wrapper, Docker Compose 검증, topic script 검증, app health 검증 | API 계약과 DTO 확정 |
-| Phase 2 | Not Started | API 계약 보강 완료, 코드 미구현 | `docs/05-api-design.md` | DTO, validation, OpenAPI 구현 |
+| Phase 2 | Done | API 계약, DTO, validation, OpenAPI skeleton 구현 완료 | app-common event schema, app-api DTO/controller skeleton, Makefile | Phase 3 Kafka Producer 구현 |
 | Phase 3 | Not Started | 이벤트 스키마 초안만 작성 | app-common event records | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 |
 | Phase 4 | Not Started | Consumer 애플리케이션 골격만 작성 | app-consumer skeleton | Kafka listener, manual ack, processing log 구현 |
 | Phase 5 | Not Started | FraudResult 저장 미구현 | Data model/API contract | 기본 LOW FraudResult 저장과 조회 API 구현 |
@@ -111,6 +111,10 @@ curl http://localhost:8081/actuator/health
 
 기능 구현 전에 API request/response, validation, error response, OpenAPI 기준, 공통 event message 계약을 확정합니다.
 
+### Status
+
+Done
+
 ### 범위
 
 - `TransactionEventRequest`
@@ -124,6 +128,7 @@ curl http://localhost:8081/actuator/health
 - `TransactionEventMessage`
 - OpenAPI/Swagger 설정
 - `traceId`, `eventId`, `schemaVersion`, `receivedAt` 정책
+- Java/Spring 반복 검증용 Makefile
 
 ### 완료 기준
 
@@ -132,6 +137,70 @@ curl http://localhost:8081/actuator/health
 - error response 테스트 작성
 - `docs/05-api-design.md`와 DTO 필드 일치
 - `app-common`에는 공유 event schema와 enum만 포함
+
+### Completed
+
+- `TransactionEventMessage`, `FraudRiskEventMessage`, `FraudAlertEventMessage` schema를 `app-common`에 정리
+- `TransactionEventType`, `RiskLevel`, `FraudRuleCode` enum 추가
+- `TransactionEventRequest`, `TransactionEventAcceptedResponse`, `TransactionEventReceiptResponse` DTO 추가
+- FraudResult, FraudRule, DLQ, ProcessingLog, OperationSummary 조회용 response DTO 추가
+- `ErrorResponse`와 validation exception handler 추가
+- `POST /api/v1/transactions/events` contract skeleton controller 추가
+- Admin 조회/재처리 contract skeleton controller 추가
+- springdoc OpenAPI 설정 추가
+- validation error MVC test와 OpenAPI smoke test 추가
+- Java/Spring project Makefile 추가
+
+### Makefile Targets
+
+- `make build`
+- `make test`
+- `make test-common`
+- `make test-api`
+- `make test-consumer`
+- `make clean`
+- `make api`
+- `make consumer`
+- `make infra-config`
+- `make infra-up`
+- `make infra-down`
+- `make infra-ps`
+- `make infra-logs`
+- `make scripts-check`
+- `make topics`
+- `make smoke`
+- `make final-check`
+
+### Commands
+
+```bash
+./gradlew test
+make build
+make test
+make final-check
+curl http://localhost:8080/actuator/health
+curl http://localhost:8080/v3/api-docs
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Gradle test | PASS | validation, OpenAPI smoke, app-common schema test 통과 |
+| Makefile build | PASS | `make build` 성공 |
+| Makefile test | PASS | `make test` 성공 |
+| Makefile final-check | PASS | build, Docker Compose config, script syntax check 성공 |
+| app-api health | PASS | `curl http://localhost:8080/actuator/health` 200, `UP` |
+| OpenAPI docs | PASS | `curl http://localhost:8080/v3/api-docs` 200 |
+
+### Next
+
+- Phase 3에서 실제 Kafka Producer 구현
+- `transaction_event_receipts` persistence 구현
+- Kafka record key가 `userId`인지 검증
+- Kafka publish success/failure metric foundation 구현
+- `eventTime` future validation을 `receivedAt` 생성 정책과 함께 구현
+- 실제 service/domain exception에 대한 `ErrorResponse` mapping 구현
 
 ### 범위 제외
 

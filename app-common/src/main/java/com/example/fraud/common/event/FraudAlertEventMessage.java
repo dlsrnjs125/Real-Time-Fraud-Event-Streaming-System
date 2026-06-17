@@ -1,26 +1,22 @@
 package com.example.fraud.common.event;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
-public record TransactionEventMessage(
+public record FraudAlertEventMessage(
         String schemaVersion,
         String eventId,
         String userId,
-        String accountId,
-        TransactionEventType eventType,
-        BigDecimal amount,
-        String currency,
-        String merchantId,
-        String deviceId,
-        String location,
-        OffsetDateTime eventTime,
-        OffsetDateTime receivedAt,
+        RiskLevel riskLevel,
+        int riskScore,
+        List<FraudRuleCode> matchedRuleCodes,
+        OffsetDateTime detectedAt,
+        OffsetDateTime alertCreatedAt,
         String traceId
 ) {
     public static final String CURRENT_SCHEMA_VERSION = "v1";
 
-    public TransactionEventMessage {
+    public FraudAlertEventMessage {
         if (schemaVersion == null || schemaVersion.isBlank()) {
             schemaVersion = CURRENT_SCHEMA_VERSION;
         }

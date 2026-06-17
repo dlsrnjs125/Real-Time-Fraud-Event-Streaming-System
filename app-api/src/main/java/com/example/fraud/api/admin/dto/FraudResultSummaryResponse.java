@@ -1,10 +1,13 @@
-package com.example.fraud.common.event;
+package com.example.fraud.api.admin.dto;
 
+import com.example.fraud.common.event.FraudRuleCode;
+import com.example.fraud.common.event.RiskLevel;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-public record FraudRiskEventMessage(
-        String schemaVersion,
+@Schema(description = "Fraud result summary")
+public record FraudResultSummaryResponse(
         String eventId,
         String userId,
         RiskLevel riskLevel,
@@ -13,13 +16,7 @@ public record FraudRiskEventMessage(
         List<FraudRuleCode> skippedRuleCodes,
         boolean degraded,
         OffsetDateTime detectedAt,
+        long detectionLatencyMs,
         String traceId
 ) {
-    public static final String CURRENT_SCHEMA_VERSION = "v1";
-
-    public FraudRiskEventMessage {
-        if (schemaVersion == null || schemaVersion.isBlank()) {
-            schemaVersion = CURRENT_SCHEMA_VERSION;
-        }
-    }
 }
