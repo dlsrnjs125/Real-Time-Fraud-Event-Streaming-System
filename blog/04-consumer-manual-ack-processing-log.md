@@ -1,5 +1,15 @@
 # Phase 4. Kafka Consumer Manual Ack와 Processing Log 구현
 
+## 0. Consumer를 만들기 전에 CI Gate를 먼저 추가한 이유
+
+Phase 4부터는 단순 API 구현이 아니라 Kafka Consumer의 offset commit 시점, DB 저장 성공 여부, 중복 offset 처리처럼 회귀 버그가 발생하기 쉬운 영역이 추가됩니다.
+
+Phase 3까지는 로컬에서 `make test`, `make build`, `make final-check`를 직접 실행하며 검증했습니다. 하지만 이후 Phase에서 Consumer, Rule Engine, Retry/DLT, Redis 장애 대응이 차례로 추가될 예정이기 때문에 로컬 검증만으로는 부족하다고 판단했습니다.
+
+그래서 Consumer 구현 전에 GitHub Actions 기반 최소 CI Gate를 먼저 추가했습니다. 이번 CI는 Docker Compose 전체 인프라를 띄우는 방식이 아니라 `test/build` 중심의 가벼운 Gate로 시작했습니다.
+
+Kafka end-to-end 검증은 아직 로컬에서 수행하고, 이후 Retry/DLT와 부하 테스트가 안정화되면 별도 integration workflow로 확장할 계획입니다.
+
 ## 1. 이번 Phase에서 풀려는 문제
 
 Phase 4의 목표는 이상거래 탐지가 아니라 Consumer가 Kafka record를 언제 처리한 것으로 볼지 명확히 하는 것입니다.

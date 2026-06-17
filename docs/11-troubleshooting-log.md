@@ -541,6 +541,35 @@ Entity lifecycle timestamp는 아직 JPA callback 기준입니다. JPA auditing 
 
 ---
 
+## Phase 4-A. Consumer 구현 전 Minimum CI Gate 선반영
+
+### 문제 상황
+
+Phase 3까지는 로컬에서 `make test`, `make build`, `make final-check`를 직접 실행하며 검증했습니다. 하지만 Phase 4부터 Kafka Consumer, manual ack, processing log, 이후 Redis Sliding Window와 Retry/DLT가 추가될 예정이라 로컬 검증만으로는 회귀 버그를 안정적으로 막기 어렵다고 판단했습니다.
+
+### 원인
+
+Consumer 작업은 offset commit 시점, DB 저장 성공 여부, 중복 offset 처리처럼 작은 변경에도 동작이 달라질 수 있는 영역입니다. 자동화된 CI Gate가 없으면 main 브랜치에 깨진 코드가 들어갈 위험이 커집니다.
+
+### 판단
+
+Consumer 구현 전에 GitHub Actions 기반 최소 CI Gate를 먼저 추가했습니다. push와 pull request 시점에 Gradle test/build를 자동 실행하여 기본 회귀 검증을 자동화했습니다.
+
+### 선택한 방식
+
+초기 CI는 Java 17, Gradle cache, `./gradlew test`, `./gradlew build` 중심으로 구성했습니다. Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 검증은 개발 속도와 안정성을 고려해 후속 Phase로 분리했습니다.
+
+### 트레이드오프
+
+초기 CI는 빠르고 안정적이지만 Kafka end-to-end 처리, Consumer Lag, Redis 장애, DLT 재처리까지 검증하지는 못합니다. 대신 후속 Phase에서 `ci-integration.yml` 또는 nightly workflow로 확장할 수 있도록 범위를 분리했습니다.
+
+### 검증 기준
+
+- push 시 GitHub Actions CI가 실행됩니다.
+- unit test와 build가 통과해야 합니다.
+- CI 실패 시 main merge를 보류합니다.
+- 인프라 의존 검증은 로컬 `make infra-up`, `make api`, `make consumer`로 별도 수행합니다.
+
 ## Phase 4. Consumer Manual Ack and Processing Log
 
 ### 문제 상황

@@ -194,6 +194,20 @@
 - local Kafka consume으로 `transaction-events` key=`userId`, ISO time payload 확인
 - docs/04, docs/05, docs/07, docs/11, docs/13 업데이트
 
+## Phase 4-A Review - Minimum CI Gate
+
+### 잘한 점
+
+Consumer 구현 전에 최소 CI Gate를 먼저 추가하여 이후 Phase의 회귀 검증 기반을 마련했습니다. 특히 Kafka Consumer 작업은 offset commit과 DB 저장 순서가 중요하므로, test/build 자동화가 먼저 들어간 점은 운영 안정성 관점에서 의미가 있습니다.
+
+### 의도적으로 제외한 것
+
+Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 테스트는 이번 CI에 포함하지 않았습니다. 초기부터 무거운 통합 테스트를 CI에 넣으면 workflow가 불안정해지고 개발 속도가 떨어질 수 있기 때문입니다.
+
+### 다음 보완
+
+Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-to-end 검증을 포함한 `ci-integration.yml`을 별도로 추가합니다.
+
 ## Phase 4 Review
 
 ### 제안 또는 변경한 내용

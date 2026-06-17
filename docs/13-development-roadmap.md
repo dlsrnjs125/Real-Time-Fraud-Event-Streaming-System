@@ -297,6 +297,28 @@ Evidence:
 
 ## Phase 4. Consumer Manual Ack and Processing Log
 
+### Phase 4-A. Minimum CI Gate
+
+Consumer 구현 전에 GitHub Actions 기반 최소 CI Gate를 먼저 추가했습니다.
+
+#### 배경
+
+Phase 4부터 Kafka Consumer, manual ack, processing log, 이후 Rule Engine과 Retry/DLT가 추가될 예정이므로 로컬 테스트만으로는 회귀 버그를 안정적으로 막기 어렵다고 판단했습니다.
+
+#### 구현
+
+- `.github/workflows/ci.yml` 추가
+- push/pull request 시 Gradle test/build 실행
+- Docker Compose 기반 Kafka/PostgreSQL/Redis 통합 검증은 후속 Phase로 분리
+
+#### 선택 이유
+
+초기 CI는 빠르고 안정적인 test/build Gate로 구성하고, 무거운 E2E 검증은 기능 안정화 이후 별도 workflow로 확장하기로 했습니다.
+
+#### 한계
+
+현재 CI는 Kafka end-to-end consume, Redis 장애, DLT 재처리, k6 부하 테스트까지 검증하지 않습니다.
+
 ### 목표
 
 Consumer가 `transaction-events`를 소비하고 처리 로그를 PostgreSQL에 저장합니다.
