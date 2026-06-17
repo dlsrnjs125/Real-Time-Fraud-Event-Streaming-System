@@ -376,13 +376,16 @@ Response:
   "eventId": "evt-20260615-000001",
   "logs": [
     {
+      "eventId": "evt-20260615-000001",
+      "traceId": "trace-20260615-000001",
+      "userId": "user-1001",
       "topic": "transaction-events",
-      "partitionNo": 2,
-      "offsetNo": 1532,
-      "status": "COMPLETED",
-      "startedAt": "2026-06-15T10:30:01+09:00",
-      "completedAt": "2026-06-15T10:30:02+09:00",
-      "processingLatencyMs": 1000,
+      "partition": 2,
+      "offset": 1532,
+      "consumerGroupId": "fraud-event-consumer",
+      "status": "PROCESSED",
+      "receivedAt": "2026-06-15T10:30:01+09:00",
+      "processedAt": "2026-06-15T10:30:02+09:00",
       "errorMessage": null
     }
   ]
@@ -390,6 +393,12 @@ Response:
 ```
 
 이 API는 Consumer 장애, 중복 처리, DLT 이동 여부를 이벤트 단위로 확인하기 위한 troubleshooting API입니다.
+
+Phase 4 동작:
+
+- eventId 기준 processing log가 없으면 `404`가 아니라 빈 `logs` 배열을 반환합니다.
+- 응답에는 `accountId`, `deviceId`, raw payload를 포함하지 않습니다.
+- `partition`과 `offset`은 Kafka record metadata이며, 중복 방어 기준은 DB의 `(topic, partition_no, offset_no)` unique constraint입니다.
 
 ## 10. Operational Metrics Summary API
 

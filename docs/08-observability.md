@@ -50,6 +50,18 @@ Structured logging 필드:
 - `riskLevel`
 - `degraded`
 
+Phase 4 Consumer log 최소 필드:
+
+- `traceId`
+- `eventId`
+- `userId`
+- `topic`
+- `partition`
+- `offset`
+- `duplicateSkipped`
+
+custom metric은 Phase 10에서 본격 구현합니다. Phase 4에서는 processing log와 structured log로 처리 여부와 offset metadata를 확인합니다.
+
 ## 5. 개인정보와 로그 마스킹
 
 구조화 로그에는 `eventId`와 `traceId`를 남기되, `accountId`와 `deviceId`는 원문 전체를 기록하지 않습니다.

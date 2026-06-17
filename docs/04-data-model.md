@@ -51,13 +51,18 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 
 - `id`: 처리 로그 ID
 - `event_id`: 원본 이벤트 ID
+- `trace_id`: event trace ID
+- `user_id`: 사용자 ID
 - `topic`: Kafka topic
 - `partition_no`: Kafka partition
 - `offset_no`: Kafka offset
+- `consumer_group_id`: 처리한 Consumer group ID
 - `status`: 처리 상태
-- `started_at`: 처리 시작 시각
-- `completed_at`: 처리 완료 시각
-- `error_message`: 실패 사유
+- `error_message`: 실패 사유. raw payload는 저장하지 않음
+- `received_at`: API가 이벤트를 접수한 시각
+- `processed_at`: Consumer가 processing log 저장을 완료한 시각
+- `created_at`: row 생성 시각
+- `updated_at`: row 수정 시각
 
 ### dlq_events
 
@@ -95,6 +100,8 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `dlq_events(original_topic, original_partition, original_offset)`
 
 `event_id`는 DLQ 조회와 중복 방어를 위한 index로 둡니다. Kafka 실패 이벤트의 원천 식별자는 `original_topic`, `original_partition`, `original_offset`이 더 정확합니다.
+
+Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않습니다. 같은 `eventId`가 재소비 또는 재처리 실험에서 여러 번 관측될 수 있으므로, 중복 processing log 방어 기준은 `(topic, partition_no, offset_no)`로 둡니다.
 
 ## 4. 시간 기준
 

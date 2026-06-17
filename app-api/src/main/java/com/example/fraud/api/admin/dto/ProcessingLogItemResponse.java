@@ -5,13 +5,16 @@ import java.time.OffsetDateTime;
 
 @Schema(description = "Event processing log item")
 public record ProcessingLogItemResponse(
+        String eventId,
+        String traceId,
+        String userId,
         String topic,
-        int partitionNo,
-        long offsetNo,
+        int partition,
+        long offset,
+        String consumerGroupId,
         String status,
-        OffsetDateTime startedAt,
-        OffsetDateTime completedAt,
-        long processingLatencyMs,
+        OffsetDateTime receivedAt,
+        OffsetDateTime processedAt,
         String errorMessage
 ) {
 }

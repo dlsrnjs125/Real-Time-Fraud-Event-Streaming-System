@@ -538,3 +538,46 @@ Application clock은 server default timezone을 사용했고, Entity lifecycle t
 ### 남은 한계
 
 Entity lifecycle timestamp는 아직 JPA callback 기준입니다. JPA auditing 또는 service clock 주입 방식으로 timestamp 기준을 통일하는 작업은 후속 개선 대상으로 둡니다.
+
+---
+
+## Phase 4. Consumer Manual Ack and Processing Log
+
+### 문제 상황
+
+Kafka Consumer에서 메시지를 처리했지만 offset commit 시점과 DB 저장 시점의 순서가 명확하지 않으면 processing log 누락 또는 중복 처리가 발생할 수 있습니다.
+
+### 원인
+
+auto commit을 사용하면 DB 저장 실패와 무관하게 offset이 commit될 수 있습니다. 반대로 DB 저장 성공 후 ack 직전에 Consumer가 죽으면 같은 offset이 재소비될 수 있습니다.
+
+### 판단
+
+Phase 4에서는 `enable-auto-commit=false`와 manual ack를 사용하고, `event_processing_logs` 저장 성공 후 ack를 수행합니다.
+
+Consumer가 처음 생성된 group ID로 시작될 때 이미 topic에 쌓인 미처리 이벤트를 읽을 수 있도록 local 설정은 `auto-offset-reset=earliest`로 둡니다.
+
+### 대안
+
+- auto commit 사용
+- listener 진입 즉시 ack
+- DB 저장 성공 후 ack
+
+### 선택
+
+DB 저장 성공 후 ack
+
+### 트레이드오프
+
+DB 저장은 성공했지만 ack 직전에 Consumer가 죽으면 같은 offset이 재소비될 수 있습니다. 이를 `(topic, partition_no, offset_no)` unique constraint와 service의 duplicate skip 정책으로 방어합니다.
+
+### 검증
+
+- processing log 저장 성공 시 ack 호출 테스트
+- 저장 실패 시 ack 미호출 테스트
+- 동일 offset 재처리 시 duplicate log가 생성되지 않는지 검증
+
+### 남은 한계
+
+- Retry/DLT는 Phase 9 범위입니다.
+- FraudResult 저장과 eventId 기준 idempotency는 Phase 5 이후 범위입니다.

@@ -193,3 +193,37 @@
 - `TransactionEventMessage` time field JSON serialization test 추가
 - local Kafka consume으로 `transaction-events` key=`userId`, ISO time payload 확인
 - docs/04, docs/05, docs/07, docs/11, docs/13 업데이트
+
+## Phase 4 Review
+
+### 제안 또는 변경한 내용
+
+- app-consumer에 `transaction-events` Kafka listener를 추가했습니다.
+- Kafka consumer 설정을 `enable-auto-commit=false`, manual ack mode로 명시했습니다.
+- `event_processing_logs` migration, JPA entity, repository, service를 추가했습니다.
+- `(topic, partition_no, offset_no)` unique constraint로 같은 Kafka record의 duplicate processing log 생성을 방어했습니다.
+- `GET /api/v1/admin/events/{eventId}/processing-log`를 실제 DB 조회 API로 전환했습니다.
+
+### 검토한 기준
+
+- ack가 processing log 저장 성공 이후 호출되는가
+- service 처리 실패 시 ack하지 않는가
+- listener가 긴 비즈니스 로직을 직접 수행하지 않고 service로 위임하는가
+- eventId unique를 `event_processing_logs`에 걸지 않았는가
+- app-common에 JPA/Kafka listener 구현이 들어가지 않았는가
+- 응답과 로그에 raw payload, accountId, deviceId 원문이 포함되지 않는가
+
+### 수정 또는 거절한 이유
+
+- Phase 4에서는 FraudResult 저장, Rule Engine, Redis, Retry/DLT를 구현하지 않았습니다.
+- 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 duplicate log를 만들지 않은 뒤 ack 가능하게 처리했습니다.
+- eventId 기준 business idempotency는 FraudResult 저장이 들어오는 Phase 5 이후로 남겼습니다.
+
+### 최종 반영 내용
+
+- Kafka Consumer manual ack 구현
+- processing log 저장 구현
+- processing log 조회 API 구현
+- ack success/failure unit test 추가
+- duplicate offset 방어 test 추가
+- docs/04, docs/05, docs/07, docs/08, docs/11, docs/13, docs/18 업데이트

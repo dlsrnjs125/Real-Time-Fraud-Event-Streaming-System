@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 초기 기획과 설계, 로컬 scaffold 검증, API 계약 정리 이후 Phase 3에서 거래 이벤트 접수 API와 Kafka Producer를 구현한 단계입니다. Kafka Consumer 비즈니스 로직과 Rule Engine은 이후 Phase에서 구현합니다.
+현재는 Phase 4까지 완료된 상태입니다. Phase 3에서는 거래 이벤트 접수 API와 Kafka Producer를 구현했고, Phase 4에서는 Kafka Consumer manual ack와 `event_processing_logs` 저장 및 조회 API를 구현했습니다. 상세 구현 과정과 트러블슈팅은 `docs/13-development-roadmap.md`, `docs/11-troubleshooting-log.md`, `blog/04-consumer-manual-ack-processing-log.md`에 정리했습니다.
