@@ -22,6 +22,8 @@ import java.time.OffsetDateTime;
 )
 public class TransactionEventReceiptEntity {
 
+    private static final int MAX_PUBLISH_ERROR_MESSAGE_LENGTH = 500;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -132,7 +134,14 @@ public class TransactionEventReceiptEntity {
 
     public void markPublishFailed(String message) {
         this.status = TransactionEventReceiptStatus.PUBLISH_FAILED;
-        this.publishErrorMessage = message;
+        this.publishErrorMessage = truncate(message, MAX_PUBLISH_ERROR_MESSAGE_LENGTH);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     public Long getId() {

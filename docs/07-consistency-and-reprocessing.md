@@ -11,12 +11,17 @@ Phase 3에서는 `app-api`가 transaction event request를 validation한 뒤 `tr
 - 중복 `eventId`는 idempotent replay로 처리하지 않고 `409 CONFLICT`를 반환합니다.
 - Kafka publish 성공 시 receipt status는 `PUBLISHED`입니다.
 - Kafka publish 실패 시 receipt status는 `PUBLISH_FAILED`로 남기고 API는 `503 SERVICE_UNAVAILABLE`을 반환합니다.
+- `PUBLISH_FAILED` 상태의 동일 `eventId` 재요청도 `409 CONFLICT`로 처리합니다.
 
 한계:
 
 - Phase 3에서는 Outbox Pattern을 구현하지 않습니다.
+- DB transaction과 Kafka publish를 원자적으로 묶지 않습니다.
 - DB receipt 저장 성공 후 Kafka publish 실패 가능성이 있습니다.
+- Kafka publish 성공 후 `PUBLISHED` 상태 저장 또는 DB commit 실패 가능성이 있습니다.
+- Kafka publish 성공 후 DB commit이 실패하면 Kafka에는 이벤트가 존재하지만 receipt 상태가 반영되지 않을 수 있습니다.
 - `PUBLISH_FAILED` receipt를 자동 보정하는 outbox publisher는 향후 hardening 후보입니다.
+- Kafka 발행 감사 테이블 또는 Outbox Pattern 기반 보정 작업은 후속 hardening 대상으로 둡니다.
 - Consumer offset, retry, DLT, reprocessing은 이후 Phase에서 구현합니다.
 
 ## 2. Offset Commit 기준

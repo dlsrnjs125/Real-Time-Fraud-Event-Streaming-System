@@ -480,3 +480,61 @@ make test
 ### 남은 한계
 
 idempotent replay 정책은 필요성이 확인되면 별도 Phase에서 설계합니다.
+
+---
+
+## Phase 3. Outbox 미적용에 따른 양방향 불일치 가능성
+
+### 초기 상태
+
+Phase 3에서는 `transaction_event_receipts` 저장과 Kafka publish를 하나의 원자적 작업으로 묶는 Outbox Pattern을 구현하지 않습니다.
+
+### 발생한 문제
+
+다음 두 방향의 불일치 가능성이 남습니다.
+
+- receipt 저장은 성공했지만 Kafka publish가 실패하는 경우
+- Kafka publish는 성공했지만 `PUBLISHED` 상태 저장 또는 DB commit이 실패하는 경우
+
+### 원인 분석
+
+DB transaction과 Kafka publish는 서로 다른 시스템의 작업입니다. Outbox Pattern, Kafka transaction과 DB transaction 연계, 또는 발행 감사 테이블 기반 보정 작업이 없으면 완전한 원자성을 보장할 수 없습니다.
+
+### 수정 내용
+
+- Kafka publish 실패는 receipt status를 `PUBLISH_FAILED`로 남기고 API는 503을 반환합니다.
+- Kafka publish 성공 후 DB commit 실패 가능성은 문서화하고 후속 hardening 대상으로 남깁니다.
+- `PUBLISH_FAILED` receipt 재요청은 Phase 3에서 `409 CONFLICT`로 처리하며 자동 재발행은 지원하지 않습니다.
+
+### 검증 명령
+
+```bash
+make test
+```
+
+### 남은 한계
+
+Outbox publisher 또는 발행 감사 테이블 기반 보정 작업은 아직 없습니다.
+
+---
+
+## Phase 3. 시간 기준과 실패 메시지 저장 정책
+
+### 초기 상태
+
+Application clock은 server default timezone을 사용했고, Entity lifecycle timestamp는 `OffsetDateTime.now()`를 직접 호출했습니다. Kafka publish 실패 메시지는 receipt에 저장됩니다.
+
+### 발생한 문제
+
+- 서버 timezone에 따라 `receivedAt` 기준이 흔들릴 수 있습니다.
+- Entity lifecycle timestamp와 service clock 기준이 완전히 같지 않습니다.
+- 실패 메시지에 긴 외부 예외 메시지나 민감한 세부 정보가 섞일 수 있습니다.
+
+### 수정 내용
+
+- Application clock은 `Clock.systemUTC()`로 변경했습니다.
+- `publish_error_message`는 raw payload를 저장하지 않는 요약 메시지로 제한하고 500자 이내로 truncate합니다.
+
+### 남은 한계
+
+Entity lifecycle timestamp는 아직 JPA callback 기준입니다. JPA auditing 또는 service clock 주입 방식으로 timestamp 기준을 통일하는 작업은 후속 개선 대상으로 둡니다.

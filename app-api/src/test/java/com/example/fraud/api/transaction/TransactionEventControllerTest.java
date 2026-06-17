@@ -14,6 +14,8 @@ import com.example.fraud.api.transaction.kafka.TransactionEventProducer;
 import com.example.fraud.api.transaction.persistence.TransactionEventReceiptRepository;
 import com.example.fraud.api.transaction.persistence.TransactionEventReceiptStatus;
 import com.example.fraud.common.event.TransactionEventMessage;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -86,6 +88,20 @@ class TransactionEventControllerTest {
     }
 
     @Test
+    void futureEventTimeMoreThanFiveMinutesReturnsBadRequest() throws Exception {
+        String futureEventTime = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(6).toString();
+
+        mockMvc.perform(post("/api/v1/transactions/events")
+                        .header("X-Trace-Id", "trace-future-event-time")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestWithEventTime("evt-future-event-time", "user-1001", futureEventTime)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"))
+                .andExpect(jsonPath("$.message", containsString("eventTime")))
+                .andExpect(jsonPath("$.traceId").value("trace-future-event-time"));
+    }
+
+    @Test
     void validRequestSavesReceiptAndPublishesTransactionEvent() throws Exception {
         mockMvc.perform(post("/api/v1/transactions/events")
                         .header("X-Trace-Id", "trace-test-003")
@@ -145,6 +161,29 @@ class TransactionEventControllerTest {
     }
 
     @Test
+    void publishFailedEventIdStillReturnsConflictOnRetry() throws Exception {
+        doThrow(new KafkaPublishFailedException(new RuntimeException("broker unavailable")))
+                .when(producer).publish(any(TransactionEventMessage.class));
+
+        mockMvc.perform(post("/api/v1/transactions/events")
+                        .header("X-Trace-Id", "trace-publish-fail-retry-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest("evt-publish-fail-retry", "user-1001")))
+                .andExpect(status().isServiceUnavailable());
+
+        mockMvc.perform(post("/api/v1/transactions/events")
+                        .header("X-Trace-Id", "trace-publish-fail-retry-002")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest("evt-publish-fail-retry", "user-1001")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_TRANSACTION_EVENT"))
+                .andExpect(jsonPath("$.traceId").value("trace-publish-fail-retry-002"));
+
+        var receipt = receiptRepository.findByEventId("evt-publish-fail-retry").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(receipt.getStatus()).isEqualTo(TransactionEventReceiptStatus.PUBLISH_FAILED);
+    }
+
+    @Test
     void receiptCanBeRetrievedAfterSuccessfulIntake() throws Exception {
         mockMvc.perform(post("/api/v1/transactions/events")
                         .header("X-Trace-Id", "trace-get-receipt")
@@ -183,6 +222,10 @@ class TransactionEventControllerTest {
     }
 
     private String validRequest(String eventId, String userId) {
+        return requestWithEventTime(eventId, userId, "2026-06-15T10:30:00+09:00");
+    }
+
+    private String requestWithEventTime(String eventId, String userId, String eventTime) {
         return """
                 {
                   "eventId": "%s",
@@ -194,8 +237,8 @@ class TransactionEventControllerTest {
                   "merchantId": "merchant-777",
                   "deviceId": "device-abc",
                   "location": "KR",
-                  "eventTime": "2026-06-15T10:30:00+09:00"
+                  "eventTime": "%s"
                 }
-                """.formatted(eventId, userId);
+                """.formatted(eventId, userId, eventTime);
     }
 }

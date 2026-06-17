@@ -174,7 +174,11 @@
 ### 수정 또는 거절한 이유
 
 - Phase 3에서는 Outbox Pattern을 구현하지 않았습니다. Producer intake 구현이 목표이며, 자동 재발행 publisher는 후속 hardening 후보입니다.
+- DB transaction과 Kafka publish를 원자적으로 묶지 않으므로 DB 저장 성공 후 Kafka publish 실패, Kafka publish 성공 후 DB commit 실패가 모두 남은 한계입니다.
 - 중복 `eventId` 요청을 replay처럼 반환하지 않았습니다. 동일 body 비교와 idempotency response는 별도 정책이 필요하기 때문입니다.
+- `PUBLISH_FAILED` 상태의 동일 `eventId` 재요청도 Phase 3에서는 `409 CONFLICT`로 막고, failed receipt 재발행 flow는 후속 hardening 대상으로 둡니다.
+- application clock은 UTC 기준으로 변경했습니다. 다만 Entity lifecycle timestamp는 현재 JPA callback에서 생성하므로, JPA auditing 또는 service clock 주입 방식으로 통일하는 개선 여지가 있습니다.
+- `publish_error_message`는 raw payload를 저장하지 않는 요약 메시지로 제한하고, entity에서 500자 truncate를 적용했습니다.
 - Kafka Consumer, manual ack, retry/DLT, FraudResult 저장은 구현하지 않았습니다.
 
 ### 최종 반영 내용
@@ -184,6 +188,8 @@
 - `userId` Kafka key 검증 test 추가
 - duplicate `eventId` 409 test 추가
 - Kafka publish failure 503 및 `PUBLISH_FAILED` status test 추가
+- future `eventTime` validation test 추가
+- `PUBLISH_FAILED` receipt 재요청 409 policy test 추가
 - `TransactionEventMessage` time field JSON serialization test 추가
 - local Kafka consume으로 `transaction-events` key=`userId`, ISO time payload 확인
 - docs/04, docs/05, docs/07, docs/11, docs/13 업데이트

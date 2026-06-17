@@ -251,7 +251,9 @@ Done
 - Kafka key가 `userId`임을 unit test로 검증
 - 중복 `eventId`는 `409 CONFLICT`로 처리
 - Kafka publish 실패는 receipt를 `PUBLISH_FAILED`로 남기고 `503 SERVICE_UNAVAILABLE` 반환
+- `PUBLISH_FAILED` 상태의 동일 `eventId` 재요청은 `409 CONFLICT` 반환
 - `eventTime`이 `receivedAt + 5분`을 초과하면 validation failure 처리
+- application clock은 UTC 기준으로 사용
 
 ### Commands
 
@@ -284,7 +286,9 @@ Evidence:
 
 - Phase 3에서는 Outbox Pattern을 구현하지 않습니다.
 - DB receipt 저장 성공 후 Kafka publish 실패 가능성이 있습니다.
+- Kafka publish 성공 후 `PUBLISHED` 상태 저장 또는 DB commit 실패 가능성이 있습니다.
 - `PUBLISH_FAILED` receipt 자동 재발행은 후속 hardening 후보입니다.
+- Entity lifecycle timestamp는 JPA callback 기준이므로 application `Clock`과 완전히 통일되어 있지는 않습니다.
 - Kafka Consumer, manual ack, `event_processing_logs` 저장은 Phase 4 범위입니다.
 
 ### Next

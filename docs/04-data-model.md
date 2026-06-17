@@ -30,7 +30,7 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `received_at`: API 접수 시각
 - `trace_id`: 요청 추적 ID
 - `status`: 접수/발행 상태. `RECEIVED`, `PUBLISHED`, `PUBLISH_FAILED`
-- `publish_error_message`: Kafka 발행 실패 시 원인 요약. nullable
+- `publish_error_message`: Kafka 발행 실패 시 원인 요약. nullable. raw payload는 저장하지 않고 500자 이내로 제한합니다.
 - `created_at`: row 생성 시각
 - `updated_at`: row 수정 시각
 
@@ -119,8 +119,10 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 이 결정의 한계:
 
 - DB 저장 성공 후 Kafka publish 실패가 발생할 수 있습니다.
+- Kafka publish 성공 후 `PUBLISHED` 상태 저장 또는 DB commit이 실패할 수 있습니다.
 - 초기 구현에서는 이 상황을 Outbox로 자동 보정하지 않습니다.
 - Kafka publish 실패는 receipt 상태를 `PUBLISH_FAILED`로 남기고 API 503으로 응답합니다.
+- Kafka publish 성공 후 DB commit 실패가 발생하면 Kafka에는 이벤트가 존재하지만 receipt 상태가 반영되지 않을 수 있습니다.
 - `PUBLISH_FAILED` receipt 자동 재발행은 후속 hardening 대상입니다.
 
 향후 API 접수 기록과 Kafka 발행 원자성이 필요해지면 `outbox_events` 테이블과 outbox publisher를 추가합니다.

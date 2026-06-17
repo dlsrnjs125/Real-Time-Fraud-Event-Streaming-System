@@ -123,7 +123,7 @@ Validation 기준:
 4. Kafka key를 `userId`로 사용해 `transaction-events` 발행
 5. Kafka publish 성공 시 `ACCEPTED` 반환
 
-초기 구현은 Outbox를 사용하지 않습니다. 따라서 DB 저장 성공 후 Kafka publish 실패가 발생할 수 있고, 이 경우 receipt status와 재발행 보정 정책은 별도 Phase에서 보강합니다.
+초기 구현은 Outbox를 사용하지 않습니다. 따라서 DB transaction과 Kafka publish는 원자적으로 묶이지 않습니다. DB 저장 성공 후 Kafka publish 실패가 발생할 수 있고, 반대로 Kafka publish 성공 후 `PUBLISHED` 상태 저장 또는 DB commit이 실패할 수도 있습니다. 이 경우 receipt status와 재발행/감사 보정 정책은 별도 Phase에서 보강합니다.
 
 Phase 3 동작:
 
@@ -131,6 +131,7 @@ Phase 3 동작:
 - validation 실패 시 `ErrorResponse`를 반환합니다.
 - 중복 `eventId`는 `409 CONFLICT`와 `DUPLICATE_TRANSACTION_EVENT`로 처리합니다.
 - Kafka publish 실패는 receipt를 `PUBLISH_FAILED`로 남기고 `503 SERVICE_UNAVAILABLE`과 `KAFKA_PUBLISH_FAILED`로 처리합니다.
+- `PUBLISH_FAILED` 상태의 동일 `eventId` 재요청도 Phase 3에서는 `409 CONFLICT`로 막습니다.
 - 유효한 요청은 receipt 저장과 Kafka publish 성공 후 `202 Accepted`를 반환합니다.
 - Consumer 처리 상태 변경은 수행하지 않습니다.
 
@@ -154,7 +155,7 @@ Response:
 }
 ```
 
-`accountId`와 `deviceId`는 초기 운영 조회 응답에서 원문을 기본 노출하지 않습니다. 필요하면 masked field를 별도로 정의합니다.
+`accountId`와 `deviceId`는 초기 운영 조회 응답에서 원문을 기본 노출하지 않습니다. 운영 조회가 필요하면 `maskedAccountId` 또는 내부 admin API에서 제한적으로 제공하는 방향으로 별도 정의합니다.
 
 ## 6. Fraud Result Admin API
 
