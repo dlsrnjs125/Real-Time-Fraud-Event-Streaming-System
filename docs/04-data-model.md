@@ -28,6 +28,8 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `event_time`: 거래 발생 시각
 - `received_at`: API 접수 시각
 - `trace_id`: 요청 추적 ID
+- `status`: 접수/발행 상태. 초기 값은 `ACCEPTED`
+- `publish_error_message`: Kafka 발행 실패 시 원인 요약. 초기 구현에서는 nullable
 
 ### fraud_results
 
@@ -107,6 +109,14 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 초기 구현에서는 API Server가 Kafka 발행 성공 이후 `ACCEPTED`를 반환합니다. 별도 transaction outbox는 구현하지 않습니다.
 
 이유는 이 프로젝트의 핵심 범위가 API 접수 정합성보다 Consumer 처리 지연, 재처리, 장애 복구 검증이기 때문입니다.
+
+다만 Phase 3부터 운영 추적성을 위해 `transaction_event_receipts`는 저장합니다. 기본 흐름은 request validation, `receivedAt` 생성, receipt 저장, Kafka publish, `ACCEPTED` 반환입니다.
+
+이 결정의 한계:
+
+- DB 저장 성공 후 Kafka publish 실패가 발생할 수 있습니다.
+- 초기 구현에서는 이 상황을 Outbox로 자동 보정하지 않습니다.
+- Kafka publish 실패는 API 503으로 응답하고, receipt 상태와 보정 정책은 후속 hardening 대상입니다.
 
 향후 API 접수 기록과 Kafka 발행 원자성이 필요해지면 `outbox_events` 테이블과 outbox publisher를 추가합니다.
 

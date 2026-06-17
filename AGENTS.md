@@ -227,11 +227,11 @@ docs/11-troubleshooting-log.md
 docs directly related to the issue
 ```
 
-#### AI Review
+#### Review
 
 ```text
-docs/12-ai-review.md
-Target files generated or modified with AI assistance
+docs/12-review.md
+Target files generated or modified with AI/Codex assistance
 ```
 
 ### Token-saving rules
@@ -1126,7 +1126,7 @@ docs/08-observability.md
 docs/09-load-test-plan.md
 docs/10-failure-scenarios.md
 docs/11-troubleshooting-log.md
-docs/12-ai-review.md
+docs/12-review.md
 docs/14-security-and-privacy.md
 docs/15-slo-and-operational-readiness.md
 docs/16-fraud-detection-strategy.md
@@ -1156,7 +1156,7 @@ The documentation should read like engineering notes, design decisions, and veri
 
 ---
 
-## 19. AI Review Rules
+## 19. Review Rules
 
 AI may be used for:
 
@@ -1197,7 +1197,7 @@ Common AI-generated issues to check:
 Update:
 
 ```text
-docs/12-ai-review.md
+docs/12-review.md
 ```
 
 when AI-generated code or design was accepted, rejected, or modified.

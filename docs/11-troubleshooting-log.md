@@ -220,3 +220,153 @@ API 접수 기록과 Kafka 발행 원자성이 필요한 요구가 생기면 현
 - Kafka publish failure count
 - accepted event count와 Kafka append count 비교
 - outbox pending count, if implemented
+
+---
+
+## Phase 1. Gradle repository 정책 충돌
+
+### 초기 설계
+
+`settings.gradle`에서 dependency repository를 중앙 관리하고, root `build.gradle`의 `subprojects`에서도 `mavenCentral()`을 선언했습니다.
+
+### 발생한 문제
+
+`./gradlew clean build` 실행 시 `RepositoriesMode.FAIL_ON_PROJECT_REPOS` 정책과 subproject repository 선언이 충돌했습니다.
+
+### 재현 방법
+
+```bash
+./gradlew clean build
+```
+
+### 원인 분석
+
+settings-level repository 정책이 project-level repository 선언을 금지하는 상태에서 root build script가 repository를 중복 선언했습니다.
+
+### 변경한 설계
+
+repository 선언은 `settings.gradle`의 `dependencyResolutionManagement`로 고정하고, root `build.gradle`의 subproject repository 선언을 제거했습니다.
+
+### 개선 결과
+
+`./gradlew clean build`와 module test task가 통과했습니다.
+
+### 남은 한계
+
+현재 test source는 아직 없어서 test task는 `NO-SOURCE`로 통과합니다.
+
+---
+
+## Phase 1. Kafka Docker image tag와 CLI 경로 불일치
+
+### 초기 설계
+
+Kafka container image는 `bitnami/kafka:3.7`을 사용하고, topic script와 healthcheck는 `kafka-topics.sh`가 PATH에 있다고 가정했습니다.
+
+### 발생한 문제
+
+Docker image pull 단계에서 `bitnami/kafka:3.7` tag를 찾지 못했고, Apache Kafka image로 변경한 뒤에는 `kafka-topics.sh`가 PATH에 없어 healthcheck와 topic script가 실패했습니다.
+
+### 재현 방법
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+./scripts/create-topics.sh
+```
+
+### 원인 분석
+
+로컬에서 사용할 image tag가 실제 registry tag와 맞지 않았고, `apache/kafka:3.7.0` image의 Kafka CLI는 `/opt/kafka/bin` 아래에 위치합니다.
+
+### 변경한 설계
+
+- Kafka image를 `apache/kafka:3.7.0`으로 변경했습니다.
+- Docker Compose healthcheck와 topic 관련 scripts에서 `/opt/kafka/bin/kafka-topics.sh`를 명시적으로 사용하도록 수정했습니다.
+
+### 개선 결과
+
+Docker Compose 기동 후 Kafka container가 healthy 상태가 되었고, 다음 topic 5개가 생성되는 것을 확인했습니다.
+
+```text
+transaction-events
+fraud-risk-events
+fraud-alert-events
+transaction-events.retry
+transaction-events.dlt
+```
+
+### 남은 한계
+
+로컬 환경은 single broker이므로 replication factor는 1입니다. 운영 환경 수준의 multi-broker replication은 문서 설계로만 유지합니다.
+
+---
+
+## Phase 1. Kafka advertised listener와 Kafka UI 연결
+
+### 초기 설계
+
+Kafka advertised listener를 `localhost:9092` 중심으로만 두었습니다.
+
+### 발생한 문제
+
+Docker network 내부의 Kafka UI가 `localhost:9092`를 사용하면 Kafka UI container 자기 자신을 바라보게 되어 broker 연결이 불안정해질 수 있습니다.
+
+### 재현 방법
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml logs kafka-ui --tail=100
+```
+
+### 원인 분석
+
+host에서 실행하는 Spring Boot 앱과 Docker network 내부 서비스가 Kafka broker를 바라보는 주소가 다릅니다.
+
+### 변경한 설계
+
+- host app용 external listener: `localhost:9092`
+- Docker network 내부용 internal listener: `kafka:29092`
+- Kafka UI bootstrap server: `kafka:29092`
+
+### 개선 결과
+
+Kafka, Kafka UI, topic 생성 script가 동일 Compose 환경에서 정상 동작했습니다.
+
+### 남은 한계
+
+향후 app-api/app-consumer를 Docker Compose 내부에서 실행하는 profile을 추가하면 Spring Boot Kafka bootstrap server도 internal listener를 사용하도록 profile 분리가 필요합니다.
+
+---
+
+## Phase 1. app-consumer health endpoint 검증 불가
+
+### 초기 설계
+
+`app-consumer`는 Kafka Consumer worker로 준비되어 있고 Actuator dependency와 `server.port: 8081` 설정을 가지고 있었습니다.
+
+### 발생한 문제
+
+`app-consumer`가 웹 애플리케이션으로 뜨지 않아 시작 직후 종료되었고, `/actuator/health` HTTP 검증을 수행할 수 없었습니다.
+
+### 재현 방법
+
+```bash
+./gradlew :app-consumer:bootRun
+curl http://localhost:8081/actuator/health
+```
+
+### 원인 분석
+
+`app-consumer`에 `spring-boot-starter-web`이 없어 embedded web server가 생성되지 않았습니다. Actuator dependency만으로는 HTTP endpoint가 열리지 않습니다.
+
+### 변경한 설계
+
+Phase 1의 health endpoint 검증을 위해 `app-consumer`에 `spring-boot-starter-web`을 추가했습니다. 실제 Kafka listener 비즈니스 로직은 구현하지 않았습니다.
+
+### 개선 결과
+
+`app-consumer`가 8081 포트로 기동하고 `/actuator/health`가 `UP`을 반환했습니다. Prometheus도 `app-consumer` target을 `up`으로 scrape했습니다.
+
+### 남은 한계
+
+실제 Consumer processing, manual ack, EventProcessingLog 저장은 다음 Phase 이후에 구현해야 합니다.

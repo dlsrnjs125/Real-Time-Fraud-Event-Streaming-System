@@ -15,6 +15,8 @@
 
 topic 생성 스크립트에서 partition 수와 retention 정책을 관리합니다.
 
+Phase 1 실행 검증에서는 topic 생성 스크립트가 문서의 topic 목록과 일치하는지 확인합니다. 로컬 Docker Compose 환경에서는 single broker 기준 replication factor 1을 사용하고, 운영 수준의 multi-broker replication은 설계 문서에만 남깁니다.
+
 ## 측정 또는 재현
 
 consumer concurrency 1, 3, 6을 비교하고 partition별 lag을 확인합니다.

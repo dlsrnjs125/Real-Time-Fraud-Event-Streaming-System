@@ -66,9 +66,12 @@ Docker Compose healthcheck:
 
 ## 6. 네트워크와 Listener
 
-현재 Kafka advertised listener는 host에서 Spring Boot 애플리케이션을 실행하는 로컬 개발 흐름에 맞춰 `localhost:9092`로 둡니다.
+현재 Kafka listener는 host 실행과 Docker 내부 접근을 모두 검증할 수 있도록 분리합니다.
 
-추후 `app-api`와 `app-consumer`를 Docker Compose 서비스로 포함하면 내부 listener(`kafka:9092`)와 외부 listener(`localhost:9092`)를 분리합니다.
+- host에서 실행하는 `app-api`, `app-consumer`: `localhost:9092`
+- Docker 내부에서 실행하는 Kafka UI: `kafka:29092`
+
+추후 `app-api`와 `app-consumer`를 Docker Compose 서비스로 포함하면 Spring Boot 애플리케이션은 내부 listener(`kafka:29092`)를 사용하도록 profile을 분리합니다.
 
 ## 7. 볼륨 정책
 
