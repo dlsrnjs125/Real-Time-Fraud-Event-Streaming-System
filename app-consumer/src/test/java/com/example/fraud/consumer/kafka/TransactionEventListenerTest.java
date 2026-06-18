@@ -6,12 +6,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.fraud.common.event.FraudDecision;
+import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
+import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
+import com.example.fraud.consumer.rule.FraudRuleEngine;
+import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.support.Acknowledgment;
@@ -19,8 +26,12 @@ import org.springframework.kafka.support.Acknowledgment;
 class TransactionEventListenerTest {
 
     private final EventProcessingLogService processingLogService = mock(EventProcessingLogService.class);
+    private final FraudRuleEngine fraudRuleEngine = mock(FraudRuleEngine.class);
+    private final FraudDetectionResultService fraudDetectionResultService = mock(FraudDetectionResultService.class);
     private final TransactionEventListener listener = new TransactionEventListener(
             processingLogService,
+            fraudRuleEngine,
+            fraudDetectionResultService,
             "fraud-event-consumer"
     );
 
@@ -42,6 +53,10 @@ class TransactionEventListenerTest {
                 15L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.saved());
 
         listener.onMessage(record, acknowledgment);
 
@@ -66,10 +81,102 @@ class TransactionEventListenerTest {
                 15L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.duplicate());
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.saved());
 
         listener.onMessage(record, acknowledgment);
 
         verify(acknowledgment).acknowledge();
+    }
+
+    @Test
+    void acknowledgesWhenFraudResultAlreadyExists() {
+        TransactionEventMessage message = message("evt-listener-result-duplicate");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                16L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                16L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.duplicate());
+
+        listener.onMessage(record, acknowledgment);
+
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
+    void doesNotAcknowledgeWhenFraudResultSaveFails() {
+        TransactionEventMessage message = message("evt-listener-result-fail");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                8L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                8L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        RuntimeException failure = new RuntimeException("fraud result database unavailable");
+        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult)).thenThrow(failure);
+
+        assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
+                .isSameAs(failure);
+
+        verify(acknowledgment, never()).acknowledge();
+    }
+
+    @Test
+    void doesNotAcknowledgeWhenRuleEngineFails() {
+        TransactionEventMessage message = message("evt-listener-rule-fail");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                9L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        RuntimeException failure = new RuntimeException("rule engine failure");
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                9L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudRuleEngine.evaluate(message)).thenThrow(failure);
+
+        assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
+                .isSameAs(failure);
+
+        verify(acknowledgment, never()).acknowledge();
+        verify(fraudDetectionResultService, never()).saveResult(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test
@@ -96,6 +203,21 @@ class TransactionEventListenerTest {
                 .isSameAs(failure);
 
         verify(acknowledgment, never()).acknowledge();
+        verify(fraudRuleEngine, never()).evaluate(message);
+        verify(fraudDetectionResultService, never()).saveResult(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    private FraudRuleEngineResult lowRiskResult() {
+        return new FraudRuleEngineResult(
+                0,
+                RiskLevel.LOW,
+                FraudDecision.APPROVE,
+                List.of(),
+                "No fraud rule matched"
+        );
     }
 
     private TransactionEventMessage message(String eventId) {

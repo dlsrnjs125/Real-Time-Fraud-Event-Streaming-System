@@ -27,6 +27,24 @@
 
 ## 3. Risk Score 기준
 
+Phase 5 Rule Engine v1 기준:
+
+| Score | RiskLevel | Decision |
+|---:|---|---|
+| 0 ~ 29 | LOW | APPROVE |
+| 30 ~ 69 | MEDIUM | REVIEW |
+| 70 ~ 100 | HIGH | BLOCK |
+
+Phase 5 rule:
+
+- `AMOUNT_THRESHOLD`: `amount >= 1,000,000 KRW`, +50
+- `NIGHT_TIME_TRANSACTION`: `eventTime` hour 0~5, +20
+- `SUSPICIOUS_LOCATION`: `UNKNOWN`, `FOREIGN`, `HIGH_RISK`, +30
+
+점수는 합산하되 최대 100으로 제한합니다. Redis Sliding Window 기반 사용자 최근 거래 패턴은 Phase 5에 포함하지 않고 후속 Phase에서 `VELOCITY` rule로 확장합니다.
+
+Phase 5의 rule threshold는 코드 상수입니다. 운영 중 threshold 변경, rule versioning, A/B 검증은 후속 과제로 둡니다.
+
 | Score | RiskLevel |
 |---:|---|
 | 0 ~ 39 | LOW |

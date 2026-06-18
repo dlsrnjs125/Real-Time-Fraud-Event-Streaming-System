@@ -248,3 +248,30 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - same eventId different offset test 추가
 - `processedAt desc` 정렬 test 추가
 - docs/04, docs/05, docs/07, docs/08, docs/11, docs/13, docs/18 업데이트
+
+## Phase 5 Review
+
+### 잘한 점
+
+- Phase 4의 processing log와 별도로 `fraud_detection_results`를 추가해 "처리 여부"와 "위험 판단 결과"를 분리했습니다.
+- Consumer ack 시점을 fraud result 저장 이후로 이동해 탐지 결과 누락 가능성을 줄였습니다.
+- `fraud_detection_results.event_id` unique constraint를 최종 중복 방어선으로 두어 Kafka 재소비를 idempotent하게 처리했습니다.
+- Rule Engine을 Listener에서 분리해 rule 평가를 unit test로 검증할 수 있게 했습니다.
+
+### 의도적으로 제외한 것
+
+- Redis Sliding Window와 VelocityRule은 Phase 5에 포함하지 않았습니다.
+- Retry/DLT 기반 실패 복구와 failed result 보정 flow는 후속 Phase로 남겼습니다.
+- Rule threshold 동적 관리와 rule versioning은 구현하지 않았습니다.
+
+### 남은 한계
+
+- 같은 eventId는 하나의 fraud result만 가집니다. rule version 변경 후 재평가 이력을 남기려면 result versioning이 필요합니다.
+- `matched_rules`는 Phase 5에서 text로 저장합니다. rule별 상세 결과는 후속 Phase에서 JSONB 또는 별도 detail table로 확장할 수 있습니다.
+- Kafka/PostgreSQL/Redis E2E 검증은 아직 GitHub Actions integration workflow에 포함하지 않았습니다.
+
+### 다음 보완
+
+- Redis 기반 `VELOCITY` rule과 degraded mode를 추가합니다.
+- rule result detail과 skipped rule 기록을 확장합니다.
+- DLT/reprocessing 단계에서 duplicate result와 reprocess history 정합성을 검증합니다.

@@ -7,12 +7,14 @@ import com.example.fraud.api.admin.dto.DlqReprocessRequest;
 import com.example.fraud.api.admin.dto.DlqReprocessResponse;
 import com.example.fraud.api.admin.dto.FraudResultDetailResponse;
 import com.example.fraud.api.admin.dto.FraudResultSummaryResponse;
+import com.example.fraud.api.admin.dto.FraudDetectionResultResponse;
 import com.example.fraud.api.admin.dto.FraudRuleListResponse;
 import com.example.fraud.api.admin.dto.FraudRuleResponse;
 import com.example.fraud.api.admin.dto.FraudRuleResultResponse;
 import com.example.fraud.api.admin.dto.OperationSummaryResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
 import com.example.fraud.api.admin.dto.ProcessingLogResponse;
+import com.example.fraud.api.admin.fraud.FraudDetectionResultQueryService;
 import com.example.fraud.api.admin.processing.ProcessingLogQueryService;
 import com.example.fraud.api.support.exception.ErrorResponse;
 import com.example.fraud.api.support.logging.TraceIdResolver;
@@ -43,9 +45,14 @@ import org.springframework.format.annotation.DateTimeFormat;
 public class AdminContractController {
 
     private final ProcessingLogQueryService processingLogQueryService;
+    private final FraudDetectionResultQueryService fraudDetectionResultQueryService;
 
-    public AdminContractController(ProcessingLogQueryService processingLogQueryService) {
+    public AdminContractController(
+            ProcessingLogQueryService processingLogQueryService,
+            FraudDetectionResultQueryService fraudDetectionResultQueryService
+    ) {
         this.processingLogQueryService = processingLogQueryService;
+        this.fraudDetectionResultQueryService = fraudDetectionResultQueryService;
     }
 
     @Operation(summary = "List fraud results", description = "Phase 2 empty stub. Actual query is implemented in Phase 5.")
@@ -156,6 +163,12 @@ public class AdminContractController {
     @GetMapping("/events/{eventId}/processing-log")
     public ProcessingLogResponse getProcessingLog(@PathVariable String eventId) {
         return processingLogQueryService.getProcessingLog(eventId);
+    }
+
+    @Operation(summary = "Get event fraud result", description = "Looks up fraud detection result by eventId.")
+    @GetMapping("/events/{eventId}/fraud-result")
+    public FraudDetectionResultResponse getEventFraudResult(@PathVariable String eventId) {
+        return fraudDetectionResultQueryService.getByEventId(eventId);
     }
 
     @Operation(summary = "Get operational summary", description = "Phase 2 zero-value stub. Actual metrics summary is implemented in Phase 10.")

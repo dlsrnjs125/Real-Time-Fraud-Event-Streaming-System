@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 4까지 완료된 상태입니다. Phase 3에서는 거래 이벤트 접수 API와 Kafka Producer를 구현했고, Phase 4에서는 Kafka Consumer manual ack와 `event_processing_logs` 저장 및 조회 API를 구현했습니다. Phase 4부터는 GitHub Actions 기반 최소 CI Gate로 push/pull request 시 `make ci-check` 회귀 검증을 자동화했습니다. 상세 구현 과정과 트러블슈팅은 `docs/13-development-roadmap.md`, `docs/11-troubleshooting-log.md`, `blog/04-consumer-manual-ack-processing-log.md`에 정리했습니다.
+현재는 Phase 5까지 완료된 상태입니다. Phase 5에서는 Kafka Consumer가 Rule Engine v1을 실행하고, 탐지 결과를 `fraud_detection_results`에 idempotent하게 저장하며, 운영자 조회 API를 추가했습니다. 상세 구현 과정과 트러블슈팅은 `docs/13-development-roadmap.md`, `docs/11-troubleshooting-log.md`, `blog/05-fraud-result-rule-engine.md`에 정리했습니다.

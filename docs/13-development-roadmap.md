@@ -9,8 +9,8 @@
 | Phase 2 | Done | API 계약, DTO, validation, OpenAPI skeleton 구현 완료 | app-common event schema, app-api DTO/controller skeleton, Makefile | Phase 3 Kafka Producer 구현 |
 | Phase 3 | Done | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 완료 | transaction_event_receipts, Kafka producer, intake service tests | Phase 4 Consumer manual ack와 processing log 구현 |
 | Phase 4 | Done | Kafka Consumer manual ack와 processing log 저장/조회 구현 완료 | Kafka listener, event_processing_logs, processing log query API | 기본 LOW FraudResult 저장과 조회 API 구현 |
-| Phase 5 | Not Started | FraudResult 저장 미구현 | Data model/API contract | 기본 LOW FraudResult 저장과 조회 API 구현 |
-| Phase 6 | Not Started | Redis 없는 rule engine 미구현 | Fraud strategy docs | AmountRule, RiskScore, rule result detail 구현 |
+| Phase 5 | Done | Rule Engine v1과 FraudResult 저장/조회 구현 완료 | fraud_detection_results, Rule Engine v1, fraud result query API | Redis Sliding Window rule 구현 |
+| Phase 6 | Not Started | Redis 없는 추가 rule engine 미구현 | Fraud strategy docs | Rule result detail 확장과 threshold 관리 개선 |
 | Phase 7 | Not Started | Redis sliding window 미구현 | Redis 설계 문서 | VelocityRule, Redis degraded mode 구현 |
 | Phase 8 | Not Started | context rule 미구현 | Fraud strategy docs | NewDevice/Location rule 후보 구현 또는 범위 조정 |
 | Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
@@ -414,27 +414,92 @@ Evidence:
 
 - Phase 5에서 기본 `LOW` FraudResult 저장과 조회 API를 구현합니다.
 
-## Phase 5. Basic FraudResult Persistence and Query
+## Phase 5. Fraud Detection Result and Rule Engine v1
 
 ### 목표
 
-Rule Engine 전에 Consumer 처리 결과 저장 골격과 조회 API를 먼저 닫습니다.
+Consumer가 수신한 거래 이벤트를 Rule Engine v1으로 평가하고, 탐지 결과를 PostgreSQL에 저장합니다.
+
+### Status
+
+Done
 
 ### 범위
 
-- 기본 `LOW` FraudResult 저장
-- `fraud_results.event_id` unique constraint
+- `fraud_detection_results` 테이블
+- `fraud_detection_results.event_id` unique constraint
+- Rule Engine v1
+- `AMOUNT_THRESHOLD`, `NIGHT_TIME_TRANSACTION`, `SUSPICIOUS_LOCATION`
+- riskScore, riskLevel, decision 계산
+- Consumer 처리 흐름에 fraud result 저장 연결
 - duplicate `eventId` skip 처리
-- `GET /api/v1/admin/fraud-results`
-- `GET /api/v1/admin/fraud-results/{eventId}`
-- `detectedAt`, `detectionLatencyMs`, `endToEndLatencyMs` 계산 기초
+- `GET /api/v1/admin/events/{eventId}/fraud-result`
 
 ### 완료 기준
 
-- Consumer가 event 소비 후 FraudResult를 저장
+- Consumer가 event 소비 후 Rule Engine v1을 실행
+- processing log 저장, Rule Engine 평가, fraud result 저장 성공 후 acknowledge
+- fraud result 저장 실패 또는 rule engine 실패 시 acknowledge하지 않음
 - 같은 `eventId` 재소비 시 중복 FraudResult가 생성되지 않음
-- FraudResult 목록/상세 API에서 결과 조회 가능
-- duplicate skip count metric foundation 추가
+- eventId 기준 fraud result 조회 API에서 결과 조회 가능
+- 없는 fraud result 조회 시 `404 FRAUD_RESULT_NOT_FOUND`
+
+### Completed
+
+- app-api runtime Flyway migration `V3__create_fraud_detection_results.sql` 추가
+- app-consumer test resources에 V3 migration 추가
+- app-consumer runtime Flyway 비활성 정책 유지
+- `FraudRuleEngine`, `FraudRule`, rule별 class 구현
+- `riskScore` 0~100 cap 적용
+- `LOW/APPROVE`, `MEDIUM/REVIEW`, `HIGH/BLOCK` mapping 구현
+- `FraudDetectionResultEntity`, repository, service 구현
+- `eventId` unique constraint 기반 duplicate save 방어 구현
+- Listener 흐름을 processing log -> rule engine -> fraud result save -> acknowledge로 변경
+- duplicate fraud result이면 idempotent 성공으로 보고 acknowledge 가능하게 처리
+- app-api fraud result read model과 query service 추가
+- `GET /api/v1/admin/events/{eventId}/fraud-result` 추가
+
+### Commands
+
+```bash
+make ci-check
+make infra-up
+make topics
+make api
+make consumer
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Rule Engine unit test | PASS | score 합산, cap, riskLevel, decision 검증 |
+| Fraud result idempotency test | PASS | duplicate eventId 저장 시 추가 row 생성 없음 |
+| Consumer ack test | PASS | success/duplicate ack, failure/rule error miss-ack 검증 |
+| Admin API test | PASS | eventId 조회, matchedRules 변환, 404 검증 |
+| Makefile ci-check | PASS | `./gradlew test`, `./gradlew assemble` 성공 |
+| Manual API publish | PASS | `evt-phase5-low-001`, `evt-phase5-high-001` 모두 `202 Accepted` |
+| Manual fraud result lookup | PASS | high risk result returned `riskScore=100`, `riskLevel=HIGH`, `decision=BLOCK` |
+| Manual processing log lookup | PASS | high risk event processing log returned status `PROCESSED` |
+| Manual duplicate request | PASS | duplicate `eventId` returned `409`, fraud result row count remained `1` |
+
+Evidence:
+
+- Local review record: `docs/12-review.md#phase-5-review`
+- Troubleshooting and decision notes: `docs/11-troubleshooting-log.md#phase-5-fraud-result-저장과-consumer-ack-순서`
+- Runbook procedure: `docs/18-runbook.md#15-fraud-result와-rule-engine-v1-수동-검증`
+
+### Known Limitations
+
+- Redis Sliding Window 기반 최근 거래 패턴은 후속 Phase 범위입니다.
+- Retry/DLT 기반 실패 복구는 후속 Phase 범위입니다.
+- Rule threshold는 코드 상수로 관리하며, 동적 rule 관리는 후속 과제입니다.
+- Phase 5 result는 eventId 기준 단일 결과만 저장합니다. rule version 변경 후 재평가 이력을 남기려면 result versioning이 필요합니다.
+- Kafka/PostgreSQL/Redis E2E CI는 후속 integration workflow에서 보완합니다.
+
+### Next
+
+- Redis 기반 VelocityRule과 degraded mode를 구현합니다.
 
 ## Phase 6. Rule Engine without Redis
 
