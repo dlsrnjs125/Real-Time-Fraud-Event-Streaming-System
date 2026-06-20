@@ -159,6 +159,34 @@ Response:
 
 ## 6. Fraud Result Admin API
 
+### GET `/api/v1/admin/events/{eventId}/fraud-result`
+
+특정 거래 이벤트의 Phase 5 탐지 결과를 조회합니다. Phase 5의 fraud result 조회 API는 운영자용 admin API로 정의했습니다. 현재 Phase에서는 인증/인가 구현보다 처리 결과 저장과 조회 계약 검증에 집중했으며, 실제 운영 확장 시 ADMIN 권한 기반 접근 제어와 감사 로그를 추가합니다.
+
+Response:
+
+```json
+{
+  "eventId": "evt-phase5-001",
+  "traceId": "trace-phase5-001",
+  "userId": "user-1001",
+  "accountId": "acc-1001",
+  "riskScore": 80,
+  "riskLevel": "HIGH",
+  "decision": "BLOCK",
+  "matchedRules": [
+    "AMOUNT_THRESHOLD",
+    "SUSPICIOUS_LOCATION"
+  ],
+  "reason": "amount >= 1000000 KRW; location is UNKNOWN, FOREIGN, or HIGH_RISK",
+  "detectedAt": "2026-06-19T10:00:02Z"
+}
+```
+
+없는 `eventId`의 fraud result는 `404 FRAUD_RESULT_NOT_FOUND`로 응답합니다.
+
+Phase 5에서는 `matched_rules`를 DB에 text로 저장하고 API response에서 배열로 변환합니다. raw Kafka payload는 응답하지 않습니다.
+
 ### GET `/api/v1/admin/fraud-results`
 
 이상거래 탐지 결과 목록을 조회합니다.

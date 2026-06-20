@@ -616,3 +616,51 @@ Flyway migration은 `app-api`를 schema owner로 두고, app-consumer runtime은
 - Retry/DLT는 Phase 9 범위입니다.
 - FraudResult 저장과 eventId 기준 idempotency는 Phase 5 이후 범위입니다.
 - `FAILED` processing status는 Phase 4에서는 예약 상태입니다. DB 자체가 실패 로그를 저장할 수 없는 경우에는 ack하지 않고 재소비 가능성을 열어두며, 저장 가능한 business failure와 DLT 기록은 Phase 9에서 구체화합니다.
+
+## Phase 5. Fraud Result 저장과 Consumer Ack 순서
+
+### 문제 상황
+
+Consumer가 메시지를 처리한 뒤 processing log와 fraud result를 모두 저장해야 했습니다. 하지만 어느 시점에 ack를 호출해야 하는지에 따라 탐지 결과 누락 또는 중복 저장 가능성이 달라졌습니다.
+
+### 원인
+
+ack를 먼저 호출하면 fraud result 저장 실패 시 Kafka 재소비가 불가능해질 수 있습니다. 반대로 fraud result 저장 후 ack 직전에 Consumer가 죽으면 같은 이벤트가 재소비될 수 있습니다.
+
+### 판단
+
+Phase 5에서는 processing log 저장, Rule Engine 평가, fraud result 저장이 모두 성공한 뒤 ack를 호출합니다. ack 직전 장애로 인한 재소비는 `event_id` unique constraint로 중복 저장을 방어합니다.
+
+Phase 5에서는 processing log와 fraud result를 하나의 DB transaction으로 묶지 않고, Consumer 재소비와 idempotent 저장으로 복구 가능하게 설계했습니다. 따라서 processing log 저장 후 fraud result 저장 전에 장애가 발생하면 일시적으로 processing log만 존재할 수 있습니다. 이 경우 ack가 호출되지 않으므로 Kafka 재소비가 발생하고, processing log는 `(topic, partition_no, offset_no)` unique constraint로 duplicate skip되며, fraud result 저장을 다시 시도합니다.
+
+### 선택
+
+PostgreSQL `event_id` unique constraint를 최종 정합성 기준으로 두고, Consumer 로직은 duplicate event를 정상 처리 가능한 idempotent 흐름으로 구성했습니다.
+
+`existsByEventId()`는 불필요한 insert 시도를 줄이기 위한 fast path이며, 최종 중복 방어는 PostgreSQL `event_id` unique constraint가 담당합니다. 동시 Consumer 또는 재소비 상황에서 race condition이 발생해도 unique constraint 충돌을 duplicate result로 처리합니다.
+
+### 트레이드오프
+
+eventId 기준으로 하나의 탐지 결과만 저장하므로, rule version이 바뀐 뒤 동일 event를 재평가하는 시나리오는 별도 result versioning이 필요합니다. 이는 후속 Phase에서 보완합니다.
+
+`matched_rules`는 Phase 5에서 comma-separated text로 저장합니다. rule code rename 또는 과거 데이터에 남은 unknown rule code가 생기면 enum 변환 기반 조회가 깨질 수 있으므로, 후속 Phase에서 JSONB, rule code version, unknown rule code 응답 정책을 검토합니다.
+
+## Phase 5. Rule Engine v1 분리와 Redis 제외
+
+### 문제 상황
+
+Listener에 rule 판단과 저장 로직을 직접 넣으면 ack 시점, rule 변경, 저장 idempotency가 한 메서드에 섞일 수 있었습니다.
+
+### 판단
+
+Listener는 orchestration만 담당하고, Rule Engine은 순수 rule 평가, FraudDetectionResultService는 저장과 idempotency만 담당하도록 분리했습니다.
+
+Redis Sliding Window는 사용자 최근 거래 패턴을 보려면 필요하지만, Phase 5에서는 단건 이벤트 기반 rule만 먼저 구현했습니다. 이렇게 하면 Consumer ack와 result persistence의 정합성을 먼저 검증한 뒤 Redis 장애/degraded mode를 다음 단계에서 좁게 다룰 수 있습니다.
+
+### 검증
+
+- Rule Engine unit test
+- fraud result duplicate eventId test
+- fraud result 저장 실패 시 ack 미호출 test
+- rule engine 예외 시 ack 미호출 test
+- processing log 저장 실패 시 fraud result 저장 미시도 test

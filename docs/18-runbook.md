@@ -529,3 +529,49 @@ curl http://localhost:8080/api/v1/admin/events/{eventId}/processing-log
 
 - Retry/DLT는 Phase 9 범위입니다.
 - FraudResult 저장과 eventId 기준 business idempotency는 Phase 5 이후 범위입니다.
+
+## 15. Fraud Result와 Rule Engine v1 수동 검증
+
+전제 조건:
+
+- app-api가 schema owner이므로 빈 DB에서는 app-api를 먼저 실행해 migration을 적용합니다.
+- app-consumer는 runtime Flyway를 실행하지 않고 JPA validate만 수행합니다.
+
+확인 명령:
+
+```bash
+make infra-up
+make topics
+make api
+make consumer
+```
+
+저위험 이벤트 발행:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/transactions/events \
+  -H "Content-Type: application/json" \
+  -d '{"eventId":"evt-phase5-low-001","userId":"user-1001","accountId":"acc-1001","amount":10000,"currency":"KRW","merchantId":"merchant-001","deviceId":"device-001","location":"SEOUL","eventType":"PAYMENT","eventTime":"2026-06-19T10:00:00Z"}'
+```
+
+고위험 이벤트 발행:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/transactions/events \
+  -H "Content-Type: application/json" \
+  -d '{"eventId":"evt-phase5-high-001","userId":"user-1001","accountId":"acc-1001","amount":1500000,"currency":"KRW","merchantId":"merchant-001","deviceId":"device-001","location":"HIGH_RISK","eventType":"PAYMENT","eventTime":"2026-06-19T02:00:00Z"}'
+```
+
+조회:
+
+```bash
+curl http://localhost:8080/api/v1/admin/events/evt-phase5-high-001/processing-log
+curl http://localhost:8080/api/v1/admin/events/evt-phase5-high-001/fraud-result
+```
+
+기대 결과:
+
+- processing log status가 `PROCESSED`로 조회됩니다.
+- fraud result가 저장됩니다.
+- 고위험 이벤트는 `riskLevel=HIGH`, `decision=BLOCK`입니다.
+- 같은 eventId가 재소비되어도 `fraud_detection_results` row는 중복 생성되지 않습니다.

@@ -1,8 +1,12 @@
 package com.example.fraud.consumer.kafka;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
+import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
+import com.example.fraud.consumer.rule.FraudRuleEngine;
+import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,13 +21,19 @@ public class TransactionEventListener {
     private static final Logger log = LoggerFactory.getLogger(TransactionEventListener.class);
 
     private final EventProcessingLogService processingLogService;
+    private final FraudRuleEngine fraudRuleEngine;
+    private final FraudDetectionResultService fraudDetectionResultService;
     private final String consumerGroupId;
 
     public TransactionEventListener(
             EventProcessingLogService processingLogService,
+            FraudRuleEngine fraudRuleEngine,
+            FraudDetectionResultService fraudDetectionResultService,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
     ) {
         this.processingLogService = processingLogService;
+        this.fraudRuleEngine = fraudRuleEngine;
+        this.fraudDetectionResultService = fraudDetectionResultService;
         this.consumerGroupId = consumerGroupId;
     }
 
@@ -38,18 +48,23 @@ public class TransactionEventListener {
                 record.offset(),
                 consumerGroupId
         );
+        FraudRuleEngineResult ruleResult = fraudRuleEngine.evaluate(message);
+        FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
 
         acknowledgment.acknowledge();
 
         log.info(
-                "transaction event consumed traceId={} eventId={} userId={} topic={} partition={} offset={} duplicateSkipped={}",
+                "transaction event consumed traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={} fraudDuplicateSkipped={} riskLevel={} decision={}",
                 message.traceId(),
                 message.eventId(),
                 message.userId(),
                 record.topic(),
                 record.partition(),
                 record.offset(),
-                result.duplicateSkipped()
+                result.duplicateSkipped(),
+                saveResult.duplicateSkipped(),
+                ruleResult.riskLevel(),
+                ruleResult.decision()
         );
     }
 }

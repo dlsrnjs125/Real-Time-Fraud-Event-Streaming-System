@@ -34,18 +34,30 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `created_at`: row 생성 시각
 - `updated_at`: row 수정 시각
 
-### fraud_results
+### fraud_detection_results
 
 - `id`: 탐지 결과 ID
-- `event_id`: 원본 이벤트 ID, unique
+- `event_id`: 원본 이벤트 ID, unique. 같은 Kafka event 재소비 시 중복 탐지 결과 생성을 막는 최종 방어선
+- `trace_id`: 요청과 Consumer 처리 추적 ID
 - `user_id`: 사용자 ID
+- `account_id`: 계좌 ID. Phase 5 local admin 조회용으로 저장하며 로그에는 원문을 남기지 않음
+- `risk_score`: 위험 점수. 0~100 check constraint
 - `risk_level`: `LOW`, `MEDIUM`, `HIGH`
-- `risk_score`: 위험 점수
-- `matched_rules`: 매칭된 rule 목록
-- `skipped_rules`: Redis 장애 또는 fallback 실패로 실행하지 못한 rule 목록
-- `rule_results`: ruleCode, score, matched, skipped, reason을 담는 JSONB 확장 후보
-- `degraded`: Redis 장애 등으로 일부 rule이 생략되었는지 여부
+- `decision`: `APPROVE`, `REVIEW`, `BLOCK`
+- `matched_rules`: 매칭된 rule 목록. Phase 5에서는 comma-separated text로 저장하고 API에서 배열로 변환
+- `reason`: Rule Engine v1 판단 요약
 - `detected_at`: 탐지 완료 시각
+- `created_at`: row 생성 시각
+- `updated_at`: row 수정 시각
+
+인덱스:
+
+- `idx_fraud_results_user_id_created_at`
+- `idx_fraud_results_risk_level_created_at`
+- `idx_fraud_results_decision_created_at`
+- `idx_fraud_results_trace_id`
+
+Phase 5에서는 Redis 의존 rule이 없으므로 `skipped_rules`, `rule_results`, `degraded`는 후속 확장 후보로 둡니다.
 
 ### event_processing_logs
 
@@ -91,7 +103,7 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 
 ## 3. 중복 방어 기준
 
-`fraud_results.event_id`에 unique constraint를 둡니다. 재처리로 같은 이벤트가 다시 들어와도 중복 탐지 결과를 만들지 않습니다.
+`fraud_detection_results.event_id`에 unique constraint를 둡니다. 재처리로 같은 이벤트가 다시 들어와도 중복 탐지 결과를 만들지 않습니다. 최종 중복 방어는 Consumer 코드가 아니라 PostgreSQL `event_id` unique constraint가 담당합니다. Consumer의 `existsByEventId()` 확인은 불필요한 insert 시도를 줄이기 위한 fast path입니다.
 
 추가 unique constraint:
 
@@ -139,7 +151,7 @@ Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않
 | 데이터 | 보존 기준 | 이유 |
 |---|---|---|
 | `event_processing_logs` | 30d 또는 실험 범위 내 보존 | Consumer 처리 추적과 장애 분석 |
-| `fraud_results` | 장기 보존 대상 | 탐지 결과 조회와 감사 기준 |
+| `fraud_detection_results` | 장기 보존 대상 | 탐지 결과 조회와 감사 기준 |
 | `dlq_events` | 상태 종료 후 일정 기간 보존 | 실패 원인 분석과 재처리 감사 |
 | `reprocessing_history` | 감사 목적 보존 | 운영자 조치 이력 추적 |
 

@@ -14,6 +14,6 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Real-Time Fraud Event Streaming System API")
                         .version("v1")
-                        .description("Phase 4 API documentation. Transaction event intake, Kafka publish, Consumer processing log persistence, and processing log lookup are implemented; FraudResult and DLQ reprocessing are implemented in later phases."));
+                        .description("Phase 5 API documentation. Transaction event intake, Kafka publish, Consumer processing log persistence, Rule Engine v1 fraud result persistence, and event fraud result lookup are implemented; Redis rules and DLQ reprocessing are implemented in later phases."));
     }
 }
