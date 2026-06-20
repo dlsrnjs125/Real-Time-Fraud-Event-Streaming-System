@@ -51,13 +51,32 @@ processing log 저장
 
 반대로 PostgreSQL fraud result 저장 실패, processing log 저장 실패, Rule Engine 자체 예외는 ack하지 않는다.
 
+이미 PostgreSQL에 같은 `eventId`의 fraud result가 있으면 Redis window를 갱신하지 않고 ack한다. 같은 eventId에 다른 payload가 들어오는 conflict replay가 Redis Hash metadata를 덮어쓰는 일을 막기 위한 fast path다.
+
 ## 중복 eventId
 
-Kafka message는 재소비될 수 있다. 같은 `eventId`가 다시 Redis에 기록될 때 window count가 늘어나면 탐지 결과가 왜곡될 수 있다.
+Kafka message는 재소비될 수 있다. 같은 `eventId`가 다시 Redis에 기록될 때 window count가 늘어나거나 metadata가 덮어써지면 탐지 결과가 왜곡될 수 있다.
 
-ZSET member를 `eventId`로 두면 같은 eventId의 `ZADD`는 member를 새로 추가하지 않고 score를 갱신한다. Redis 상태가 완전한 정합성 기준은 아니지만, 재소비 시 count 중복 증가를 줄이는 데 충분한 형태다.
+fraud result가 이미 있으면 Redis를 건드리지 않는다. 아직 fraud result가 없는 재소비라면 ZSET member를 `eventId`로 두어 같은 eventId의 `ZADD`가 member를 새로 추가하지 않게 한다. Redis 상태가 완전한 정합성 기준은 아니지만, 재소비 시 count 중복 증가를 줄이는 데 충분한 형태다.
 
 최종 중복 FraudResult 방어는 여전히 PostgreSQL unique constraint가 담당한다.
+
+## Redis 부분 실패
+
+Redis window 갱신은 여러 명령으로 구성된다.
+
+```text
+HSET event metadata
+ZADD user window
+ZREMRANGEBYSCORE cleanup
+EXPIRE
+ZRANGEBYSCORE
+HGET amount
+```
+
+Phase 6에서는 Lua나 Redis transaction을 쓰지 않았다. 대신 Hash metadata를 먼저 저장한 뒤 ZSET에 추가하고, window 계산에서는 amount metadata가 있는 eventId만 count와 sum에 포함한다.
+
+이렇게 하면 과거 부분 실패로 ZSET에 eventId만 남아 있어도 거래 횟수가 부풀려지지 않는다.
 
 ## 구현 중 이슈
 
@@ -78,6 +97,8 @@ ZSET member를 `eventId`로 두면 같은 eventId의 `ZADD`는 member를 새로 
 
 - Redis window count/sum 계산
 - 같은 eventId 재기록 시 count 중복 방어
+- duplicate fraud result 시 Redis 갱신 생략
+- metadata 없는 ZSET member count/sum 제외
 - window 밖 이벤트 제외
 - Redis 예외 시 degraded result 반환
 - stateful rule score 반영과 100점 cap

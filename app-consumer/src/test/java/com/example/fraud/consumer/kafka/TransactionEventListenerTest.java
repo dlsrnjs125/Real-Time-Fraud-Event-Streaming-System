@@ -59,6 +59,7 @@ class TransactionEventListenerTest {
         )).thenReturn(ProcessingLogResult.processed());
         RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))
@@ -89,6 +90,7 @@ class TransactionEventListenerTest {
         )).thenReturn(ProcessingLogResult.duplicate());
         RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))
@@ -100,7 +102,7 @@ class TransactionEventListenerTest {
     }
 
     @Test
-    void acknowledgesWhenFraudResultAlreadyExists() {
+    void acknowledgesWithoutUpdatingRedisWhenFraudResultAlreadyExists() {
         TransactionEventMessage message = message("evt-listener-result-duplicate");
         ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
                 KafkaTopicNames.TRANSACTION_EVENTS,
@@ -117,16 +119,20 @@ class TransactionEventListenerTest {
                 16L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
-        RecentTransactionWindowResult windowResult = normalWindowResult();
-        FraudRuleEngineResult ruleResult = lowRiskResult();
-        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
-        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
-        when(fraudDetectionResultService.saveResult(message, ruleResult))
-                .thenReturn(FraudDetectionResultSaveResult.duplicate());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(true);
 
         listener.onMessage(record, acknowledgment);
 
         verify(acknowledgment).acknowledge();
+        verify(recentTransactionWindowStore, never()).recordAndGetWindow(message);
+        verify(fraudRuleEngine, never()).evaluate(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(fraudDetectionResultService, never()).saveResult(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test
@@ -150,6 +156,7 @@ class TransactionEventListenerTest {
         RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
         RuntimeException failure = new RuntimeException("fraud result database unavailable");
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult)).thenThrow(failure);
@@ -180,6 +187,7 @@ class TransactionEventListenerTest {
                 9L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenThrow(failure);
 
@@ -221,6 +229,7 @@ class TransactionEventListenerTest {
                 true,
                 "No fraud rule matched; Redis degraded mode: Redis unavailable"
         );
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))

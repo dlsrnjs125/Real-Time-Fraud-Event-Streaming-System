@@ -287,7 +287,8 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Redis 접근을 Rule class 내부에 넣지 않고 Listener orchestration에서 `RecentTransactionWindowStore`를 호출한 뒤 Rule Engine에 window result를 전달했습니다.
 - Redis 장애를 Consumer 실패로 전파하지 않고 degraded result로 변환해 stateless rule과 fraud result 저장을 계속 수행하도록 했습니다.
 - Redis 기반 rule이 생략된 경우 `skipped_rules`, `degraded`, reason으로 운영 조회 가능하게 남겼습니다.
-- 같은 `eventId` 재소비 시 Redis ZSET member overwrite로 window count 중복 증가를 완화했습니다.
+- 같은 `eventId`의 duplicate fraud result는 Redis window 갱신 전에 fast path로 ack해 conflict replay가 Redis metadata를 덮어쓰지 않도록 했습니다.
+- Redis 부분 실패로 Hash metadata가 없는 ZSET member가 남아도 count/sum 계산에서 제외되도록 했습니다.
 - 최종 중복 방어 기준은 Redis가 아니라 PostgreSQL `fraud_detection_results.event_id` unique constraint로 유지했습니다.
 
 ### 의도적으로 제외한 것
@@ -303,6 +304,7 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Redis Hash metadata key 수가 이벤트 수만큼 증가합니다. TTL을 짧게 설정했지만 부하 테스트에서 memory 사용량을 확인해야 합니다.
 - Redis 장애 중 stateful rule은 탐지되지 않습니다. 이는 의도된 degraded behavior이며, 운영 metric과 alert로 관측해야 합니다.
 - Redis 상태가 손상되거나 TTL로 사라져도 PostgreSQL fraud result 정합성에는 영향을 주지 않지만, 최근 거래 패턴 탐지 민감도는 낮아질 수 있습니다.
+- Redis multi-command 갱신은 아직 완전 원자적이지 않습니다. Phase 6에서는 Hash-first 저장과 유효 metadata 기준 계산으로 완화했고, Lua/transaction은 후속 hardening 후보입니다.
 
 ### 다음 보완
 

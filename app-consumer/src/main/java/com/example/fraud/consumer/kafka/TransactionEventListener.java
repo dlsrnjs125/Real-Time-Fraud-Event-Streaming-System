@@ -53,6 +53,21 @@ public class TransactionEventListener {
                 record.offset(),
                 consumerGroupId
         );
+        if (fraudDetectionResultService.existsResultForEventId(message.eventId())) {
+            acknowledgment.acknowledge();
+            log.info(
+                    "transaction event duplicate fraud result skipped traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={}",
+                    message.traceId(),
+                    message.eventId(),
+                    message.userId(),
+                    record.topic(),
+                    record.partition(),
+                    record.offset(),
+                    result.duplicateSkipped()
+            );
+            return;
+        }
+
         RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
         FraudRuleEngineResult ruleResult = fraudRuleEngine.evaluate(message, windowResult);
         FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);

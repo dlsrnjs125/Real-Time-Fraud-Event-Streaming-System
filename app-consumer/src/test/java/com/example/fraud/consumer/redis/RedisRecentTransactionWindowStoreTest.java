@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,6 +57,26 @@ class RedisRecentTransactionWindowStoreTest {
         verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
         verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
         verify(zSet).removeRangeByScore("fraud:tx:user:user-1001:events", 0, millis("2026-06-19T09:55:00Z") - 1);
+        verify(redisTemplate).expire("fraud:tx:user:user-1001:events", Duration.ofMinutes(10));
+        verify(redisTemplate).expire("fraud:tx:event:evt-redis-001", Duration.ofMinutes(10));
+    }
+
+    @Test
+    void storesHashMetadataBeforeAddingEventToUserWindow() {
+        TransactionEventMessage message = message("evt-redis-001", BigDecimal.valueOf(1_200_000));
+        mockRedisOperations();
+        when(zSet.rangeByScore(
+                "fraud:tx:user:user-1001:events",
+                millis("2026-06-19T09:55:00Z"),
+                millis("2026-06-19T10:00:00Z")
+        )).thenReturn(Set.of("evt-redis-001"));
+        when(hash.get("fraud:tx:event:evt-redis-001", "amount")).thenReturn("1200000");
+
+        store.recordAndGetWindow(message);
+
+        InOrder inOrder = inOrder(hash, zSet);
+        inOrder.verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
+        inOrder.verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
     }
 
     @Test
@@ -87,6 +109,24 @@ class RedisRecentTransactionWindowStoreTest {
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-new"));
         when(hash.get("fraud:tx:event:evt-redis-new", "amount")).thenReturn("200000");
+
+        RecentTransactionWindowResult result = store.recordAndGetWindow(message);
+
+        assertThat(result.transactionCount()).isEqualTo(1);
+        assertThat(result.amountSum()).isEqualByComparingTo("200000");
+    }
+
+    @Test
+    void excludesWindowMembersWithoutAmountMetadataFromCountAndAmount() {
+        TransactionEventMessage message = message("evt-redis-new", BigDecimal.valueOf(200_000));
+        mockRedisOperations();
+        when(zSet.rangeByScore(
+                "fraud:tx:user:user-1001:events",
+                millis("2026-06-19T09:55:00Z"),
+                millis("2026-06-19T10:00:00Z")
+        )).thenReturn(Set.of("evt-redis-new", "evt-redis-partial"));
+        when(hash.get("fraud:tx:event:evt-redis-new", "amount")).thenReturn("200000");
+        when(hash.get("fraud:tx:event:evt-redis-partial", "amount")).thenReturn(null);
 
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 

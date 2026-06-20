@@ -532,7 +532,8 @@ Done
 - app-consumer Redis Sliding Window store 구현
 - eventTime 기준 window 계산과 window 밖 이벤트 cleanup 구현
 - Redis Hash metadata로 amount 합산 구현
-- 같은 `eventId` 재처리 시 ZSET member overwrite로 Redis count 중복 증가를 완화
+- duplicate fraud result fast path로 이미 저장된 eventId는 Redis window 갱신 없이 ack
+- Redis 부분 실패로 Hash metadata가 없는 ZSET member는 count/sum 계산에서 제외
 - Rule Engine에 `RecentTransactionWindowResult`를 전달해 infra 접근과 rule 평가를 분리
 - stateless rule score와 stateful rule score 합산, total score 100 cap 유지
 - Redis 장애 시 stateful rule을 skipped 처리하고 `degraded=true` 결과 저장
@@ -550,9 +551,9 @@ Done
 
 | Check | Result | Notes |
 |---|---|---|
-| Redis window store test | PASS | count/sum, duplicate eventId, window cleanup, degraded result 검증 |
+| Redis window store test | PASS | count/sum, duplicate eventId, window cleanup, partial metadata exclusion, degraded result 검증 |
 | Rule Engine stateful test | PASS | rapid count, window amount sum, score cap, Redis degraded skip 검증 |
-| Consumer ack test | PASS | Redis degraded 시 fraud result 저장 후 ack, DB/rule 실패 시 ack 미호출 검증 |
+| Consumer ack test | PASS | duplicate fraud result Redis skip, Redis degraded ack, DB/rule 실패 시 ack 미호출 검증 |
 | Admin API test | PASS | fraud result 응답의 `skippedRules`, `degraded` 필드 검증 |
 | app-consumer test | PASS | `./gradlew :app-consumer:test` 성공 |
 | app-api test | PASS | `./gradlew :app-api:test` 성공 |

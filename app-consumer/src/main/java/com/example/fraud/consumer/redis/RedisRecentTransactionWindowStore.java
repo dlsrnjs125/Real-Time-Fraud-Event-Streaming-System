@@ -2,7 +2,7 @@ package com.example.fraud.consumer.redis;
 
 import com.example.fraud.common.event.TransactionEventMessage;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -58,13 +58,13 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
         ZSetOperations<String, String> zSet = redisTemplate.opsForZSet();
         HashOperations<String, Object, Object> hash = redisTemplate.opsForHash();
 
-        zSet.add(userEventsKey, message.eventId(), eventTimeMillis);
         hash.putAll(eventKey, Map.of(
                 "amount", message.amount().toPlainString(),
                 "currency", message.currency(),
                 "eventTime", message.eventTime().toString(),
                 "userId", message.userId()
         ));
+        zSet.add(userEventsKey, message.eventId(), eventTimeMillis);
         zSet.removeRangeByScore(userEventsKey, 0, windowStartMillis - 1);
         redisTemplate.expire(userEventsKey, properties.ttl());
         redisTemplate.expire(eventKey, properties.ttl());
@@ -74,14 +74,16 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
             return RecentTransactionWindowResult.normal(0, BigDecimal.ZERO);
         }
 
-        BigDecimal amountSum = eventIds.stream()
+        List<BigDecimal> validAmounts = eventIds.stream()
                 .map(id -> hash.get(eventKey(id), "amount"))
                 .filter(value -> value != null)
                 .map(Object::toString)
                 .map(BigDecimal::new)
+                .toList();
+        BigDecimal amountSum = validAmounts.stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return RecentTransactionWindowResult.normal(eventIds.size(), amountSum);
+        return RecentTransactionWindowResult.normal(validAmounts.size(), amountSum);
     }
 
     private String userEventsKey(String userId) {
