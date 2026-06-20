@@ -46,6 +46,12 @@ public class FraudDetectionResultEntity {
     @Column(name = "matched_rules")
     private String matchedRules;
 
+    @Column(name = "skipped_rules")
+    private String skippedRules;
+
+    @Column(name = "degraded", nullable = false)
+    private boolean degraded;
+
     @Column(name = "reason")
     private String reason;
 
@@ -85,6 +91,14 @@ public class FraudDetectionResultEntity {
 
     public String getMatchedRules() {
         return matchedRules;
+    }
+
+    public String getSkippedRules() {
+        return skippedRules;
+    }
+
+    public boolean isDegraded() {
+        return degraded;
     }
 
     public String getReason() {

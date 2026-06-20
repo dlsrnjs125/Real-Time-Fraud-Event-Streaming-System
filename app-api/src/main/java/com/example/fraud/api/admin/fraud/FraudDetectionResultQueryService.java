@@ -30,6 +30,8 @@ public class FraudDetectionResultQueryService {
                 result.getRiskLevel(),
                 result.getDecision(),
                 parseMatchedRules(result.getMatchedRules()),
+                parseMatchedRules(result.getSkippedRules()),
+                result.isDegraded(),
                 result.getReason(),
                 result.getDetectedAt()
         );

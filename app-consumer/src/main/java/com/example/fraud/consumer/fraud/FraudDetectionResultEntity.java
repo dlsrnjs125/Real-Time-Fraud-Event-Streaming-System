@@ -59,6 +59,12 @@ public class FraudDetectionResultEntity {
     @Column(name = "matched_rules")
     private String matchedRules;
 
+    @Column(name = "skipped_rules")
+    private String skippedRules;
+
+    @Column(name = "degraded", nullable = false)
+    private boolean degraded;
+
     @Column(name = "reason")
     private String reason;
 
@@ -87,6 +93,8 @@ public class FraudDetectionResultEntity {
         this.riskLevel = ruleResult.riskLevel();
         this.decision = ruleResult.decision();
         this.matchedRules = serialize(ruleResult.matchedRules());
+        this.skippedRules = serialize(ruleResult.skippedRules());
+        this.degraded = ruleResult.degraded();
         this.reason = ruleResult.reason();
         this.detectedAt = detectedAt;
     }

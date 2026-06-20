@@ -39,4 +39,8 @@ public class FraudDetectionResultService {
             return FraudDetectionResultSaveResult.duplicate();
         }
     }
+
+    public boolean existsResultForEventId(String eventId) {
+        return repository.existsByEventId(eventId);
+    }
 }

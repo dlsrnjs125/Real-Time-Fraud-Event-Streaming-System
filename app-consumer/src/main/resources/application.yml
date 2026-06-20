@@ -21,6 +21,14 @@ spring:
     redis:
       host: localhost
       port: 6379
+      timeout: 500ms
+
+fraud:
+  sliding-window:
+    window: 5m
+    max-events: 5
+    amount-threshold: 3000000
+    ttl: 10m
 
 server:
   port: 8081

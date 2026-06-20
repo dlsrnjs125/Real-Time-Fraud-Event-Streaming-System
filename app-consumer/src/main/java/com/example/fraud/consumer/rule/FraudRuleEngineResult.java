@@ -10,6 +10,8 @@ public record FraudRuleEngineResult(
         RiskLevel riskLevel,
         FraudDecision decision,
         List<FraudRuleCode> matchedRules,
+        List<FraudRuleCode> skippedRules,
+        boolean degraded,
         String reason
 ) {
 }

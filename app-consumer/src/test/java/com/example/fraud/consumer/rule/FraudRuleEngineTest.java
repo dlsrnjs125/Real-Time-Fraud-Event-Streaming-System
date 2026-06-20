@@ -7,7 +7,10 @@ import com.example.fraud.common.event.FraudRuleCode;
 import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
+import com.example.fraud.consumer.redis.SlidingWindowProperties;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,11 @@ class FraudRuleEngineTest {
             new AmountThresholdRule(),
             new NightTimeTransactionRule(),
             new SuspiciousLocationRule()
+    ), new SlidingWindowProperties(
+            Duration.ofMinutes(5),
+            5,
+            BigDecimal.valueOf(3_000_000),
+            Duration.ofMinutes(10)
     ));
 
     @Test
@@ -103,6 +111,66 @@ class FraudRuleEngineTest {
         ));
 
         assertThat(result.riskScore()).isEqualTo(100);
+    }
+
+    @Test
+    void addsRapidTransactionCountScoreFromWindowResult() {
+        FraudRuleEngineResult result = ruleEngine.evaluate(
+                message(BigDecimal.valueOf(10_000), "SEOUL", "2026-06-19T10:00:00Z"),
+                RecentTransactionWindowResult.normal(5, BigDecimal.valueOf(100_000))
+        );
+
+        assertThat(result.riskScore()).isEqualTo(30);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MEDIUM);
+        assertThat(result.matchedRules()).containsExactly(FraudRuleCode.RAPID_TRANSACTION_COUNT);
+        assertThat(result.skippedRules()).isEmpty();
+        assertThat(result.degraded()).isFalse();
+    }
+
+    @Test
+    void addsWindowAmountSumScoreFromWindowResult() {
+        FraudRuleEngineResult result = ruleEngine.evaluate(
+                message(BigDecimal.valueOf(10_000), "SEOUL", "2026-06-19T10:00:00Z"),
+                RecentTransactionWindowResult.normal(2, BigDecimal.valueOf(3_000_000))
+        );
+
+        assertThat(result.riskScore()).isEqualTo(40);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MEDIUM);
+        assertThat(result.matchedRules()).containsExactly(FraudRuleCode.WINDOW_AMOUNT_SUM);
+    }
+
+    @Test
+    void combinesStatelessAndStatefulScoresWithCap() {
+        FraudRuleEngineResult result = ruleEngine.evaluate(
+                message(BigDecimal.valueOf(1_500_000), "HIGH_RISK", "2026-06-19T10:00:00Z"),
+                RecentTransactionWindowResult.normal(5, BigDecimal.valueOf(3_500_000))
+        );
+
+        assertThat(result.riskScore()).isEqualTo(100);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(result.matchedRules()).contains(
+                FraudRuleCode.AMOUNT_THRESHOLD,
+                FraudRuleCode.SUSPICIOUS_LOCATION,
+                FraudRuleCode.RAPID_TRANSACTION_COUNT,
+                FraudRuleCode.WINDOW_AMOUNT_SUM
+        );
+    }
+
+    @Test
+    void skipsStatefulRulesWhenRedisWindowIsDegraded() {
+        FraudRuleEngineResult result = ruleEngine.evaluate(
+                message(BigDecimal.valueOf(10_000), "SEOUL", "2026-06-19T10:00:00Z"),
+                RecentTransactionWindowResult.degraded("Redis sliding window unavailable")
+        );
+
+        assertThat(result.riskScore()).isZero();
+        assertThat(result.matchedRules()).isEmpty();
+        assertThat(result.skippedRules()).containsExactly(
+                FraudRuleCode.RAPID_TRANSACTION_COUNT,
+                FraudRuleCode.WINDOW_AMOUNT_SUM
+        );
+        assertThat(result.degraded()).isTrue();
+        assertThat(result.reason()).contains("Redis degraded mode");
     }
 
     @Test

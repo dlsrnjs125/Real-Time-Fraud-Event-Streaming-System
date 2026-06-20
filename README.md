@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 5까지 완료된 상태입니다. Phase 5에서는 Kafka Consumer가 Rule Engine v1을 실행하고, 탐지 결과를 `fraud_detection_results`에 idempotent하게 저장하며, 운영자 조회 API를 추가했습니다. 상세 구현 과정과 트러블슈팅은 `docs/13-development-roadmap.md`, `docs/11-troubleshooting-log.md`, `blog/05-fraud-result-rule-engine.md`에 정리했습니다.
+현재는 Phase 6까지 완료된 상태입니다. Phase 6에서는 Redis Sliding Window로 사용자별 최근 거래 횟수와 누적 금액을 탐지 rule에 반영하고, Redis 장애 시 stateless rule만으로 처리하는 degraded mode를 구현했습니다. 상세 구현 과정과 트러블슈팅은 `docs/13-development-roadmap.md`, `docs/11-troubleshooting-log.md`, `blog/06-redis-sliding-window.md`에 정리했습니다.
