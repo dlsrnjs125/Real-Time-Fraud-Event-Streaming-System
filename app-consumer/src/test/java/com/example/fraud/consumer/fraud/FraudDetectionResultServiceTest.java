@@ -164,6 +164,8 @@ class FraudDetectionResultServiceTest {
                 RiskLevel.HIGH,
                 FraudDecision.BLOCK,
                 List.of(FraudRuleCode.AMOUNT_THRESHOLD, FraudRuleCode.SUSPICIOUS_LOCATION),
+                List.of(),
+                false,
                 "amount >= 1000000 KRW; location is UNKNOWN, FOREIGN, or HIGH_RISK"
         );
     }

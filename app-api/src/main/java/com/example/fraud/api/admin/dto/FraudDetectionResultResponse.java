@@ -17,6 +17,8 @@ public record FraudDetectionResultResponse(
         RiskLevel riskLevel,
         FraudDecision decision,
         List<FraudRuleCode> matchedRules,
+        List<FraudRuleCode> skippedRules,
+        boolean degraded,
         String reason,
         OffsetDateTime detectedAt
 ) {

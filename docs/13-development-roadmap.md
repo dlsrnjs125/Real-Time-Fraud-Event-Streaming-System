@@ -10,9 +10,9 @@
 | Phase 3 | Done | 거래 이벤트 접수 API, receipt 저장, Kafka Producer 구현 완료 | transaction_event_receipts, Kafka producer, intake service tests | Phase 4 Consumer manual ack와 processing log 구현 |
 | Phase 4 | Done | Kafka Consumer manual ack와 processing log 저장/조회 구현 완료 | Kafka listener, event_processing_logs, processing log query API | 기본 LOW FraudResult 저장과 조회 API 구현 |
 | Phase 5 | Done | Rule Engine v1과 FraudResult 저장/조회 구현 완료 | fraud_detection_results, Rule Engine v1, fraud result query API | Redis Sliding Window rule 구현 |
-| Phase 6 | Not Started | Redis 없는 추가 rule engine 미구현 | Fraud strategy docs | Rule result detail 확장과 threshold 관리 개선 |
-| Phase 7 | Not Started | Redis sliding window 미구현 | Redis 설계 문서 | VelocityRule, Redis degraded mode 구현 |
-| Phase 8 | Not Started | context rule 미구현 | Fraud strategy docs | NewDevice/Location rule 후보 구현 또는 범위 조정 |
+| Phase 6 | Done | Redis Sliding Window 기반 최근 거래 패턴 탐지 구현 완료 | Redis window store, stateful rules, degraded mode, fraud result degraded fields | Redis command metric과 integration test 보강 |
+| Phase 7 | Not Started | Redis 통합 검증과 metric 보강 미구현 | Redis Sliding Window 구현 | Redis integration test, Redis command latency, degraded count 보강 |
+| Phase 8 | Not Started | Load/failure 검증 미실행 | k6 시나리오 초안 | Redis down, consumer lag, hot partition 검증 |
 | Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
 | Phase 10 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
 | Phase 11 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
@@ -506,54 +506,89 @@ Evidence:
 
 - Redis 기반 VelocityRule과 degraded mode를 구현합니다.
 
-## Phase 6. Rule Engine without Redis
+## Phase 6. Redis Sliding Window Risk Detection
 
 ### 목표
 
-Redis에 의존하지 않는 rule부터 구현해 탐지 결과 설명 가능성을 확보합니다.
+단일 이벤트 기반 Rule Engine을 Redis 기반 사용자별 최근 거래 패턴 탐지로 확장합니다.
+
+### Status
+
+Done
 
 ### 범위
 
-- `FraudRule` interface
-- `AmountRule`
-- `RiskScoreService`
-- `RiskLevel` 결정
-- `matchedRuleCodes`
-- `ruleResults`
-- `HIGH_AMOUNT` rule result reason
-
-### 완료 기준
-
-- 고액 거래가 rule에 매칭됨
-- risk score와 risk level이 deterministic하게 계산됨
-- FraudResult 상세 API에서 `matchedRuleCodes`와 `ruleResults` 확인 가능
-- 순수 rule logic unit test 작성
-
-## Phase 7. Redis Sliding Window Rule
-
-### 목표
-
-Redis ZSET 기반 사용자별 최근 거래 window를 구현하고 Redis 장애 시 degraded mode를 기록합니다.
-
-### 범위
-
-- `fraud:velocity:{userId}` ZSET
+- `fraud:tx:user:{userId}:events` ZSET
+- `fraud:tx:event:{eventId}` Hash
 - score = `eventTime` epoch millis
-- value = `eventId`
-- window 밖 이벤트 cleanup
-- VelocityRule
-- Redis command latency metric
-- Redis unavailable handling
-- `skippedRuleCodes`
-- `degraded=true` FraudResult
+- member = `eventId`
+- 최근 5분 거래 횟수와 누적 금액 계산
+- `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM` rule
+- Redis unavailable degraded mode
+- `fraud_detection_results.skipped_rules`, `degraded`
+
+### Completed
+
+- app-consumer Redis Sliding Window store 구현
+- eventTime 기준 window 계산과 window 밖 이벤트 cleanup 구현
+- Redis Hash metadata로 amount 합산 구현
+- 같은 `eventId` 재처리 시 ZSET member overwrite로 Redis count 중복 증가를 완화
+- Rule Engine에 `RecentTransactionWindowResult`를 전달해 infra 접근과 rule 평가를 분리
+- stateless rule score와 stateful rule score 합산, total score 100 cap 유지
+- Redis 장애 시 stateful rule을 skipped 처리하고 `degraded=true` 결과 저장
+- fraud result 조회 API에 `skippedRules`, `degraded` 응답 추가
+- app-api runtime migration owner 정책을 유지하고 app-consumer runtime Flyway 비활성 정책 유지
+
+### Commands
+
+```bash
+./gradlew :app-consumer:test
+./gradlew :app-api:test
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Redis window store test | PASS | count/sum, duplicate eventId, window cleanup, degraded result 검증 |
+| Rule Engine stateful test | PASS | rapid count, window amount sum, score cap, Redis degraded skip 검증 |
+| Consumer ack test | PASS | Redis degraded 시 fraud result 저장 후 ack, DB/rule 실패 시 ack 미호출 검증 |
+| Admin API test | PASS | fraud result 응답의 `skippedRules`, `degraded` 필드 검증 |
+| app-consumer test | PASS | `./gradlew :app-consumer:test` 성공 |
+| app-api test | PASS | `./gradlew :app-api:test` 성공 |
+
+### Known Limitations
+
+- Redis integration test와 Testcontainers 검증은 이번 Phase에서 제외했습니다.
+- Redis command latency metric, Redis degraded count metric, rule skipped metric은 Observability Phase에서 구현합니다.
+- Retry/DLT와 DLQ 재처리는 이번 Phase 범위가 아닙니다.
+- `matched_rules`와 `skipped_rules`는 comma-separated text로 저장합니다. rule detail 구조화는 후속 개선 대상입니다.
+- Redis 상태는 최종 정합성 기준이 아니며, 최종 duplicate 방어는 PostgreSQL `fraud_detection_results.event_id` unique constraint가 담당합니다.
+
+### Next
+
+- Redis degraded count, Consumer Lag, detection latency custom metric을 추가합니다.
+- Redis down failure scenario와 부하 테스트에서 degraded 결과 비율과 처리 지연을 측정합니다.
+
+## Phase 7. Redis Sliding Window Hardening
+
+### 목표
+
+Phase 6에서 구현한 Redis Sliding Window를 실제 Redis integration test와 metric으로 보강합니다.
+
+### 범위
+
+- duplicate skip count
+- Redis degraded count
+- Redis command latency
+- rule matched/skipped count
+- 실제 Redis 기반 sliding window integration test
 
 ### 완료 기준
 
-- window 내 거래 횟수 기준으로 VelocityRule 매칭
-- Redis 장애 시 Redis 의존 rule이 skipped 처리됨
-- Redis 장애 중에도 Redis 비의존 rule은 실행됨
-- FraudResult 상세 API에서 `degraded`, `skippedRuleCodes` 확인 가능
-- Redis sliding window unit/integration test 작성
+- Redis Testcontainers 또는 local Redis integration test 통과
+- Redis command latency와 degraded count metric 확인
+- Redis down 시 skipped rule과 `degraded=true` 결과가 실제 저장되는지 확인
 
 ## Phase 8. Context Rules
 

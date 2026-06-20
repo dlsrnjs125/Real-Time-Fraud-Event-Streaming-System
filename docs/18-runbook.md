@@ -575,3 +575,81 @@ curl http://localhost:8080/api/v1/admin/events/evt-phase5-high-001/fraud-result
 - fraud result가 저장됩니다.
 - 고위험 이벤트는 `riskLevel=HIGH`, `decision=BLOCK`입니다.
 - 같은 eventId가 재소비되어도 `fraud_detection_results` row는 중복 생성되지 않습니다.
+
+## 16. Redis Sliding Window 수동 검증
+
+전제 조건:
+
+- app-api가 schema owner이므로 빈 DB에서는 app-api를 먼저 실행해 migration을 적용합니다.
+- app-consumer는 runtime Flyway를 실행하지 않고 JPA validate만 수행합니다.
+- Redis는 Docker Compose의 `redis` service를 사용합니다.
+
+확인 명령:
+
+```bash
+make infra-up
+make topics
+make api
+make consumer
+```
+
+같은 사용자에게 5분 window 안의 이벤트를 5건 발행합니다.
+
+```bash
+for i in 1 2 3 4 5; do
+  curl -X POST http://localhost:8080/api/v1/transactions/events \
+    -H "Content-Type: application/json" \
+    -d "{\"eventId\":\"evt-phase6-rapid-00${i}\",\"userId\":\"user-phase6-rapid\",\"accountId\":\"acc-phase6\",\"amount\":10000,\"currency\":\"KRW\",\"merchantId\":\"merchant-001\",\"deviceId\":\"device-001\",\"location\":\"SEOUL\",\"eventType\":\"PAYMENT\",\"eventTime\":\"2026-06-19T10:0${i}:00Z\"}"
+done
+```
+
+마지막 이벤트의 fraud result를 조회합니다.
+
+```bash
+curl http://localhost:8080/api/v1/admin/events/evt-phase6-rapid-005/fraud-result
+```
+
+기대 결과:
+
+- `matchedRules`에 `RAPID_TRANSACTION_COUNT`가 포함됩니다.
+- `degraded`는 `false`입니다.
+- `skippedRules`는 빈 배열입니다.
+
+누적 금액 rule 확인:
+
+```bash
+for i in 1 2 3; do
+  curl -X POST http://localhost:8080/api/v1/transactions/events \
+    -H "Content-Type: application/json" \
+    -d "{\"eventId\":\"evt-phase6-sum-00${i}\",\"userId\":\"user-phase6-sum\",\"accountId\":\"acc-phase6\",\"amount\":1000000,\"currency\":\"KRW\",\"merchantId\":\"merchant-001\",\"deviceId\":\"device-001\",\"location\":\"SEOUL\",\"eventType\":\"PAYMENT\",\"eventTime\":\"2026-06-19T11:0${i}:00Z\"}"
+done
+curl http://localhost:8080/api/v1/admin/events/evt-phase6-sum-003/fraud-result
+```
+
+기대 결과:
+
+- `matchedRules`에 `WINDOW_AMOUNT_SUM`이 포함됩니다.
+- 총 risk score는 stateless rule 점수와 stateful rule 점수를 합산하되 100을 넘지 않습니다.
+
+Redis 장애 degraded mode 확인:
+
+```bash
+docker compose -f infra/docker-compose.yml stop redis
+curl -X POST http://localhost:8080/api/v1/transactions/events \
+  -H "Content-Type: application/json" \
+  -d '{"eventId":"evt-phase6-redis-down-001","userId":"user-phase6-down","accountId":"acc-phase6","amount":10000,"currency":"KRW","merchantId":"merchant-001","deviceId":"device-001","location":"SEOUL","eventType":"PAYMENT","eventTime":"2026-06-19T12:00:00Z"}'
+curl http://localhost:8080/api/v1/admin/events/evt-phase6-redis-down-001/fraud-result
+docker compose -f infra/docker-compose.yml start redis
+```
+
+기대 결과:
+
+- Consumer가 Redis 장애만으로 중단되지 않습니다.
+- fraud result가 저장되고 `degraded=true`입니다.
+- `skippedRules`에 Redis 의존 rule이 포함됩니다.
+- reason에 Redis degraded mode가 남습니다.
+
+남은 한계:
+
+- Redis degraded count, Redis command latency, Consumer Lag metric은 후속 Observability/Hardening 범위입니다.
+- Redis integration test와 부하 테스트 결과는 아직 문서화하지 않았습니다.

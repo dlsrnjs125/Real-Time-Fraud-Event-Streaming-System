@@ -14,6 +14,8 @@ import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
 import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
+import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
+import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import java.math.BigDecimal;
@@ -26,10 +28,12 @@ import org.springframework.kafka.support.Acknowledgment;
 class TransactionEventListenerTest {
 
     private final EventProcessingLogService processingLogService = mock(EventProcessingLogService.class);
+    private final RecentTransactionWindowStore recentTransactionWindowStore = mock(RecentTransactionWindowStore.class);
     private final FraudRuleEngine fraudRuleEngine = mock(FraudRuleEngine.class);
     private final FraudDetectionResultService fraudDetectionResultService = mock(FraudDetectionResultService.class);
     private final TransactionEventListener listener = new TransactionEventListener(
             processingLogService,
+            recentTransactionWindowStore,
             fraudRuleEngine,
             fraudDetectionResultService,
             "fraud-event-consumer"
@@ -53,8 +57,10 @@ class TransactionEventListenerTest {
                 15L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
+        RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
-        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))
                 .thenReturn(FraudDetectionResultSaveResult.saved());
 
@@ -81,8 +87,10 @@ class TransactionEventListenerTest {
                 15L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.duplicate());
+        RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
-        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))
                 .thenReturn(FraudDetectionResultSaveResult.saved());
 
@@ -109,8 +117,10 @@ class TransactionEventListenerTest {
                 16L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
+        RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
-        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult))
                 .thenReturn(FraudDetectionResultSaveResult.duplicate());
 
@@ -137,9 +147,11 @@ class TransactionEventListenerTest {
                 8L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
+        RecentTransactionWindowResult windowResult = normalWindowResult();
         FraudRuleEngineResult ruleResult = lowRiskResult();
         RuntimeException failure = new RuntimeException("fraud result database unavailable");
-        when(fraudRuleEngine.evaluate(message)).thenReturn(ruleResult);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
         when(fraudDetectionResultService.saveResult(message, ruleResult)).thenThrow(failure);
 
         assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
@@ -160,6 +172,7 @@ class TransactionEventListenerTest {
         );
         Acknowledgment acknowledgment = mock(Acknowledgment.class);
         RuntimeException failure = new RuntimeException("rule engine failure");
+        RecentTransactionWindowResult windowResult = normalWindowResult();
         when(processingLogService.recordProcessedEvent(
                 message,
                 KafkaTopicNames.TRANSACTION_EVENTS,
@@ -167,7 +180,8 @@ class TransactionEventListenerTest {
                 9L,
                 "fraud-event-consumer"
         )).thenReturn(ProcessingLogResult.processed());
-        when(fraudRuleEngine.evaluate(message)).thenThrow(failure);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenThrow(failure);
 
         assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
                 .isSameAs(failure);
@@ -177,6 +191,45 @@ class TransactionEventListenerTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
         );
+    }
+
+    @Test
+    void acknowledgesWhenRedisWindowIsDegradedAndFraudResultIsSaved() {
+        TransactionEventMessage message = message("evt-listener-redis-degraded");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                1,
+                21L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                1,
+                21L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        RecentTransactionWindowResult windowResult = RecentTransactionWindowResult.degraded("Redis unavailable");
+        FraudRuleEngineResult ruleResult = new FraudRuleEngineResult(
+                0,
+                RiskLevel.LOW,
+                FraudDecision.APPROVE,
+                List.of(),
+                List.of(com.example.fraud.common.event.FraudRuleCode.RAPID_TRANSACTION_COUNT),
+                true,
+                "No fraud rule matched; Redis degraded mode: Redis unavailable"
+        );
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.saved());
+
+        listener.onMessage(record, acknowledgment);
+
+        verify(acknowledgment).acknowledge();
+        verify(fraudDetectionResultService).saveResult(message, ruleResult);
     }
 
     @Test
@@ -204,6 +257,7 @@ class TransactionEventListenerTest {
 
         verify(acknowledgment, never()).acknowledge();
         verify(fraudRuleEngine, never()).evaluate(message);
+        verify(recentTransactionWindowStore, never()).recordAndGetWindow(message);
         verify(fraudDetectionResultService, never()).saveResult(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
@@ -216,8 +270,14 @@ class TransactionEventListenerTest {
                 RiskLevel.LOW,
                 FraudDecision.APPROVE,
                 List.of(),
+                List.of(),
+                false,
                 "No fraud rule matched"
         );
+    }
+
+    private RecentTransactionWindowResult normalWindowResult() {
+        return RecentTransactionWindowResult.normal(1, BigDecimal.valueOf(120000));
     }
 
     private TransactionEventMessage message(String eventId) {

@@ -50,6 +50,8 @@ class FraudDetectionResultQueryApiTest {
                 .andExpect(jsonPath("$.decision").value("BLOCK"))
                 .andExpect(jsonPath("$.matchedRules[0]").value("AMOUNT_THRESHOLD"))
                 .andExpect(jsonPath("$.matchedRules[1]").value("NIGHT_TIME_TRANSACTION"))
+                .andExpect(jsonPath("$.skippedRules").isEmpty())
+                .andExpect(jsonPath("$.degraded").value(false))
                 .andExpect(jsonPath("$.reason").value("high amount during night time"));
     }
 

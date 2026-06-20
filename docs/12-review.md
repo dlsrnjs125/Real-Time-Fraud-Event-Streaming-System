@@ -276,6 +276,37 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 
 ### 다음 보완
 
-- Redis 기반 `VELOCITY` rule과 degraded mode를 추가합니다.
+- Redis 기반 Sliding Window rule과 degraded mode를 추가합니다.
 - rule result detail과 skipped rule 기록을 확장합니다.
 - DLT/reprocessing 단계에서 duplicate result와 reprocess history 정합성을 검증합니다.
+
+## Phase 6 Review
+
+### 잘한 점
+
+- Redis 접근을 Rule class 내부에 넣지 않고 Listener orchestration에서 `RecentTransactionWindowStore`를 호출한 뒤 Rule Engine에 window result를 전달했습니다.
+- Redis 장애를 Consumer 실패로 전파하지 않고 degraded result로 변환해 stateless rule과 fraud result 저장을 계속 수행하도록 했습니다.
+- Redis 기반 rule이 생략된 경우 `skipped_rules`, `degraded`, reason으로 운영 조회 가능하게 남겼습니다.
+- 같은 `eventId` 재소비 시 Redis ZSET member overwrite로 window count 중복 증가를 완화했습니다.
+- 최종 중복 방어 기준은 Redis가 아니라 PostgreSQL `fraud_detection_results.event_id` unique constraint로 유지했습니다.
+
+### 의도적으로 제외한 것
+
+- Redis Testcontainers integration test는 이번 Phase에서 제외했습니다. Phase 6는 store logic, degraded policy, Rule Engine 연동을 먼저 검증하고 실제 Redis integration은 hardening 단계에서 추가합니다.
+- Retry/DLT, DLQ 재처리, Consumer Lag metric, k6 부하 테스트는 이번 Phase 범위에 넣지 않았습니다.
+- Redis command latency metric과 degraded count metric은 Observability/Hardening 단계로 남겼습니다.
+- rule threshold를 DB나 feature flag로 분리하지 않았습니다. 현재는 구현 단순성과 테스트 명확성을 우선해 configuration properties와 코드 상수 조합으로 유지합니다.
+
+### 남은 한계
+
+- `matched_rules`와 `skipped_rules`는 comma-separated text입니다. unknown rule code 대응과 rule별 상세 결과를 위해 JSONB 또는 별도 detail table을 검토해야 합니다.
+- Redis Hash metadata key 수가 이벤트 수만큼 증가합니다. TTL을 짧게 설정했지만 부하 테스트에서 memory 사용량을 확인해야 합니다.
+- Redis 장애 중 stateful rule은 탐지되지 않습니다. 이는 의도된 degraded behavior이며, 운영 metric과 alert로 관측해야 합니다.
+- Redis 상태가 손상되거나 TTL로 사라져도 PostgreSQL fraud result 정합성에는 영향을 주지 않지만, 최근 거래 패턴 탐지 민감도는 낮아질 수 있습니다.
+
+### 다음 보완
+
+- 실제 Redis 기반 integration test 추가
+- Redis down failure scenario 문서와 수동 검증 결과 추가
+- Redis command latency, degraded count, rule skipped count metric 추가
+- k6 redis-down/hot-partition 시나리오에서 Consumer Lag과 fraud detection latency 측정

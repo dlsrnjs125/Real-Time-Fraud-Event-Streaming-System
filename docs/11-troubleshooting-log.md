@@ -664,3 +664,79 @@ Redis Sliding Window는 사용자 최근 거래 패턴을 보려면 필요하지
 - fraud result 저장 실패 시 ack 미호출 test
 - rule engine 예외 시 ack 미호출 test
 - processing log 저장 실패 시 fraud result 저장 미시도 test
+
+## Phase 6. Redis Sliding Window 장애 시 Consumer Ack 정책
+
+### 문제 상황
+
+Sliding Window 탐지를 위해 Redis를 호출하면 Redis 장애가 Consumer 처리 실패로 이어질 수 있었습니다. 이 경우 Redis가 잠깐 불안정해도 Kafka Lag이 증가하고 정상 이벤트 처리까지 지연될 수 있습니다.
+
+### 원인
+
+Redis는 최근 거래 횟수와 누적 금액을 빠르게 계산하기 위한 보조 상태 저장소입니다. 최종 fraud result 저장과 eventId 중복 방어 기준은 PostgreSQL `fraud_detection_results.event_id` unique constraint입니다.
+
+### 판단
+
+Phase 6에서는 Redis 장애를 전체 Consumer 실패가 아니라 탐지 민감도 저하로 처리합니다. Redis store가 예외를 만나면 `RecentTransactionWindowResult.degraded`를 반환하고, Rule Engine은 Redis 의존 rule을 `skipped_rules`에 기록한 뒤 stateless rule만 평가합니다.
+
+### 선택
+
+Redis 장애 시 fraud result를 `degraded=true`로 저장하고 ack를 허용합니다. PostgreSQL fraud result 저장 실패, processing log 저장 실패, Rule Engine 자체 예외는 기존처럼 ack하지 않습니다.
+
+### 트레이드오프
+
+Redis 장애 중에는 `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM` 탐지가 누락될 수 있습니다. 대신 Consumer가 중단되지 않고, 어떤 rule이 생략됐는지 운영 조회 API와 reason으로 확인할 수 있습니다.
+
+### 검증
+
+- Redis degraded window result가 들어와도 fraud result 저장 후 ack 호출
+- fraud result 저장 실패 시 ack 미호출
+- processing log 저장 실패 시 Redis store와 fraud result 저장 미호출
+- Rule Engine에서 Redis degraded 시 stateful rule score 미반영과 skipped rule 기록
+
+## Phase 6. eventTime 기준 window와 중복 eventId 처리
+
+### 문제 상황
+
+Sliding Window를 시스템 현재 시각 기준으로 계산하면 오래된 이벤트 재처리나 지연 소비 시 탐지 결과가 왜곡될 수 있습니다. 또한 같은 `eventId`가 재소비될 때 Redis count가 중복 증가할 수 있습니다.
+
+### 판단
+
+window 기준은 `eventTime`으로 두었습니다. Redis ZSET score는 `eventTime` epoch millis이고 member는 `eventId`입니다. 같은 eventId를 다시 기록하면 ZSET member가 update되므로 count 중복 증가를 완화할 수 있습니다.
+
+### 선택
+
+- user window key: `fraud:tx:user:{userId}:events`
+- event metadata key: `fraud:tx:event:{eventId}`
+- sorted set member: `eventId`
+- hash metadata: `amount`, `currency`, `eventTime`, `userId`
+- TTL: window보다 긴 10분
+
+### 트레이드오프
+
+Hash key 수가 늘어나지만 amount 합산을 위해 ZSET member parsing을 피할 수 있습니다. TTL을 짧게 유지해 오래된 key가 무기한 남지 않도록 했습니다.
+
+### 검증
+
+- 같은 eventId를 두 번 기록해도 Redis window count가 1로 유지되는 테스트
+- window 밖 이벤트가 count/sum에서 제외되는 테스트
+- Redis store 예외 시 degraded result 반환 테스트
+
+## Phase 6. V4 migration의 H2 호환 문법
+
+### 문제 상황
+
+`fraud_detection_results`에 `skipped_rules`, `degraded` 컬럼을 추가하는 V4 migration이 PostgreSQL 문법으로는 자연스러웠지만 H2 테스트에서 syntax error가 발생했습니다.
+
+### 원인
+
+H2 PostgreSQL mode가 하나의 `alter table` 안에서 여러 `add column` 절을 comma로 연결하는 문법을 처리하지 못했습니다.
+
+### 선택
+
+`alter table ... add column` 문을 컬럼별로 분리했습니다. 이 방식은 PostgreSQL과 H2 테스트 환경 모두에서 동작합니다.
+
+### 검증
+
+- `./gradlew :app-consumer:test` 재실행 후 PASS
+- `./gradlew :app-api:test` 실행 후 PASS

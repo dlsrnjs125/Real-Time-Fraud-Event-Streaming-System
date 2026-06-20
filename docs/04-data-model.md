@@ -44,7 +44,9 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `risk_score`: 위험 점수. 0~100 check constraint
 - `risk_level`: `LOW`, `MEDIUM`, `HIGH`
 - `decision`: `APPROVE`, `REVIEW`, `BLOCK`
-- `matched_rules`: 매칭된 rule 목록. Phase 5에서는 comma-separated text로 저장하고 API에서 배열로 변환
+- `matched_rules`: 매칭된 rule 목록. comma-separated text로 저장하고 API에서 배열로 변환
+- `skipped_rules`: Redis 장애 등으로 실행하지 못한 rule 목록. Phase 6에서는 Redis 의존 rule skip을 기록
+- `degraded`: Redis Sliding Window를 사용할 수 없어 일부 rule을 생략했는지 여부
 - `reason`: Rule Engine v1 판단 요약
 - `detected_at`: 탐지 완료 시각
 - `created_at`: row 생성 시각
@@ -57,7 +59,7 @@ PostgreSQL은 조회, 감사, 운영 판단의 기준 저장소입니다.
 - `idx_fraud_results_decision_created_at`
 - `idx_fraud_results_trace_id`
 
-Phase 5에서는 Redis 의존 rule이 없으므로 `skipped_rules`, `rule_results`, `degraded`는 후속 확장 후보로 둡니다.
+Phase 6에서는 `skipped_rules`와 `degraded`를 추가했습니다. `rule_results`처럼 rule별 상세 결과를 구조화해 저장하는 작업은 후속 확장 후보로 둡니다.
 
 ### event_processing_logs
 
