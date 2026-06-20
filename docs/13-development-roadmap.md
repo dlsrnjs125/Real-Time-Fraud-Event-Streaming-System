@@ -493,8 +493,13 @@ Evidence:
 
 - Redis Sliding Window 기반 최근 거래 패턴은 후속 Phase 범위입니다.
 - Retry/DLT 기반 실패 복구는 후속 Phase 범위입니다.
-- Rule threshold는 코드 상수로 관리하며, 동적 rule 관리는 후속 과제입니다.
+- Phase 5에서는 processing log와 fraud result를 하나의 DB transaction으로 묶지 않습니다. processing log 저장 후 fraud result 저장 전에 장애가 발생하면 일시적으로 processing log만 존재할 수 있으며, ack 미호출로 Kafka 재소비를 유도합니다.
+- 최종 중복 방어는 Consumer 코드가 아니라 PostgreSQL `event_id` unique constraint가 담당합니다. `existsByEventId()`는 불필요한 insert를 줄이는 fast path입니다.
+- Rule threshold는 Phase 5에서 코드 상수로 관리합니다. 이는 테스트 가능성과 구현 단순성을 우선한 선택이며, 운영 중 threshold 변경이 필요한 경우 application config, DB rule table, feature flag 방식으로 분리합니다.
 - Phase 5 result는 eventId 기준 단일 결과만 저장합니다. rule version 변경 후 재평가 이력을 남기려면 result versioning이 필요합니다.
+- `matched_rules`는 comma-separated text로 저장합니다. rule rename 또는 unknown code 대응을 위해 후속 Phase에서 JSONB, rule version, raw string 응답 정책을 검토합니다.
+- Fraud result 조회 API는 운영자용 admin API이며, 실제 운영 확장 시 ADMIN 권한 기반 인증/인가와 감사 로그가 필요합니다.
+- `detectedAt`은 application `Clock` 기준으로 생성하지만 `createdAt`, `updatedAt`은 Entity lifecycle callback의 `OffsetDateTime.now()` 기준입니다. timestamp 기준 통일은 후속 개선 대상입니다.
 - Kafka/PostgreSQL/Redis E2E CI는 후속 integration workflow에서 보완합니다.
 
 ### Next

@@ -161,7 +161,7 @@ Response:
 
 ### GET `/api/v1/admin/events/{eventId}/fraud-result`
 
-특정 거래 이벤트의 Phase 5 탐지 결과를 조회합니다. Admin API이며 인증/인가는 후속 Phase에서 정리합니다.
+특정 거래 이벤트의 Phase 5 탐지 결과를 조회합니다. Phase 5의 fraud result 조회 API는 운영자용 admin API로 정의했습니다. 현재 Phase에서는 인증/인가 구현보다 처리 결과 저장과 조회 계약 검증에 집중했으며, 실제 운영 확장 시 ADMIN 권한 기반 접근 제어와 감사 로그를 추가합니다.
 
 Response:
 

@@ -34,11 +34,15 @@ Rule Engine은 단건 이벤트 기반 rule만 평가합니다.
 
 Kafka message는 재소비될 수 있습니다. 따라서 Consumer는 같은 eventId를 다시 받아도 중복 fraud result를 만들면 안 됩니다. Phase 5에서는 PostgreSQL `event_id` unique constraint를 최종 중복 방어 기준으로 둡니다.
 
+Consumer의 `existsByEventId()` 확인은 불필요한 insert 시도를 줄이기 위한 fast path입니다. 동시 처리나 재소비 race condition에서 최종 정합성은 PostgreSQL unique constraint가 보장하고, constraint 충돌은 duplicate result로 처리합니다.
+
 ## 6. Ack는 왜 Fraud Result 저장 이후에 호출했는가
 
 fraud result 저장 전에 acknowledge하면 저장 실패 시 Kafka 재소비 기회를 잃을 수 있습니다. 그래서 Phase 5에서는 processing log 저장, rule 평가, fraud result 저장이 모두 성공한 뒤 acknowledge합니다.
 
 duplicate fraud result는 이미 탐지 결과가 존재한다는 뜻이므로 idempotent 성공으로 보고 acknowledge할 수 있습니다.
+
+Phase 5에서는 processing log와 fraud result를 하나의 DB transaction으로 묶지 않습니다. processing log 저장 후 fraud result 저장 전에 장애가 발생하면 일시적으로 processing log만 존재할 수 있습니다. 이 경우 acknowledge가 호출되지 않으므로 Kafka 재소비가 발생하고, processing log는 duplicate skip되며 fraud result 저장을 다시 시도합니다.
 
 ## 7. Redis 없이 v1 Rule Engine을 먼저 만든 이유
 
@@ -67,6 +71,8 @@ Phase 5에서는 단건 이벤트 기반 rule만 먼저 구현해 result persist
 - Rule threshold는 코드 상수입니다.
 - 같은 eventId는 하나의 fraud result만 가집니다.
 - rule별 상세 결과는 아직 별도 저장하지 않습니다.
+- `matched_rules`는 comma-separated text로 저장하므로 rule code rename 또는 unknown code 대응은 후속 과제입니다.
+- Fraud result 조회 API는 운영자용 admin API이며, 실제 운영 확장 시 ADMIN 권한 기반 인증/인가와 감사 로그가 필요합니다.
 
 ## 10. 다음 Phase에서 보완할 점
 

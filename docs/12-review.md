@@ -266,8 +266,12 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 
 ### 남은 한계
 
+- Phase 5에서는 processing log와 fraud result를 하나의 DB transaction으로 묶지 않았습니다. processing log 저장 후 fraud result 저장 전에 장애가 발생하면 일시적으로 processing log만 존재할 수 있고, ack 미호출에 따른 Kafka 재소비로 fraud result 저장을 다시 시도합니다.
 - 같은 eventId는 하나의 fraud result만 가집니다. rule version 변경 후 재평가 이력을 남기려면 result versioning이 필요합니다.
 - `matched_rules`는 Phase 5에서 text로 저장합니다. rule별 상세 결과는 후속 Phase에서 JSONB 또는 별도 detail table로 확장할 수 있습니다.
+- `existsByEventId()`는 fast path이며, 최종 중복 방어는 PostgreSQL `event_id` unique constraint가 담당합니다.
+- Phase 5의 fraud result 조회 API는 운영자용 admin API입니다. 실제 운영 확장 시 ADMIN 권한 기반 접근 제어와 감사 로그를 추가해야 합니다.
+- Hidden/bidirectional Unicode check: `rg --pcre2` 검사 결과 no result.
 - Kafka/PostgreSQL/Redis E2E 검증은 아직 GitHub Actions integration workflow에 포함하지 않았습니다.
 
 ### 다음 보완

@@ -43,7 +43,7 @@ Phase 5 rule:
 
 점수는 합산하되 최대 100으로 제한합니다. Redis Sliding Window 기반 사용자 최근 거래 패턴은 Phase 5에 포함하지 않고 후속 Phase에서 `VELOCITY` rule로 확장합니다.
 
-Phase 5의 rule threshold는 코드 상수입니다. 운영 중 threshold 변경, rule versioning, A/B 검증은 후속 과제로 둡니다.
+Rule threshold는 Phase 5에서 코드 상수로 관리합니다. 이는 테스트 가능성과 구현 단순성을 우선한 선택이며, 운영 중 threshold 변경이 필요한 경우 application config, DB rule table, feature flag 방식으로 분리합니다.
 
 | Score | RiskLevel |
 |---:|---|

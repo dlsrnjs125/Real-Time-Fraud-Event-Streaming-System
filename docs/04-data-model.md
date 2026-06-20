@@ -103,7 +103,7 @@ Phase 5에서는 Redis 의존 rule이 없으므로 `skipped_rules`, `rule_result
 
 ## 3. 중복 방어 기준
 
-`fraud_detection_results.event_id`에 unique constraint를 둡니다. 재처리로 같은 이벤트가 다시 들어와도 중복 탐지 결과를 만들지 않습니다.
+`fraud_detection_results.event_id`에 unique constraint를 둡니다. 재처리로 같은 이벤트가 다시 들어와도 중복 탐지 결과를 만들지 않습니다. 최종 중복 방어는 Consumer 코드가 아니라 PostgreSQL `event_id` unique constraint가 담당합니다. Consumer의 `existsByEventId()` 확인은 불필요한 insert 시도를 줄이기 위한 fast path입니다.
 
 추가 unique constraint:
 
