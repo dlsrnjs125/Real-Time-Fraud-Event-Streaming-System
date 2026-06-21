@@ -134,6 +134,8 @@ Prometheus와 Grafana는 로컬 검증용으로 기본 설정을 사용합니다
 - metric label에 accountId, deviceId, raw userId 등 고카디널리티 민감값 사용 금지
 - Prometheus retention과 접근 권한 관리
 
+Phase 7 metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 포함하지 않습니다. 이 값들은 고유성이 높아 cardinality 폭증을 유발할 수 있으며, 운영 환경에서는 식별자 노출 위험도 있습니다. 이벤트 추적은 structured log의 `traceId`/`eventId`로 수행하고, metric은 `rule`, `mode`, `result` 수준의 낮은 cardinality tag만 사용합니다.
+
 ## 11. 보안 구현 제외 범위
 
 초기 Phase에서는 OAuth2, API Gateway, Service Discovery, Kubernetes secret 관리를 구현하지 않습니다.

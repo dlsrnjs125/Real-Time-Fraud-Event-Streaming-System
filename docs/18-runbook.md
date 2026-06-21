@@ -653,3 +653,62 @@ docker compose -f infra/docker-compose.yml start redis
 
 - Redis degraded count, Redis command latency, Consumer Lag metric은 후속 Observability/Hardening 범위입니다.
 - Redis integration test와 부하 테스트 결과는 아직 문서화하지 않았습니다.
+
+## 17. Redis Integration Test와 Metric 확인
+
+Redis integration test 실행:
+
+```bash
+make redis-integration-test
+```
+
+기대 결과:
+
+- Docker Compose Redis가 기동됩니다.
+- 실제 Redis 기준 ZSET/Hash 저장, TTL, cleanup, duplicate eventId, metadata 없는 ZSET member 제외가 검증됩니다.
+
+기본 CI 검증:
+
+```bash
+make ci-check
+```
+
+Metric endpoint 확인:
+
+```bash
+make infra-up
+make topics
+make api
+make consumer
+curl http://localhost:8081/actuator/prometheus | grep fraud
+```
+
+확인할 metric 후보:
+
+- `fraud_redis_window_record_latency`
+- `fraud_redis_window_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_detection_degraded_total`
+
+Redis degraded metric 확인 절차:
+
+1. app-api와 app-consumer를 실행합니다.
+2. Redis를 중지합니다.
+3. 거래 이벤트를 발행합니다.
+4. fraud result 조회에서 `degraded=true`와 `skippedRules`를 확인합니다.
+5. `/actuator/prometheus`에서 Redis degraded/skipped metric 증가를 확인합니다.
+6. Redis를 다시 시작합니다.
+
+```bash
+docker compose -f infra/docker-compose.yml stop redis
+curl -X POST http://localhost:8080/api/v1/transactions/events \
+  -H "Content-Type: application/json" \
+  -d '{"eventId":"evt-phase7-redis-down-001","userId":"user-phase7-down","accountId":"acc-phase7","amount":10000,"currency":"KRW","merchantId":"merchant-001","deviceId":"device-001","location":"SEOUL","eventType":"PAYMENT","eventTime":"2026-06-19T12:30:00Z"}'
+curl http://localhost:8081/actuator/prometheus | grep fraud
+docker compose -f infra/docker-compose.yml start redis
+```
+
+남은 한계:
+
+- Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
+- Redis integration test는 기본 `make ci-check`와 분리되어 있습니다.

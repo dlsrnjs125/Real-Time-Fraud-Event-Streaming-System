@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke final-check
 
 help:
 	@echo "Available targets:"
@@ -7,6 +7,7 @@ help:
 	@echo "  make test-common    - Run app-common tests"
 	@echo "  make test-api       - Run app-api tests"
 	@echo "  make test-consumer  - Run app-consumer tests"
+	@echo "  make redis-integration-test - Run Redis integration tests"
 	@echo "  make ci-check       - Run lightweight CI checks"
 	@echo "  make clean          - Clean Gradle build outputs"
 	@echo "  make api            - Run app-api"
@@ -35,6 +36,10 @@ test-api:
 
 test-consumer:
 	./gradlew :app-consumer:test
+
+redis-integration-test:
+	docker compose -f infra/docker-compose.yml up -d redis
+	./gradlew :app-consumer:redisIntegrationTest
 
 ci-check:
 	./gradlew test

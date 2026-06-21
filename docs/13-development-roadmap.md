@@ -11,7 +11,7 @@
 | Phase 4 | Done | Kafka Consumer manual ack와 processing log 저장/조회 구현 완료 | Kafka listener, event_processing_logs, processing log query API | 기본 LOW FraudResult 저장과 조회 API 구현 |
 | Phase 5 | Done | Rule Engine v1과 FraudResult 저장/조회 구현 완료 | fraud_detection_results, Rule Engine v1, fraud result query API | Redis Sliding Window rule 구현 |
 | Phase 6 | Done | Redis Sliding Window 기반 최근 거래 패턴 탐지 구현 완료 | Redis window store, stateful rules, degraded mode, fraud result degraded fields | Redis command metric과 integration test 보강 |
-| Phase 7 | Not Started | Redis 통합 검증과 metric 보강 미구현 | Redis Sliding Window 구현 | Redis integration test, Redis command latency, degraded count 보강 |
+| Phase 7 | Done | Redis 통합 검증과 metric foundation 구현 완료 | Redis integration test, Redis latency/degraded/skipped metrics | Grafana dashboard와 alert 후보 연결 |
 | Phase 8 | Not Started | Load/failure 검증 미실행 | k6 시나리오 초안 | Redis down, consumer lag, hot partition 검증 |
 | Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
 | Phase 10 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
@@ -571,25 +571,64 @@ Done
 - Redis degraded count, Consumer Lag, detection latency custom metric을 추가합니다.
 - Redis down failure scenario와 부하 테스트에서 degraded 결과 비율과 처리 지연을 측정합니다.
 
-## Phase 7. Redis Sliding Window Hardening
+## Phase 7. Redis Integration Test and Metrics Hardening
 
 ### 목표
 
-Phase 6에서 구현한 Redis Sliding Window를 실제 Redis integration test와 metric으로 보강합니다.
+Phase 6에서 구현한 Redis Sliding Window를 실제 Redis 기준으로 검증하고, Redis degraded mode를 관측할 수 있는 metric foundation을 추가합니다.
+
+### Status
+
+Done
 
 ### 범위
 
-- duplicate skip count
-- Redis degraded count
-- Redis command latency
-- rule matched/skipped count
 - 실제 Redis 기반 sliding window integration test
+- Redis ZSET/Hash 저장 검증
+- duplicate eventId count 방어 검증
+- window cleanup, TTL, metadata 없는 ZSET member 제외 검증
+- `fraud.redis.window.record.latency` Timer
+- `fraud.redis.window.degraded.total` Counter
+- `fraud.rule.skipped.total{rule=...}` Counter
+- `fraud.detection.degraded.total` Counter
+- Redis degraded/window 정보 structured log 보강
 
-### 완료 기준
+### Completed
 
-- Redis Testcontainers 또는 local Redis integration test 통과
-- Redis command latency와 degraded count metric 확인
-- Redis down 시 skipped rule과 `degraded=true` 결과가 실제 저장되는지 확인
+- `redisIntegrationTest` Gradle task와 `make redis-integration-test` target 추가
+- Docker Compose Redis 기반 integration test를 기본 unit test와 분리
+- 실제 Redis에서 ZSET member, Hash metadata, TTL, cleanup, duplicate eventId, eventTime window 계산 검증
+- `FraudConsumerMetrics` adapter 추가
+- Redis window record/get latency Timer 추가
+- Redis degraded, skipped rule, degraded detection Counter 추가
+- Consumer degraded 처리 시 metric 증가와 structured log 필드 보강
+
+### Commands
+
+```bash
+./gradlew :app-consumer:test
+make redis-integration-test
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| app-consumer test | PASS | metric unit test, listener metric test, Redis store unit test 통과 |
+| Redis integration test | PASS | Docker Compose Redis 기준 ZSET/Hash/TTL/cleanup/duplicate 검증 |
+| Testcontainers attempt | FAIL/DOCUMENTED | local Docker provider API 호환 문제로 Docker Compose Redis fallback 선택 |
+
+### Known Limitations
+
+- Kafka + Redis + PostgreSQL 전체 E2E 검증은 후속 Phase 범위입니다.
+- Grafana dashboard 구성과 alert rule은 Observability Phase에서 연결합니다.
+- k6 기반 Redis down/Consumer Lag 부하 검증은 Load Test Phase에서 수행합니다.
+- metric foundation은 추가했지만 운영 threshold와 alert 기준은 아직 정의하지 않았습니다.
+
+### Next
+
+- Prometheus/Grafana dashboard에 Redis degraded, skipped rule, latency metric을 연결합니다.
+- Redis down failure scenario와 k6 부하 테스트로 degraded 비율과 Consumer Lag 영향을 측정합니다.
 
 ## Phase 8. Context Rules
 

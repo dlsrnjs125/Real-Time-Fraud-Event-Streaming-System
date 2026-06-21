@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.kafka;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -12,12 +13,14 @@ import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
 import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
 import com.example.fraud.consumer.fraud.FraudDetectionResultService;
+import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -31,11 +34,14 @@ class TransactionEventListenerTest {
     private final RecentTransactionWindowStore recentTransactionWindowStore = mock(RecentTransactionWindowStore.class);
     private final FraudRuleEngine fraudRuleEngine = mock(FraudRuleEngine.class);
     private final FraudDetectionResultService fraudDetectionResultService = mock(FraudDetectionResultService.class);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private final FraudConsumerMetrics metrics = new FraudConsumerMetrics(meterRegistry);
     private final TransactionEventListener listener = new TransactionEventListener(
             processingLogService,
             recentTransactionWindowStore,
             fraudRuleEngine,
             fraudDetectionResultService,
+            metrics,
             "fraud-event-consumer"
     );
 
@@ -68,6 +74,7 @@ class TransactionEventListenerTest {
         listener.onMessage(record, acknowledgment);
 
         verify(acknowledgment).acknowledge();
+        assertThatMetric(FraudConsumerMetrics.DETECTION_DEGRADED_TOTAL).isZero();
     }
 
     @Test
@@ -225,7 +232,10 @@ class TransactionEventListenerTest {
                 RiskLevel.LOW,
                 FraudDecision.APPROVE,
                 List.of(),
-                List.of(com.example.fraud.common.event.FraudRuleCode.RAPID_TRANSACTION_COUNT),
+                List.of(
+                        com.example.fraud.common.event.FraudRuleCode.RAPID_TRANSACTION_COUNT,
+                        com.example.fraud.common.event.FraudRuleCode.WINDOW_AMOUNT_SUM
+                ),
                 true,
                 "No fraud rule matched; Redis degraded mode: Redis unavailable"
         );
@@ -239,6 +249,17 @@ class TransactionEventListenerTest {
 
         verify(acknowledgment).acknowledge();
         verify(fraudDetectionResultService).saveResult(message, ruleResult);
+        assertThatMetric(FraudConsumerMetrics.DETECTION_DEGRADED_TOTAL).isEqualTo(1.0);
+        assertThat(meterRegistry.counter(
+                FraudConsumerMetrics.RULE_SKIPPED_TOTAL,
+                "rule",
+                com.example.fraud.common.event.FraudRuleCode.RAPID_TRANSACTION_COUNT.name()
+        ).count()).isEqualTo(1.0);
+        assertThat(meterRegistry.counter(
+                FraudConsumerMetrics.RULE_SKIPPED_TOTAL,
+                "rule",
+                com.example.fraud.common.event.FraudRuleCode.WINDOW_AMOUNT_SUM.name()
+        ).count()).isEqualTo(1.0);
     }
 
     @Test
@@ -306,5 +327,9 @@ class TransactionEventListenerTest {
                 eventTime.plusSeconds(1),
                 "trace-" + eventId
         );
+    }
+
+    private org.assertj.core.api.AbstractDoubleAssert<?> assertThatMetric(String metricName) {
+        return org.assertj.core.api.Assertions.assertThat(meterRegistry.counter(metricName).count());
     }
 }

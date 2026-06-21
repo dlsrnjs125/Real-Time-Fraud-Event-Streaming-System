@@ -59,10 +59,12 @@ Redis timeout은 Consumer thread가 Redis 장애에 오래 묶이지 않도록 `
 
 ## 5. 측정 항목
 
-- Redis command latency
-- Redis 장애 중 처리된 이벤트 수
-- `degraded=true` 탐지 결과 수
-- Redis 기반 rule skipped count
+- `fraud.redis.window.record.latency`: Redis window record/get 처리 시간
+- `fraud.redis.window.degraded.total`: Redis 장애 중 degraded window result 횟수
+- `fraud.detection.degraded.total`: `degraded=true` fraud result 저장 횟수
+- `fraud.rule.skipped.total{rule=...}`: Redis 기반 rule skipped count
+
+Redis command latency는 `RecentTransactionWindowStore.recordAndGetWindow` 호출 전체를 기준으로 측정합니다. 이 위치는 Hash 저장, ZSET 갱신, cleanup, TTL, window 조회를 모두 포함하므로 Consumer가 Redis 때문에 얼마나 묶이는지 확인하기에 적합합니다.
 
 ## 6. TTL and Cleanup
 
@@ -78,3 +80,17 @@ Redis timeout은 Consumer thread가 Redis 장애에 오래 묶이지 않도록 `
 `eventTime`이 `receivedAt`보다 과도하게 미래인 경우 Redis window 계산이 왜곡될 수 있습니다.
 
 허용 가능한 clock skew를 초과하면 validation failure 또는 DLT 대상으로 분류합니다. 이 기준은 `docs/10-failure-scenarios.md`의 Future eventTime 시나리오와 함께 검증합니다.
+
+## 8. Phase 7 Integration Test 검증 항목
+
+Phase 7에서는 Docker Compose Redis를 사용해 실제 Redis 자료구조 기준으로 다음 항목을 검증했습니다.
+
+- ZSET `fraud:tx:user:{userId}:events`에 eventId member 저장
+- Hash `fraud:tx:event:{eventId}`에 amount/currency/eventTime/userId 저장
+- 같은 eventId 재기록 시 ZSET count 중복 증가 없음
+- eventTime 기준 window 밖 이벤트 cleanup
+- user window와 event metadata key TTL 설정
+- Hash metadata 없는 ZSET member를 count/sum에서 제외
+- eventTime 기준 window 조회
+
+Testcontainers 기반 검증도 시도했지만 로컬 Docker Desktop provider API 호환 문제로 실패했습니다. Phase 7에서는 기본 CI와 분리된 `make redis-integration-test`가 Docker Compose Redis를 띄우고 integration test를 실행하는 방식으로 검증했습니다.
