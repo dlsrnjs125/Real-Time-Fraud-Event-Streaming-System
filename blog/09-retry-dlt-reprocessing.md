@@ -44,6 +44,8 @@ REPROCESS_FAILED -> DISCARDED
 
 `REPROCESSED`와 `DISCARDED`는 종료 상태입니다. 종료 상태에서 재처리하거나 폐기하려 하면 `409 Conflict`로 막습니다.
 
+같은 DLT row를 두 운영자가 동시에 처리하는 상황은 DB row lock으로 직렬화합니다. 재처리 Kafka publish가 실패하면 `REPROCESS_FAILED`로 상태를 남기고 HTTP 503을 반환합니다.
+
 ## 7. Kafka publish와 DB 상태 변경 사이의 atomicity 한계
 
 Phase 9는 Kafka publish와 PostgreSQL 상태 변경을 완전한 atomic transaction으로 묶지 않았습니다. DLT 저장 후 DLT publish 실패, 재처리 publish 성공 후 DB 상태 변경 실패 같은 중간 상태가 가능합니다.

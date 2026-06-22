@@ -157,7 +157,7 @@ docker logs fraud-kafka --tail 100
 
 장애 상황:
 
-- `transaction-events.dlt` 이벤트가 증가합니다.
+- `transaction-events-dlt` 이벤트가 증가합니다.
 
 탐지 지표:
 
@@ -172,7 +172,7 @@ docker logs fraud-kafka --tail 100
 확인 명령:
 
 ```bash
-docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events.dlt
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events-dlt
 ```
 
 대응 방법:
@@ -331,7 +331,7 @@ docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --desc
 확인 명령:
 
 ```bash
-docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events.dlt
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events-dlt
 ```
 
 대응 방법:
@@ -848,7 +848,7 @@ curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/reprocess"
 
 - `PENDING` 또는 `REPROCESS_FAILED`만 재처리됩니다.
 - API 응답 status가 `REPROCESSED`이면 원본 payload가 `transaction-events`로 재발행된 상태입니다.
-- Kafka publish 실패 시 status는 `REPROCESS_FAILED`로 남습니다.
+- Kafka publish 실패 시 status는 `REPROCESS_FAILED`로 남고 API는 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
 - Consumer가 다시 처리할 때 원본 `eventId`가 유지됩니다.
 
 재처리 후 확인:

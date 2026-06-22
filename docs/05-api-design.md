@@ -377,7 +377,9 @@ Response:
 }
 ```
 
-허용 상태는 `PENDING`, `REPROCESS_FAILED`입니다. 성공 시 `REPROCESSED`가 되며, Kafka publish 실패 시 `REPROCESS_FAILED`로 남깁니다. 이미 `REPROCESSED` 또는 `DISCARDED`이면 `409 DLT_STATE_CONFLICT`로 응답합니다.
+허용 상태는 `PENDING`, `REPROCESS_FAILED`입니다. 성공 시 `REPROCESSED`가 되며, Kafka publish 실패 시 `REPROCESS_FAILED`로 남기고 `503 KAFKA_PUBLISH_FAILED`로 응답합니다. 운영 자동화는 HTTP status와 DB status를 함께 확인해야 합니다. 이미 `REPROCESSED` 또는 `DISCARDED`이면 `409 DLT_STATE_CONFLICT`로 응답합니다.
+
+같은 DLT row의 동시 재처리/폐기는 DB `PESSIMISTIC_WRITE` row lock으로 직렬화합니다. 상태 전이 중복 실행을 막아 같은 DLT id가 동시에 두 번 원본 topic으로 publish되는 위험을 줄입니다.
 
 재처리 시 `fraud_detection_results.event_id` unique constraint와 Consumer duplicate fast path로 중복 FraudResult 생성을 막습니다.
 

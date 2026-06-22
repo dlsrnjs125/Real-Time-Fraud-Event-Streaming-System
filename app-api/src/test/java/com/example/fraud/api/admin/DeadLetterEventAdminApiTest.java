@@ -2,6 +2,7 @@ package com.example.fraud.api.admin;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -90,9 +91,21 @@ class DeadLetterEventAdminApiTest {
                 .publish(any());
 
         mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 4L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("REPROCESS_FAILED"))
-                .andExpect(jsonPath("$.reprocessAttemptId").value("1"));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("KAFKA_PUBLISH_FAILED"));
+
+        String status = jdbcTemplate.queryForObject(
+                "select status from dead_letter_events where id = ?",
+                String.class,
+                4L
+        );
+        Integer attempts = jdbcTemplate.queryForObject(
+                "select reprocess_attempts from dead_letter_events where id = ?",
+                Integer.class,
+                4L
+        );
+        assertThat(status).isEqualTo("REPROCESS_FAILED");
+        assertThat(attempts).isEqualTo(1);
     }
 
     @Test

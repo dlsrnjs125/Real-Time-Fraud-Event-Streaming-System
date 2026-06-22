@@ -2,6 +2,7 @@ package com.example.fraud.consumer.kafka;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -250,6 +251,45 @@ class TransactionEventListenerTest {
 
         assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
                 .isSameAs(dltFailure);
+
+        verify(acknowledgment, never()).acknowledge();
+    }
+
+    @Test
+    void doesNotAcknowledgeWhenDltPublishFails() {
+        TransactionEventMessage message = message("evt-listener-dlt-publish-fail");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                20L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        RuntimeException failure = new RuntimeException("rule engine failure");
+        RuntimeException dltPublishFailure = new RuntimeException("dlt kafka unavailable");
+        RecentTransactionWindowResult windowResult = normalWindowResult();
+        DeadLetterEventEntity dltEvent = mock(DeadLetterEventEntity.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                20L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenThrow(failure);
+        when(deadLetterEventService.recordFailure(record, FailureStage.RULE_ENGINE_ERROR, failure))
+                .thenReturn(dltEvent);
+        doThrow(dltPublishFailure).when(deadLetterEventService).publish(
+                org.mockito.ArgumentMatchers.eq(dltEvent),
+                org.mockito.ArgumentMatchers.eq(message),
+                org.mockito.ArgumentMatchers.any()
+        );
+
+        assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
+                .isSameAs(dltPublishFailure);
 
         verify(acknowledgment, never()).acknowledge();
     }

@@ -26,7 +26,6 @@ API Server는 거래 이벤트를 `transaction-events` topic에 append하고, Fr
 | `fraud-risk-events` | app-consumer | future consumers | userId | 이상거래 탐지 결과 |
 | `fraud-alert-events` | app-consumer | notification worker | userId | 알림 대상 이벤트 |
 | `transaction-events.retry` | app-consumer | app-consumer | userId | 일시 실패 재처리 |
-| `transaction-events.dlt` | app-consumer | admin reprocessor | userId | 처리 실패 이벤트 보관 |
 | `transaction-events-dlt` | app-consumer | app-api admin flow | eventId | Phase 9 DLT envelope 보관과 수동 재처리 기준 |
 
 ## 4. Topic 분리 기준
@@ -127,7 +126,6 @@ DLT value는 다음 정보를 담은 envelope JSON입니다.
 | `fraud-risk-events` | 7d | delete | 후속 분석/알림 재처리 |
 | `fraud-alert-events` | 7d | delete | 알림 실패 재처리 |
 | `transaction-events.retry` | 1d | delete | 일시 실패 재처리 전용 |
-| `transaction-events.dlt` | 14d | delete | 운영자 확인과 수동 재처리 |
 | `transaction-events-dlt` | 14d | delete | Phase 9 DLT envelope와 수동 재처리 |
 
 초기 retention 값은 로컬 검증과 장애 재현을 위한 기준값입니다. 운영 환경에서는 이벤트 재처리 정책, 개인정보 보관 기준, 저장 비용을 함께 고려해 조정합니다.

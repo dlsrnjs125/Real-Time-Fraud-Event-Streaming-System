@@ -53,9 +53,9 @@ public class DeadLetterEventAdminService {
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = DeadLetterPublishFailedException.class)
     public DlqReprocessResponse reprocess(long id, String traceId) {
-        DeadLetterEventEntity event = repository.findById(id)
+        DeadLetterEventEntity event = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
         OffsetDateTime now = OffsetDateTime.now(clock);
         event.startReprocessing(now);
@@ -65,6 +65,7 @@ public class DeadLetterEventAdminService {
             event.markReprocessed(now);
         } catch (DeadLetterPublishFailedException exception) {
             event.markReprocessFailed(now);
+            throw exception;
         }
         return new DlqReprocessResponse(
                 event.getId(),
@@ -76,7 +77,7 @@ public class DeadLetterEventAdminService {
 
     @Transactional
     public DlqDiscardResponse discard(long id, String reason, String traceId) {
-        DeadLetterEventEntity event = repository.findById(id)
+        DeadLetterEventEntity event = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
         event.discard(reason, OffsetDateTime.now(clock));
         return new DlqDiscardResponse(event.getId(), event.getStatus().name(), traceId);

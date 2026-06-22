@@ -384,6 +384,8 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - 재처리 API가 원본 `eventId`를 유지해 Consumer duplicate fast path와 `fraud_detection_results.event_id` unique constraint를 그대로 활용합니다.
 - DLT 상태 전이를 entity/service에서 제한하고 종료 상태 재처리를 `409 Conflict`로 막았습니다.
 - `transaction-events-dlt` topic key를 `eventId`로 두어 운영 재처리 단위와 topic key를 맞췄습니다.
+- 같은 DLT row의 재처리/폐기는 `PESSIMISTIC_WRITE` row lock으로 직렬화했습니다.
+- 재처리 Kafka publish 실패는 `REPROCESS_FAILED`로 저장한 뒤 HTTP 503으로 호출자에게 실패를 명확히 알립니다.
 
 ### 의도적으로 제외한 것
 

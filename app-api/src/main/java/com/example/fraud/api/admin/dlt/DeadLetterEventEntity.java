@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
@@ -125,11 +124,6 @@ public class DeadLetterEventEntity {
 
     private boolean canRetry() {
         return status == DeadLetterStatus.PENDING || status == DeadLetterStatus.REPROCESS_FAILED;
-    }
-
-    @PreUpdate
-    void preUpdate() {
-        updatedAt = OffsetDateTime.now();
     }
 
     public Long getId() {
