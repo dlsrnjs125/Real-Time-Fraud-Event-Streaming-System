@@ -22,8 +22,6 @@ import java.time.OffsetDateTime;
 )
 public class DeadLetterEventEntity {
 
-    private static final int MAX_ERROR_MESSAGE_LENGTH = 1000;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -85,7 +83,8 @@ public class DeadLetterEventEntity {
             long sourceOffset,
             String dltTopic,
             FailureStage failureStage,
-            Throwable failure,
+            String errorType,
+            String errorMessage,
             String payloadJson,
             OffsetDateTime now
     ) {
@@ -97,8 +96,8 @@ public class DeadLetterEventEntity {
         this.sourceOffset = sourceOffset;
         this.dltTopic = dltTopic;
         this.failureStage = failureStage;
-        this.errorType = failure.getClass().getSimpleName();
-        this.errorMessage = truncate(failure.getMessage());
+        this.errorType = errorType;
+        this.errorMessage = errorMessage;
         this.payloadJson = payloadJson;
         this.status = DeadLetterStatus.PENDING;
         this.reprocessAttempts = 0;
@@ -113,7 +112,8 @@ public class DeadLetterEventEntity {
             long sourceOffset,
             String dltTopic,
             FailureStage failureStage,
-            Throwable failure,
+            String errorType,
+            String errorMessage,
             String payloadJson,
             OffsetDateTime now
     ) {
@@ -124,17 +124,11 @@ public class DeadLetterEventEntity {
                 sourceOffset,
                 dltTopic,
                 failureStage,
-                failure,
+                errorType,
+                errorMessage,
                 payloadJson,
                 now
         );
-    }
-
-    private static String truncate(String value) {
-        if (value == null || value.length() <= MAX_ERROR_MESSAGE_LENGTH) {
-            return value;
-        }
-        return value.substring(0, MAX_ERROR_MESSAGE_LENGTH);
     }
 
     public Long getId() {

@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DeadLetterEventService {
 
+    private static final int MAX_ERROR_MESSAGE_LENGTH = 500;
+
     private final DeadLetterEventRepository repository;
     private final DeadLetterEventPublisher publisher;
     private final ObjectMapper objectMapper;
@@ -75,8 +77,9 @@ public class DeadLetterEventService {
                 record.offset(),
                 KafkaTopicNames.TRANSACTION_EVENTS_DLT,
                 failureStage,
-                failure,
-                payloadJson(record.value()),
+                sanitizeErrorType(failure),
+                sanitizeErrorMessage(failure),
+                sanitizePayload(record.value()),
                 now
         );
         try {
@@ -91,7 +94,23 @@ public class DeadLetterEventService {
         }
     }
 
-    private String payloadJson(TransactionEventMessage message) {
+    private String sanitizeErrorType(Throwable failure) {
+        return failure.getClass().getSimpleName();
+    }
+
+    private String sanitizeErrorMessage(Throwable failure) {
+        String message = failure.getMessage();
+        if (message == null || message.isBlank()) {
+            return failure.getClass().getSimpleName();
+        }
+        if (message.length() > MAX_ERROR_MESSAGE_LENGTH) {
+            return message.substring(0, MAX_ERROR_MESSAGE_LENGTH);
+        }
+        return message;
+    }
+
+    private String sanitizePayload(TransactionEventMessage message) {
+        // Phase 9 stores synthetic identifiers. Apply masking/redaction here before production use.
         try {
             return objectMapper.writeValueAsString(message);
         } catch (JsonProcessingException exception) {

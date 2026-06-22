@@ -78,7 +78,7 @@ class DeadLetterEventServiceTest {
     }
 
     @Test
-    void truncatesLongErrorMessage() {
+    void truncatesLongErrorMessageToSanitizedLimit() {
         ConsumerRecord<String, TransactionEventMessage> record = record("evt-dlt-long-error", 2, 44L);
 
         DeadLetterEventEntity saved = service.recordFailure(
@@ -87,7 +87,35 @@ class DeadLetterEventServiceTest {
                 new RuntimeException("x".repeat(1200))
         );
 
-        assertThat(saved.getErrorMessage()).hasSize(1000);
+        assertThat(saved.getErrorMessage()).hasSize(500);
+    }
+
+    @Test
+    void usesErrorTypeWhenErrorMessageIsNull() {
+        ConsumerRecord<String, TransactionEventMessage> record = record("evt-dlt-null-error", 2, 45L);
+
+        DeadLetterEventEntity saved = service.recordFailure(
+                record,
+                FailureStage.RULE_ENGINE_ERROR,
+                new RuntimeException()
+        );
+
+        assertThat(saved.getErrorType()).isEqualTo("RuntimeException");
+        assertThat(saved.getErrorMessage()).isEqualTo("RuntimeException");
+    }
+
+    @Test
+    void usesErrorTypeWhenErrorMessageIsBlank() {
+        ConsumerRecord<String, TransactionEventMessage> record = record("evt-dlt-blank-error", 2, 46L);
+
+        DeadLetterEventEntity saved = service.recordFailure(
+                record,
+                FailureStage.RULE_ENGINE_ERROR,
+                new RuntimeException("  ")
+        );
+
+        assertThat(saved.getErrorType()).isEqualTo("RuntimeException");
+        assertThat(saved.getErrorMessage()).isEqualTo("RuntimeException");
     }
 
     private ConsumerRecord<String, TransactionEventMessage> record(String eventId, int partition, long offset) {
