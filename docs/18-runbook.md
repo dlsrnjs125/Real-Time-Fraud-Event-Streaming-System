@@ -755,6 +755,7 @@ make failure-drill-redis
 - fraud result가 저장되고 `degraded=true`입니다.
 - `skippedRules`에 `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM`이 포함됩니다.
 - `/actuator/prometheus`에서 Redis degraded/skipped/latency metric 증가가 확인됩니다.
+- Drill script는 tag가 붙은 Prometheus sample을 metric name 기준으로 합산해 전체 증가 여부를 확인합니다.
 - Redis 재시작 후 신규 이벤트는 `degraded=false`로 처리됩니다.
 
 ### Consumer Restart Drill

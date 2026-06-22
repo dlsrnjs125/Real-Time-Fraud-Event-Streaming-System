@@ -129,6 +129,12 @@ fraud_result_row_count() {
   local db_user="${POSTGRES_USER:-fraud}"
   local db_name="${POSTGRES_DB:-fraud}"
 
+  case "$event_id" in
+    *[!a-zA-Z0-9._:-]*)
+      fail "invalid event_id for SQL check: ${event_id}"
+      ;;
+  esac
+
   docker exec "$db_container" psql -U "$db_user" -d "$db_name" \
     -tAc "select count(*) from fraud_detection_results where event_id='${event_id}'"
 }
