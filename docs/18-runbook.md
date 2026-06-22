@@ -651,8 +651,8 @@ docker compose -f infra/docker-compose.yml start redis
 
 남은 한계:
 
-- Redis degraded count, Redis command latency, Consumer Lag metric은 후속 Observability/Hardening 범위입니다.
-- Redis integration test와 부하 테스트 결과는 아직 문서화하지 않았습니다.
+- Consumer Lag metric, Grafana dashboard, alert rule은 후속 Observability Phase에서 구성합니다.
+- Redis down 부하 테스트와 Kafka lag 영향 검증은 후속 Load/Failure Test Phase에서 진행합니다.
 
 ## 17. Redis Integration Test와 Metric 확인
 
@@ -665,6 +665,8 @@ make redis-integration-test
 기대 결과:
 
 - Docker Compose Redis가 기동됩니다.
+- Redis readiness 확인 후 Gradle integration test가 실행됩니다.
+- 테스트 전용 Redis database index `15`만 초기화합니다.
 - 실제 Redis 기준 ZSET/Hash 저장, TTL, cleanup, duplicate eventId, metadata 없는 ZSET member 제외가 검증됩니다.
 
 기본 CI 검증:
@@ -685,10 +687,14 @@ curl http://localhost:8081/actuator/prometheus | grep fraud
 
 확인할 metric 후보:
 
-- `fraud_redis_window_record_latency`
+- `fraud_redis_window_record_latency_seconds_count`
+- `fraud_redis_window_record_latency_seconds_sum`
+- `fraud_redis_window_record_latency_seconds_max`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`
+
+`fraud.redis.window.record.latency`는 Micrometer Timer이므로 Prometheus에서는 `_seconds_*` suffix가 붙은 시계열로 노출될 수 있습니다. Prefix grep을 사용할 때는 `fraud_redis_window_record_latency`로 확인할 수 있습니다.
 
 Redis degraded metric 확인 절차:
 

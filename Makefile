@@ -39,6 +39,12 @@ test-consumer:
 
 redis-integration-test:
 	docker compose -f infra/docker-compose.yml up -d redis
+	@for i in 1 2 3 4 5; do \
+		docker exec fraud-redis redis-cli -n 15 ping && exit 0; \
+		sleep 1; \
+	done; \
+	echo "Redis did not become ready in time"; \
+	exit 1
 	./gradlew :app-consumer:redisIntegrationTest
 
 ci-check:

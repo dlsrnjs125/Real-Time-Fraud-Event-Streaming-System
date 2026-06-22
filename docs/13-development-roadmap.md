@@ -597,6 +597,8 @@ Done
 
 - `redisIntegrationTest` Gradle task와 `make redis-integration-test` target 추가
 - Docker Compose Redis 기반 integration test를 기본 unit test와 분리
+- Redis readiness 확인 후 integration test 실행
+- 테스트 전용 Redis database index `15`만 초기화
 - 실제 Redis에서 ZSET member, Hash metadata, TTL, cleanup, duplicate eventId, eventTime window 계산 검증
 - `FraudConsumerMetrics` adapter 추가
 - Redis window record/get latency Timer 추가
@@ -615,7 +617,7 @@ make redis-integration-test
 | Check | Result | Notes |
 |---|---|---|
 | app-consumer test | PASS | metric unit test, listener metric test, Redis store unit test 통과 |
-| Redis integration test | PASS | Docker Compose Redis 기준 ZSET/Hash/TTL/cleanup/duplicate 검증 |
+| Redis integration test | PASS | Docker Compose Redis DB 15 기준 ZSET/Hash/TTL/cleanup/duplicate 검증 |
 | Testcontainers attempt | FAIL/DOCUMENTED | local Docker provider API 호환 문제로 Docker Compose Redis fallback 선택 |
 
 ### Known Limitations

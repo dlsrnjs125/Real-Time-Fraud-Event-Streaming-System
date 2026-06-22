@@ -319,6 +319,8 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 
 - Redis Sliding Window를 mock이 아니라 실제 Redis 자료구조 기준으로 검증하는 integration test를 추가했습니다.
 - 기본 `make ci-check`와 Redis integration test를 분리해 빠른 회귀 검증과 Docker 의존 검증의 역할을 나눴습니다.
+- Redis integration test는 테스트 전용 database index `15`를 사용하고 해당 DB만 초기화해 로컬 Redis 전체 DB 삭제 위험을 줄였습니다.
+- `make redis-integration-test`에 Redis readiness 확인을 추가해 Redis 미준비 상태에서 integration test가 skip되는 착시를 줄였습니다.
 - Redis degraded, skipped rule, degraded detection, Redis window latency metric foundation을 추가했습니다.
 - Metric tag에 eventId/userId/traceId를 넣지 않아 high-cardinality와 식별자 노출 위험을 피했습니다.
 - Redis degraded 처리 시 structured log에 window result, matched/skipped rule, risk score 정보를 함께 남기도록 보강했습니다.

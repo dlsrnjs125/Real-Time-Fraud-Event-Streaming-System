@@ -54,7 +54,7 @@ log       = 192.168.10.xxx
 | Field | 민감도 | DB 저장 | 로그 | Metric Label | 비고 |
 |---|---|---|---|---|---|
 | `eventId` | 낮음 | 가능 | 가능 | 금지 또는 제한 | 추적 키, 고카디널리티 주의 |
-| `traceId` | 낮음 | 가능 | 가능 | 가능 | 요청 추적 |
+| `traceId` | 낮음 | 가능 | 가능 | 금지 또는 제한 | 요청 추적, metric label 사용 주의 |
 | `userId` | 중간 | 가능 | hash/masking | 금지 | 운영 가정에서는 pseudonymization |
 | `accountId` | 높음 | 가능 | masking | 금지 | 마지막 4자리만 |
 | `deviceId` | 높음 | 가능 | hash | 금지 | 기기 식별자 |
@@ -134,7 +134,7 @@ Prometheus와 Grafana는 로컬 검증용으로 기본 설정을 사용합니다
 - metric label에 accountId, deviceId, raw userId 등 고카디널리티 민감값 사용 금지
 - Prometheus retention과 접근 권한 관리
 
-Phase 7 metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 포함하지 않습니다. 이 값들은 고유성이 높아 cardinality 폭증을 유발할 수 있으며, 운영 환경에서는 식별자 노출 위험도 있습니다. 이벤트 추적은 structured log의 `traceId`/`eventId`로 수행하고, metric은 `rule`, `mode`, `result` 수준의 낮은 cardinality tag만 사용합니다.
+Phase 7 metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 포함하지 않습니다. 이 값들은 고유성이 높아 cardinality 폭증을 유발할 수 있으며, 운영 환경에서는 식별자 노출 위험도 있습니다. Metric은 집계용이고, 개별 이벤트 추적은 structured log의 `traceId`/`eventId`로 수행합니다. 운영 환경에서는 `traceId`/`eventId` 로그 접근 권한과 보존 기간도 별도로 통제합니다. Metric은 `rule`, `mode`, `result` 수준의 낮은 cardinality tag만 사용합니다.
 
 ## 11. 보안 구현 제외 범위
 

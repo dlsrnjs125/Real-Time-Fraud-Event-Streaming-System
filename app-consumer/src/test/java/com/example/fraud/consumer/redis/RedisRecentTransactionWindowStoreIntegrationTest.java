@@ -15,11 +15,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Tag("integration")
 class RedisRecentTransactionWindowStoreIntegrationTest {
+
+    private static final int DEFAULT_TEST_DATABASE = 15;
 
     private static LettuceConnectionFactory connectionFactory;
 
@@ -30,13 +33,18 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
     static void startRedisConnection() {
         String host = System.getProperty("redis.integration.host", "localhost");
         int port = Integer.getInteger("redis.integration.port", 6379);
+        int database = Integer.getInteger("redis.integration.database", DEFAULT_TEST_DATABASE);
         connectionFactory = new LettuceConnectionFactory(host, port);
+        connectionFactory.setDatabase(database);
         connectionFactory.afterPropertiesSet();
-        try {
-            connectionFactory.getConnection().ping();
+        try (RedisConnection connection = connectionFactory.getConnection()) {
+            connection.ping();
         } catch (RuntimeException exception) {
             connectionFactory.destroy();
-            Assumptions.assumeTrue(false, "Redis integration test requires Redis at " + host + ":" + port);
+            Assumptions.assumeTrue(
+                    false,
+                    "Redis integration test requires Redis at " + host + ":" + port + " db " + database
+            );
         }
     }
 
@@ -50,7 +58,9 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
     @BeforeEach
     void setUp() {
         redisTemplate = new StringRedisTemplate(connectionFactory);
-        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        try (RedisConnection connection = redisTemplate.getConnectionFactory().getConnection()) {
+            connection.serverCommands().flushDb();
+        }
         store = new RedisRecentTransactionWindowStore(
                 redisTemplate,
                 new SlidingWindowProperties(
