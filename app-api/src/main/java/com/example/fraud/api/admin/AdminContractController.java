@@ -14,6 +14,9 @@ import com.example.fraud.api.admin.dto.FraudRuleResultResponse;
 import com.example.fraud.api.admin.dto.OperationSummaryResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
 import com.example.fraud.api.admin.dto.ProcessingLogResponse;
+import com.example.fraud.api.admin.dlt.DeadLetterEventAdminService;
+import com.example.fraud.api.admin.dlt.DeadLetterEventDetailResponse;
+import com.example.fraud.api.admin.dlt.DeadLetterStatus;
 import com.example.fraud.api.admin.fraud.FraudDetectionResultQueryService;
 import com.example.fraud.api.admin.processing.ProcessingLogQueryService;
 import com.example.fraud.api.support.exception.ErrorResponse;
@@ -30,7 +33,6 @@ import jakarta.validation.Valid;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,13 +48,16 @@ public class AdminContractController {
 
     private final ProcessingLogQueryService processingLogQueryService;
     private final FraudDetectionResultQueryService fraudDetectionResultQueryService;
+    private final DeadLetterEventAdminService deadLetterEventAdminService;
 
     public AdminContractController(
             ProcessingLogQueryService processingLogQueryService,
-            FraudDetectionResultQueryService fraudDetectionResultQueryService
+            FraudDetectionResultQueryService fraudDetectionResultQueryService,
+            DeadLetterEventAdminService deadLetterEventAdminService
     ) {
         this.processingLogQueryService = processingLogQueryService;
         this.fraudDetectionResultQueryService = fraudDetectionResultQueryService;
+        this.deadLetterEventAdminService = deadLetterEventAdminService;
     }
 
     @Operation(summary = "List fraud results", description = "Phase 2 empty stub. Actual query is implemented in Phase 5.")
@@ -115,48 +120,49 @@ public class AdminContractController {
         ));
     }
 
-    @Operation(summary = "List DLQ events", description = "Phase 2 empty stub. Actual DLQ query is implemented in Phase 9.")
-    @GetMapping("/dlq-events")
+    @Operation(summary = "List DLT events", description = "Lists dead letter events for operational recovery.")
+    @GetMapping({"/dlq-events", "/dlt-events"})
     public PageResponse<DlqEventSummaryResponse> listDlqEvents(
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) DeadLetterStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return PageResponse.empty(page, size);
+        return deadLetterEventAdminService.list(status, page, size);
+    }
+
+    @Operation(summary = "Get DLT event detail", description = "Returns a dead letter event including stored payload JSON.")
+    @GetMapping({"/dlq-events/{dlqId}", "/dlt-events/{dlqId}"})
+    public DeadLetterEventDetailResponse getDlqEvent(@PathVariable long dlqId) {
+        return deadLetterEventAdminService.get(dlqId);
     }
 
     @Operation(
             summary = "Reprocess DLQ event",
             description = "Phase 2 contract-only stub. Actual safe reprocessing is implemented in Phase 9.",
             responses = {
-                    @ApiResponse(responseCode = "200", description = "Contract stub response"),
+                    @ApiResponse(responseCode = "200", description = "Reprocess publish succeeded"),
                     @ApiResponse(responseCode = "400", description = "Validation failure", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
             }
     )
-    @PostMapping("/dlq-events/{dlqId}/reprocess")
+    @PostMapping({"/dlq-events/{dlqId}/reprocess", "/dlt-events/{dlqId}/reprocess"})
     public DlqReprocessResponse reprocessDlqEvent(
             @PathVariable long dlqId,
-            @Valid @RequestBody DlqReprocessRequest request,
+            @Valid @RequestBody(required = false) DlqReprocessRequest request,
             HttpServletRequest servletRequest
     ) {
-        return new DlqReprocessResponse(
-                dlqId,
-                "REPROCESSING",
-                "attempt-contract-only",
-                TraceIdResolver.resolve(servletRequest)
-        );
+        return deadLetterEventAdminService.reprocess(dlqId, TraceIdResolver.resolve(servletRequest));
     }
 
-    @Operation(summary = "Discard DLQ event", description = "Phase 2 contract-only stub. Actual discard flow is implemented in Phase 9.")
-    @PatchMapping("/dlq-events/{dlqId}/discard")
+    @Operation(summary = "Discard DLT event", description = "Marks a dead letter event as discarded with an operator reason.")
+    @PostMapping({"/dlq-events/{dlqId}/discard", "/dlt-events/{dlqId}/discard"})
     public DlqDiscardResponse discardDlqEvent(
             @PathVariable long dlqId,
             @Valid @RequestBody DlqDiscardRequest request,
             HttpServletRequest servletRequest
     ) {
-        return new DlqDiscardResponse(dlqId, "DISCARDED", TraceIdResolver.resolve(servletRequest));
+        return deadLetterEventAdminService.discard(dlqId, request.reason(), TraceIdResolver.resolve(servletRequest));
     }
 
     @Operation(summary = "Get event processing log", description = "Looks up Consumer processing logs by eventId.")

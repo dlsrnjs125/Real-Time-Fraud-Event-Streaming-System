@@ -13,7 +13,7 @@
 | Phase 6 | Done | Redis Sliding Window 기반 최근 거래 패턴 탐지 구현 완료 | Redis window store, stateful rules, degraded mode, fraud result degraded fields | Redis command metric과 integration test 보강 |
 | Phase 7 | Done | Redis 통합 검증과 metric foundation 구현 완료 | Redis integration test, Redis latency/degraded/skipped metrics | Grafana dashboard와 alert 후보 연결 |
 | Phase 8 | Done | Redis/Kafka failure drill과 Consumer recovery 검증 절차 작성 완료 | failure drill scripts, Kafka unavailable runbook, recovery evidence docs | Retry/DLT 설계 구현 |
-| Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
+| Phase 9 | Done | DLT 저장, 조회, 재처리, 폐기 흐름 구현 완료 | transaction-events-dlt, dead_letter_events, admin DLT API, 상태 전이 테스트 | Observability dashboard와 batch reprocess 보강 |
 | Phase 10 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
 | Phase 11 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
 | Phase 12 | Not Started | 결과 문서 템플릿 준비 | troubleshooting/failure docs | 측정 결과와 설계 변경 기록 |
@@ -692,32 +692,41 @@ bash -n scripts/failure_drills/*.sh
 - Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
 - k6 기반 장애 부하 테스트는 후속 Load/Failure Test Phase에서 수행합니다.
 
-## Phase 9. Retry, DLT, and Reprocessing
+## Phase 9. Retry / DLT / Reprocessing Flow
 
 ### 목표
 
-Consumer 처리 실패를 retry와 DLT로 분리하고, DLQ 이벤트를 안전하게 조회/재처리/폐기합니다.
+Consumer 처리 실패 이벤트를 DLT로 격리하고, 운영자가 조회/재처리/폐기할 수 있는 흐름을 구현합니다.
 
-### 범위
+### 구현
 
-- retry topic handling
-- DLT handling
-- `dlq_events` 저장
-- `GET /api/v1/admin/dlq-events`
-- `POST /api/v1/admin/dlq-events/{dlqId}/reprocess`
-- `PATCH /api/v1/admin/dlq-events/{dlqId}/discard`
-- `reprocessing_history`
-- 원본 `eventId` 보존
-- 중복 FraudResult 방어
+- `transaction-events-dlt` topic 추가
+- `dead_letter_events` 테이블 추가
+- Consumer DLT 저장 service와 DLT topic publisher 구현
+- Rule Engine 예외 발생 시 DLT 저장/publish 후 원본 offset ack
+- DB 저장 실패는 DLT가 아니라 no-ack 재소비 정책 유지
+- DLT 목록 조회 API 추가
+- DLT 단건 조회 API 추가
+- DLT 재처리 API 추가
+- DLT 폐기 API 추가
+- 상태 전이 검증 추가
+- `source_topic`, `source_partition`, `source_offset` unique constraint로 DLT 중복 저장 방어
+- 재처리 시 원본 `eventId`를 유지해 Consumer duplicate fast path와 `fraud_detection_results.event_id` unique constraint로 중복 FraudResult 방어
 
-### 완료 기준
+### 검증
 
-- invalid payload 또는 unsupported schemaVersion이 DLT로 이동
-- DLQ metadata 조회 가능
-- raw payload가 기본 API 응답에 노출되지 않음
-- 재처리 이력이 저장됨
-- DLT 재처리 후에도 중복 FraudResult가 생성되지 않음
+- DLT 저장 idempotency test
+- Consumer failure to DLT test
+- Admin DLT API test
+- 상태 전이 conflict test
+- `./gradlew :app-api:test :app-consumer:test` PASS
 
+### 한계
+
+- Kafka publish와 DB update의 atomic transaction은 이번 Phase에서 제외했습니다.
+- 대량 DLT batch reprocess와 rate limit은 후속 Phase 후보입니다.
+- 관리자 인증/인가와 audit log는 후속 보안 Phase에서 보강합니다.
+- Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
 ## Phase 10. Observability
 
 ### 목표

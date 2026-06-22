@@ -11,6 +11,9 @@ import com.example.fraud.common.event.FraudDecision;
 import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.dlt.DeadLetterEventEntity;
+import com.example.fraud.consumer.dlt.DeadLetterEventService;
+import com.example.fraud.consumer.dlt.FailureStage;
 import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
 import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
@@ -34,6 +37,7 @@ class TransactionEventListenerTest {
     private final RecentTransactionWindowStore recentTransactionWindowStore = mock(RecentTransactionWindowStore.class);
     private final FraudRuleEngine fraudRuleEngine = mock(FraudRuleEngine.class);
     private final FraudDetectionResultService fraudDetectionResultService = mock(FraudDetectionResultService.class);
+    private final DeadLetterEventService deadLetterEventService = mock(DeadLetterEventService.class);
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     private final FraudConsumerMetrics metrics = new FraudConsumerMetrics(meterRegistry);
     private final TransactionEventListener listener = new TransactionEventListener(
@@ -41,6 +45,7 @@ class TransactionEventListenerTest {
             recentTransactionWindowStore,
             fraudRuleEngine,
             fraudDetectionResultService,
+            deadLetterEventService,
             metrics,
             "fraud-event-consumer"
     );
@@ -175,7 +180,7 @@ class TransactionEventListenerTest {
     }
 
     @Test
-    void doesNotAcknowledgeWhenRuleEngineFails() {
+    void acknowledgesAndMovesToDltWhenRuleEngineFails() {
         TransactionEventMessage message = message("evt-listener-rule-fail");
         ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
                 KafkaTopicNames.TRANSACTION_EVENTS,
@@ -197,15 +202,56 @@ class TransactionEventListenerTest {
         when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
         when(fraudRuleEngine.evaluate(message, windowResult)).thenThrow(failure);
+        DeadLetterEventEntity dltEvent = mock(DeadLetterEventEntity.class);
+        when(deadLetterEventService.recordFailure(record, FailureStage.RULE_ENGINE_ERROR, failure))
+                .thenReturn(dltEvent);
 
-        assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
-                .isSameAs(failure);
+        listener.onMessage(record, acknowledgment);
 
-        verify(acknowledgment, never()).acknowledge();
+        verify(deadLetterEventService).recordFailure(record, FailureStage.RULE_ENGINE_ERROR, failure);
+        verify(deadLetterEventService).publish(
+                org.mockito.ArgumentMatchers.eq(dltEvent),
+                org.mockito.ArgumentMatchers.eq(message),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(acknowledgment).acknowledge();
         verify(fraudDetectionResultService, never()).saveResult(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()
         );
+    }
+
+    @Test
+    void doesNotAcknowledgeWhenDltRecordFails() {
+        TransactionEventMessage message = message("evt-listener-dlt-save-fail");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                19L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        RuntimeException failure = new RuntimeException("rule engine failure");
+        RuntimeException dltFailure = new RuntimeException("dlt database unavailable");
+        RecentTransactionWindowResult windowResult = normalWindowResult();
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                19L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenThrow(failure);
+        when(deadLetterEventService.recordFailure(record, FailureStage.RULE_ENGINE_ERROR, failure))
+                .thenThrow(dltFailure);
+
+        assertThatThrownBy(() -> listener.onMessage(record, acknowledgment))
+                .isSameAs(dltFailure);
+
+        verify(acknowledgment, never()).acknowledge();
     }
 
     @Test

@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 8까지 완료된 상태입니다. Phase 8에서는 Redis down과 Consumer restart 상황을 재현하는 failure drill script/runbook을 추가하고, degraded metric/log/API 조회를 통해 복구 가능성을 검증했습니다. 상세 내용은 docs와 blog에 정리했습니다.
+현재는 Phase 9까지 완료된 상태입니다. Phase 9에서는 Consumer 실패 이벤트를 DLT로 격리하고, `dead_letter_events` 저장, 운영자 조회, 재처리, 폐기 흐름을 구현했습니다. 상세 설계 판단과 트러블슈팅은 docs와 blog에 정리했습니다.

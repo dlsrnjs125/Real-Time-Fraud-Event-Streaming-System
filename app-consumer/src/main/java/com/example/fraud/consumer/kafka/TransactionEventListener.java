@@ -1,6 +1,9 @@
 package com.example.fraud.consumer.kafka;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import com.example.fraud.consumer.dlt.DeadLetterEventEntity;
+import com.example.fraud.consumer.dlt.DeadLetterEventService;
+import com.example.fraud.consumer.dlt.FailureStage;
 import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
 import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
@@ -27,6 +30,7 @@ public class TransactionEventListener {
     private final RecentTransactionWindowStore recentTransactionWindowStore;
     private final FraudRuleEngine fraudRuleEngine;
     private final FraudDetectionResultService fraudDetectionResultService;
+    private final DeadLetterEventService deadLetterEventService;
     private final FraudConsumerMetrics metrics;
     private final String consumerGroupId;
 
@@ -35,6 +39,7 @@ public class TransactionEventListener {
             RecentTransactionWindowStore recentTransactionWindowStore,
             FraudRuleEngine fraudRuleEngine,
             FraudDetectionResultService fraudDetectionResultService,
+            DeadLetterEventService deadLetterEventService,
             FraudConsumerMetrics metrics,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
     ) {
@@ -42,6 +47,7 @@ public class TransactionEventListener {
         this.recentTransactionWindowStore = recentTransactionWindowStore;
         this.fraudRuleEngine = fraudRuleEngine;
         this.fraudDetectionResultService = fraudDetectionResultService;
+        this.deadLetterEventService = deadLetterEventService;
         this.metrics = metrics;
         this.consumerGroupId = consumerGroupId;
     }
@@ -73,7 +79,13 @@ public class TransactionEventListener {
         }
 
         RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
-        FraudRuleEngineResult ruleResult = fraudRuleEngine.evaluate(message, windowResult);
+        FraudRuleEngineResult ruleResult;
+        try {
+            ruleResult = fraudRuleEngine.evaluate(message, windowResult);
+        } catch (RuntimeException exception) {
+            recordDeadLetterAndAcknowledge(record, acknowledgment, FailureStage.RULE_ENGINE_ERROR, exception);
+            return;
+        }
         FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
         recordDetectionMetrics(ruleResult, saveResult);
 
@@ -98,6 +110,28 @@ public class TransactionEventListener {
                 ruleResult.riskScore(),
                 ruleResult.riskLevel(),
                 ruleResult.decision()
+        );
+    }
+
+    private void recordDeadLetterAndAcknowledge(
+            ConsumerRecord<String, TransactionEventMessage> record,
+            Acknowledgment acknowledgment,
+            FailureStage failureStage,
+            RuntimeException exception
+    ) {
+        DeadLetterEventEntity event = deadLetterEventService.recordFailure(record, failureStage, exception);
+        deadLetterEventService.publish(event, record.value(), java.time.OffsetDateTime.now());
+        acknowledgment.acknowledge();
+        log.warn(
+                "transaction event moved to dlt traceId={} eventId={} userId={} topic={} partition={} offset={} failureStage={} errorType={}",
+                record.value().traceId(),
+                record.value().eventId(),
+                record.value().userId(),
+                record.topic(),
+                record.partition(),
+                record.offset(),
+                failureStage,
+                exception.getClass().getSimpleName()
         );
     }
 

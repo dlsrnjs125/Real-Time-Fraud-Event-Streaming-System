@@ -25,6 +25,7 @@ create_topic "fraud-risk-events" "604800000"
 create_topic "fraud-alert-events" "604800000"
 create_topic "transaction-events.retry" "86400000"
 create_topic "transaction-events.dlt" "1209600000"
+create_topic "transaction-events-dlt" "1209600000"
 
 docker exec fraud-kafka /opt/kafka/bin/kafka-topics.sh \
   --bootstrap-server "${BOOTSTRAP_SERVER}" \

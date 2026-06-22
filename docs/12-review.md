@@ -374,3 +374,31 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Retry/DLT Phase에서 transient failure와 unrecoverable failure를 분리합니다.
 - Observability Phase에서 Consumer Lag, detection latency, DLQ count dashboard를 연결합니다.
 - Load/Failure Test Phase에서 k6 Redis down, Consumer restart, hot partition 시나리오를 측정합니다.
+
+## Phase 9 Review
+
+### 잘한 점
+
+- DLT 저장 기준을 `source_topic`, `source_partition`, `source_offset` unique constraint로 잡아 같은 Kafka record의 중복 DLT row를 방어했습니다.
+- DB 장애는 DLT로 억지 격리하지 않고 no-ack 재소비 정책을 유지했습니다.
+- 재처리 API가 원본 `eventId`를 유지해 Consumer duplicate fast path와 `fraud_detection_results.event_id` unique constraint를 그대로 활용합니다.
+- DLT 상태 전이를 entity/service에서 제한하고 종료 상태 재처리를 `409 Conflict`로 막았습니다.
+- `transaction-events-dlt` topic key를 `eventId`로 두어 운영 재처리 단위와 topic key를 맞췄습니다.
+
+### 의도적으로 제외한 것
+
+- Kafka publish와 DB update를 atomic하게 묶는 outbox/reconciliation은 이번 Phase에서 제외했습니다.
+- 대량 batch reprocess, rate limit, 관리자 인증/인가는 후속 Phase로 남겼습니다.
+- Grafana dashboard, k6 부하 테스트, alert rule은 Observability/Load Phase 범위로 분리했습니다.
+
+### 남은 한계
+
+- DLT payload masking은 운영 확장 시 보강해야 합니다. Phase 9 local 데이터는 synthetic identifier를 전제로 합니다.
+- `reprocess_attempts`는 증가하지만 별도 `reprocessing_history` 테이블은 아직 만들지 않았습니다.
+- Rule Engine 예외 중심으로 DLT를 구현했고, invalid payload/schema version DLT 분류는 Spring Kafka deserialization/error handler 확장 시 보강합니다.
+
+### 다음 단계 보완
+
+- outbox 또는 reconciliation job으로 Kafka publish와 DB 상태 변경 사이의 중간 상태를 보정합니다.
+- DLT batch reprocess, rate limit, audit log를 추가합니다.
+- DLT count, reprocess failure count를 Prometheus/Grafana dashboard에 연결합니다.

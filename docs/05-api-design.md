@@ -60,6 +60,7 @@ API는 거래 이벤트를 빠르게 접수하고, 비동기 Consumer 처리 결
 | `FRAUD_RESULT_NOT_FOUND` | 404 | 탐지 결과 없음 |
 | `DLQ_EVENT_NOT_FOUND` | 404 | DLQ 이벤트 없음 |
 | `DLQ_EVENT_NOT_REPROCESSABLE` | 409 | 현재 상태에서 재처리 불가 |
+| `DLT_STATE_CONFLICT` | 409 | DLT 상태 전이 충돌 |
 | `KAFKA_PUBLISH_FAILED` | 503 | Kafka 발행 실패 |
 | `INTERNAL_ERROR` | 500 | 분류되지 않은 서버 오류 |
 
@@ -302,17 +303,19 @@ Response:
 
 Rule 설정 변경 API는 초기 범위에서 제외합니다. `PATCH /api/v1/admin/fraud-rules/{ruleCode}`는 Phase 13+ 후보입니다.
 
-## 8. DLQ Admin API
+## 8. DLT Admin API
 
-### GET `/api/v1/admin/dlq-events`
+Phase 9 구현 기준 path는 `/api/v1/admin/dlt-events`입니다. 기존 Phase 2 skeleton과의 호환을 위해 `/api/v1/admin/dlq-events`도 동일하게 동작합니다.
 
-DLQ에 저장된 실패 이벤트를 조회합니다.
+### GET `/api/v1/admin/dlt-events`
+
+`dead_letter_events`에 저장된 실패 이벤트를 조회합니다.
 
 Query parameter:
 
 | 이름 | 예시 | 설명 |
 |---|---|---|
-| `status` | `DLQ_PENDING` | DLQ 상태 |
+| `status` | `PENDING` | DLT 상태 |
 | `from` | `2026-06-15T00:00:00+09:00` | 생성 시각 시작 |
 | `to` | `2026-06-15T23:59:59+09:00` | 생성 시각 종료 |
 | `page` | `0` | page index |
@@ -329,9 +332,9 @@ Response:
       "originalTopic": "transaction-events",
       "originalPartition": 2,
       "originalOffset": 1532,
-      "failureReason": "unsupported schemaVersion: v2",
-      "status": "DLQ_PENDING",
-      "payloadHash": "sha256:...",
+      "failureReason": "RULE_ENGINE_ERROR",
+      "status": "PENDING",
+      "payloadHash": null,
       "createdAt": "2026-06-15T10:31:00+09:00",
       "updatedAt": "2026-06-15T10:31:00+09:00"
     }
@@ -344,9 +347,15 @@ Response:
 
 Raw payload는 기본 응답에 포함하지 않습니다. 재처리 가능성 판단에는 `payloadHash`, 실패 원인, 원본 topic/partition/offset, 상태를 사용합니다.
 
-### POST `/api/v1/admin/dlq-events/{dlqId}/reprocess`
+### GET `/api/v1/admin/dlt-events/{dlqId}`
 
-재처리 가능한 DLQ 이벤트를 `transaction-events`로 다시 발행합니다. 원본 `eventId`는 유지해야 합니다.
+DLT 이벤트 단건을 조회합니다. 단건 응답은 `payloadJson`을 포함합니다. Phase 9 local 검증 데이터는 synthetic identifier를 사용하지만, 운영 환경에서는 payload masking, 접근 권한 분리, 보존 기간 정책을 적용해야 합니다.
+
+없는 id는 `404 DLQ_EVENT_NOT_FOUND`로 응답합니다.
+
+### POST `/api/v1/admin/dlt-events/{dlqId}/reprocess`
+
+재처리 가능한 DLT 이벤트를 `transaction-events`로 다시 발행합니다. 원본 `eventId`는 유지해야 합니다.
 
 Request:
 
@@ -362,17 +371,19 @@ Response:
 ```json
 {
   "dlqId": 1,
-  "status": "REPROCESSING",
-  "reprocessAttemptId": "attempt-20260615-000001",
+  "status": "REPROCESSED",
+  "reprocessAttemptId": "1",
   "traceId": "trace-20260615-000002"
 }
 ```
 
-재처리 시 `fraud_results.event_id` unique constraint와 application-level duplicate handling으로 중복 FraudResult 생성을 막습니다.
+허용 상태는 `PENDING`, `REPROCESS_FAILED`입니다. 성공 시 `REPROCESSED`가 되며, Kafka publish 실패 시 `REPROCESS_FAILED`로 남깁니다. 이미 `REPROCESSED` 또는 `DISCARDED`이면 `409 DLT_STATE_CONFLICT`로 응답합니다.
 
-### PATCH `/api/v1/admin/dlq-events/{dlqId}/discard`
+재처리 시 `fraud_detection_results.event_id` unique constraint와 Consumer duplicate fast path로 중복 FraudResult 생성을 막습니다.
 
-재처리 불가능한 DLQ 이벤트를 폐기 상태로 변경합니다.
+### POST `/api/v1/admin/dlt-events/{dlqId}/discard`
+
+재처리 불가능한 DLT 이벤트를 폐기 상태로 변경합니다.
 
 Request:
 
@@ -382,6 +393,8 @@ Request:
   "reason": "invalid payload cannot be safely reprocessed"
 }
 ```
+
+허용 상태는 `PENDING`, `REPROCESS_FAILED`입니다. `reason`은 필수이며 `discard_reason`으로 저장합니다. 이미 종료 상태이면 `409 DLT_STATE_CONFLICT`로 응답합니다.
 
 Response:
 
