@@ -23,3 +23,20 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     testRuntimeOnly 'com.h2database:h2'
 }
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+}
+
+tasks.register('redisIntegrationTest', Test) {
+    description = 'Runs Redis integration tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    shouldRunAfter test
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+}

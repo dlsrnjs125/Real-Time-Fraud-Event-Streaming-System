@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.redis;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -21,20 +22,28 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
 
     private final StringRedisTemplate redisTemplate;
     private final SlidingWindowProperties properties;
+    private final FraudConsumerMetrics metrics;
 
     public RedisRecentTransactionWindowStore(
             StringRedisTemplate redisTemplate,
-            SlidingWindowProperties properties
+            SlidingWindowProperties properties,
+            FraudConsumerMetrics metrics
     ) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
+        this.metrics = metrics;
     }
 
     @Override
     public RecentTransactionWindowResult recordAndGetWindow(TransactionEventMessage message) {
+        return metrics.recordRedisWindowLatency(() -> recordAndGetWindowWithMetrics(message));
+    }
+
+    private RecentTransactionWindowResult recordAndGetWindowWithMetrics(TransactionEventMessage message) {
         try {
             return recordAndGetWindowOrThrow(message);
         } catch (RuntimeException exception) {
+            metrics.incrementRedisDegraded();
             log.warn(
                     "redis sliding window degraded traceId={} eventId={} userId={} reason={}",
                     message.traceId(),

@@ -3,6 +3,7 @@ package com.example.fraud.consumer.kafka;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.consumer.fraud.FraudDetectionResultSaveResult;
 import com.example.fraud.consumer.fraud.FraudDetectionResultService;
+import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
@@ -26,6 +27,7 @@ public class TransactionEventListener {
     private final RecentTransactionWindowStore recentTransactionWindowStore;
     private final FraudRuleEngine fraudRuleEngine;
     private final FraudDetectionResultService fraudDetectionResultService;
+    private final FraudConsumerMetrics metrics;
     private final String consumerGroupId;
 
     public TransactionEventListener(
@@ -33,12 +35,14 @@ public class TransactionEventListener {
             RecentTransactionWindowStore recentTransactionWindowStore,
             FraudRuleEngine fraudRuleEngine,
             FraudDetectionResultService fraudDetectionResultService,
+            FraudConsumerMetrics metrics,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
     ) {
         this.processingLogService = processingLogService;
         this.recentTransactionWindowStore = recentTransactionWindowStore;
         this.fraudRuleEngine = fraudRuleEngine;
         this.fraudDetectionResultService = fraudDetectionResultService;
+        this.metrics = metrics;
         this.consumerGroupId = consumerGroupId;
     }
 
@@ -71,11 +75,12 @@ public class TransactionEventListener {
         RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
         FraudRuleEngineResult ruleResult = fraudRuleEngine.evaluate(message, windowResult);
         FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
+        recordDetectionMetrics(ruleResult, saveResult);
 
         acknowledgment.acknowledge();
 
         log.info(
-                "transaction event consumed traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={} fraudDuplicateSkipped={} redisDegraded={} riskLevel={} decision={}",
+                "transaction event consumed traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={} fraudDuplicateSkipped={} redisDegraded={} degradedReason={} transactionCount={} amountSum={} matchedRules={} skippedRules={} riskScore={} riskLevel={} decision={}",
                 message.traceId(),
                 message.eventId(),
                 message.userId(),
@@ -85,8 +90,27 @@ public class TransactionEventListener {
                 result.duplicateSkipped(),
                 saveResult.duplicateSkipped(),
                 windowResult.degraded(),
+                windowResult.reason(),
+                windowResult.transactionCount(),
+                windowResult.amountSum(),
+                ruleResult.matchedRules(),
+                ruleResult.skippedRules(),
+                ruleResult.riskScore(),
                 ruleResult.riskLevel(),
                 ruleResult.decision()
         );
+    }
+
+    private void recordDetectionMetrics(
+            FraudRuleEngineResult ruleResult,
+            FraudDetectionResultSaveResult saveResult
+    ) {
+        if (saveResult.duplicateSkipped()) {
+            return;
+        }
+        if (ruleResult.degraded()) {
+            metrics.incrementDetectionDegraded();
+        }
+        ruleResult.skippedRules().forEach(metrics::incrementSkippedRule);
     }
 }

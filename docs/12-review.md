@@ -312,3 +312,34 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Redis down failure scenario 문서와 수동 검증 결과 추가
 - Redis command latency, degraded count, rule skipped count metric 추가
 - k6 redis-down/hot-partition 시나리오에서 Consumer Lag과 fraud detection latency 측정
+
+## Phase 7 Review
+
+### 잘한 점
+
+- Redis Sliding Window를 mock이 아니라 실제 Redis 자료구조 기준으로 검증하는 integration test를 추가했습니다.
+- 기본 `make ci-check`와 Redis integration test를 분리해 빠른 회귀 검증과 Docker 의존 검증의 역할을 나눴습니다.
+- Redis integration test는 테스트 전용 database index `15`를 사용하고 해당 DB만 초기화해 로컬 Redis 전체 DB 삭제 위험을 줄였습니다.
+- `make redis-integration-test`에 Redis readiness 확인을 추가해 Redis 미준비 상태에서 integration test가 skip되는 착시를 줄였습니다.
+- Redis degraded, skipped rule, degraded detection, Redis window latency metric foundation을 추가했습니다.
+- Metric tag에 eventId/userId/traceId를 넣지 않아 high-cardinality와 식별자 노출 위험을 피했습니다.
+- Redis degraded 처리 시 structured log에 window result, matched/skipped rule, risk score 정보를 함께 남기도록 보강했습니다.
+
+### 의도적으로 제외한 것
+
+- Kafka + Redis + PostgreSQL 전체 E2E test는 이번 Phase에 포함하지 않았습니다.
+- Grafana dashboard와 alert rule 구성은 Observability Phase로 남겼습니다.
+- k6 Redis down 부하 테스트는 Load/Failure Test Phase로 분리했습니다.
+- Testcontainers Redis는 로컬 Docker provider 호환 문제로 최종 선택하지 않고 Docker Compose Redis 기반 integration test로 대체했습니다.
+
+### 남은 한계
+
+- Redis integration test는 Docker Compose Redis가 필요한 분리 검증입니다.
+- Metric foundation은 추가됐지만 운영 threshold와 alert 기준은 아직 없습니다.
+- `fraud.redis.window.record.latency`는 store 호출 전체 시간이며 command별 latency를 분리하지 않습니다.
+
+### 다음 보완
+
+- Prometheus/Grafana dashboard에 Phase 7 metric을 연결합니다.
+- Redis down failure scenario에서 degraded metric 증가와 Consumer Lag 변화를 함께 기록합니다.
+- k6 부하 테스트로 Redis latency와 skipped rule count가 어떻게 변하는지 측정합니다.
