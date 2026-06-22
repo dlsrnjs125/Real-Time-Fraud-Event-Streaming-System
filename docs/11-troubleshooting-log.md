@@ -285,14 +285,14 @@ docker compose -f infra/docker-compose.yml up -d
 
 ### 개선 결과
 
-Docker Compose 기동 후 Kafka container가 healthy 상태가 되었고, 다음 topic 5개가 생성되는 것을 확인했습니다.
+Docker Compose 기동 후 Kafka container가 healthy 상태가 되었고, 다음 topic들이 생성되는 것을 확인했습니다.
 
 ```text
 transaction-events
 fraud-risk-events
 fraud-alert-events
 transaction-events.retry
-transaction-events.dlt
+transaction-events-dlt
 ```
 
 ### 남은 한계
@@ -924,3 +924,86 @@ Retry/DLT, DLQ 저장, 자동 reprocess는 이번 Phase 범위가 아닙니다. 
 ## Phase 8. Metric만 보지 않고 API/DB 조회를 함께 보는 이유
 
 Metric은 장애 추세를 보여주지만 단일 이벤트가 실제로 저장되었는지, 어떤 rule이 skipped 되었는지, processing log가 남았는지는 보장하지 않습니다. Phase 8 drill은 Prometheus metric 증가와 함께 fraud result API, processing log API, DB row count를 확인해 운영 증거를 남깁니다.
+
+## Phase 9. 어떤 실패를 DLT로 보낼 것인가
+
+### 문제 상황
+
+Consumer 처리 중 모든 예외를 DLT로 보낼지, 일부는 ack하지 않고 Kafka 재소비에 맡길지 결정해야 했습니다.
+
+### 판단
+
+Rule Engine 예외처럼 payload 또는 처리 로직 문제로 같은 실패가 반복될 가능성이 큰 경우는 `transaction-events-dlt`로 격리합니다. Redis 장애는 Phase 6 정책대로 degraded mode로 처리하며 DLT 대상이 아닙니다.
+
+### 트레이드오프
+
+DLT로 보낸 이벤트는 원본 topic에서 ack되므로 무한 재소비를 막을 수 있습니다. 대신 운영자가 DLT 상태와 payload를 확인해 재처리 또는 폐기를 명시적으로 결정해야 합니다.
+
+## Phase 9. DB 장애를 DLT로 보내지 않은 이유
+
+### 문제 상황
+
+Consumer 처리 중 processing log 또는 fraud result 저장이 실패했을 때 이 이벤트를 DLT로 보낼지, ack하지 않고 재소비되게 둘지 결정해야 했습니다.
+
+### 판단
+
+DB 장애는 DLT 저장 자체도 실패할 가능성이 높습니다. 따라서 DB 장애는 DLT로 보내기보다 ack하지 않고 Kafka 재소비를 유도하는 편이 더 안전하다고 판단했습니다.
+
+### 트레이드오프
+
+일시적인 DB 장애 동안 Kafka Lag이 증가할 수 있습니다. 대신 DLT 저장 실패로 이벤트를 잃거나 상태를 설명할 수 없는 상황을 피할 수 있습니다.
+
+## Phase 9. DLT 저장과 Kafka publish 사이 atomicity 한계
+
+### 문제 상황
+
+DLT DB row 저장과 `transaction-events-dlt` publish, 재처리 상태 변경과 원본 topic publish는 서로 다른 시스템을 건드립니다.
+
+### 판단
+
+Phase 9에서는 outbox 또는 Kafka transaction을 도입하지 않고, 각 중간 상태를 운영 문서에 기록했습니다. DLT 저장 후 publish 실패는 ack하지 않아 원본 record 재소비를 유도합니다. 재처리 publish 실패는 `REPROCESS_FAILED`로 남기고 API는 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
+
+### 남은 한계
+
+Kafka publish 성공 후 DB 상태 변경 실패 같은 보정은 후속 Phase의 outbox/reconciliation 후보입니다.
+
+## Phase 9. 재처리 API의 상태 전이 충돌
+
+`PENDING`과 `REPROCESS_FAILED`만 재처리/폐기 가능합니다. `REPROCESSED`와 `DISCARDED`는 종료 상태이므로 다시 재처리하면 `409 DLT_STATE_CONFLICT`로 응답합니다.
+
+이 정책은 운영자가 같은 DLT row를 반복 클릭하거나, 이미 폐기한 이벤트를 실수로 재발행하는 상황을 막기 위한 방어입니다.
+
+Phase 9 보완에서는 재처리/폐기 조회에 `PESSIMISTIC_WRITE` row lock을 적용했습니다. 같은 DLT id에 대한 동시 상태 변경을 직렬화해 중복 publish 가능성을 줄입니다.
+
+## Phase 9. duplicate DLT 저장 방어 기준
+
+같은 Kafka record가 여러 번 DLT path로 들어올 수 있으므로 `(source_topic, source_partition, source_offset)` unique constraint를 둡니다. 같은 `eventId`라도 서로 다른 offset에서 여러 실패 이력이 생길 수 있으므로 `event_id` unique는 걸지 않습니다.
+
+## Phase 9. DLT payload sanitizer를 둔 이유
+
+### 문제 상황
+
+DLT는 실패 이벤트를 보관하는 저장소이므로 원본 payload와 예외 메시지가 오래 남기 쉽습니다. 운영 데이터가 들어오면 account, device, 연락처 같은 직접 식별자가 함께 저장될 위험이 있습니다.
+
+### 판단
+
+Phase 9에서는 완전한 masking rule engine을 만들지는 않았지만, DLT 저장 경로를 `sanitizePayload`와 `sanitizeErrorMessage`로 분리했습니다. 현재 local payload는 synthetic identifier만 사용하므로 필드 마스킹은 적용하지 않습니다.
+
+### 방어 기준
+
+- `errorMessage`는 500자로 제한합니다.
+- null 또는 blank error message는 예외 class 이름으로 대체합니다.
+- stacktrace 전체는 저장하지 않습니다.
+- 운영 확장 시 payload sanitizer에서 카드번호, 계좌번호, 이메일, 전화번호 등 직접 식별자를 제거합니다.
+
+## Phase 9. 재처리 횟수 제한과 rate limit을 후속으로 남긴 이유
+
+Phase 9에서는 `reprocess_attempts`를 기록하지만 최대 재처리 횟수 제한은 적용하지 않았습니다. 운영 환경에서는 동일 이벤트의 반복 재처리로 인한 Kafka 부하와 운영 실수를 막기 위해 maxAttempts, cooldown, 관리자 승인 정책을 추가해야 합니다.
+
+재처리 API는 단건 수동 재처리를 기준으로 구현했습니다. 대량 재처리나 반복 호출에 따른 Kafka 부하를 막기 위한 rate limit, batch size 제한, cooldown 정책은 후속 운영 안정화 Phase에서 보완합니다.
+
+## Phase 9. 관리자 인증/인가와 DLT metric을 후속으로 남긴 이유
+
+Phase 9의 DLT Admin API는 운영자용 계약과 상태 전이 검증에 집중했습니다. 실제 운영 환경에서는 ADMIN 권한 기반 인증/인가, 재처리/폐기 audit log, 요청자 식별자, 변경 전후 상태 기록이 필수입니다.
+
+DLT 상태는 DB와 Admin API로 조회 가능하게 만들었습니다. DLT pending count, reprocess failed count, discard count 기반 metric과 alert rule은 후속 Observability Phase에서 추가합니다.

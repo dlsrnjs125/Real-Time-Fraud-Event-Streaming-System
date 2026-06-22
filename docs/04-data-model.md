@@ -78,19 +78,52 @@ Phase 6에서는 `skipped_rules`와 `degraded`를 추가했습니다. `rule_resu
 - `created_at`: row 생성 시각
 - `updated_at`: row 수정 시각
 
-### dlq_events
+### dead_letter_events
 
-- `id`: DLQ 이벤트 ID
-- `event_id`: 원본 이벤트 ID
-- `original_topic`: 원본 topic
-- `original_partition`: 원본 partition
-- `original_offset`: 원본 offset
-- `payload`: 실패 payload
-- `payload_hash`: 실패 payload hash
-- `failure_reason`: 실패 원인
-- `status`: `DLQ_PENDING`, `REPROCESSING`, `REPROCESSED`, `DISCARDED`, `FAILED_PERMANENT`
-- `created_at`: DLQ 저장 시각
+Phase 9에서 Consumer 처리 실패 이벤트를 운영자가 조회/재처리/폐기할 수 있도록 추가한 테이블입니다. runtime migration은 schema owner인 `app-api`에만 둡니다. `app-consumer`는 runtime Flyway를 실행하지 않고, 테스트 검증용 migration만 별도로 가집니다.
+
+- `id`: DLT 이벤트 ID
+- `event_id`: 원본 이벤트 ID. 같은 eventId로 여러 실패 이력이 생길 수 있으므로 unique로 두지 않음
+- `trace_id`: 원본 이벤트 trace ID
+- `user_id`: 원본 이벤트 user ID
+- `source_topic`: 원본 Kafka topic
+- `source_partition`: 원본 Kafka partition
+- `source_offset`: 원본 Kafka offset
+- `dlt_topic`: 발행한 DLT topic. Phase 9 기본값은 `transaction-events-dlt`
+- `failure_stage`: `RULE_ENGINE_ERROR`, `UNKNOWN_ERROR` 등 실패 구간
+- `error_type`: 예외 class 요약
+- `error_message`: 예외 메시지 요약. stacktrace 전체는 저장하지 않음
+- `payload_json`: 원본 `TransactionEventMessage` JSON. 운영 환경에서는 masking과 보존 기간 정책 필요
+- `status`: `PENDING`, `REPROCESSING`, `REPROCESSED`, `DISCARDED`, `REPROCESS_FAILED`
+- `reprocess_attempts`: 재처리 시도 횟수
+- `last_reprocessed_at`: 마지막 재처리 시각
+- `discarded_at`: 폐기 시각
+- `discard_reason`: 폐기 사유. 폐기 시 필수
+- `created_at`: DLT 저장 시각
 - `updated_at`: 상태 변경 시각
+
+제약조건:
+
+- `(source_topic, source_partition, source_offset)` unique
+- `status` check constraint
+- `reprocess_attempts >= 0`
+
+인덱스:
+
+- `idx_dlt_event_id`
+- `idx_dlt_status_created_at`
+- `idx_dlt_trace_id`
+- `idx_dlt_failure_stage_created_at`
+
+상태 전이:
+
+- `PENDING -> REPROCESSING -> REPROCESSED`
+- `PENDING -> REPROCESSING -> REPROCESS_FAILED`
+- `PENDING -> DISCARDED`
+- `REPROCESS_FAILED -> REPROCESSING`
+- `REPROCESS_FAILED -> DISCARDED`
+
+`REPROCESSED`와 `DISCARDED`는 종료 상태입니다. 종료 상태에서 재처리 또는 폐기를 다시 요청하면 `409 Conflict`로 응답합니다.
 
 ### reprocessing_history
 
@@ -111,9 +144,9 @@ Phase 6에서는 `skipped_rules`와 `degraded`를 추가했습니다. `rule_resu
 
 - `transaction_event_receipts(event_id)`
 - `event_processing_logs(topic, partition_no, offset_no)`
-- `dlq_events(original_topic, original_partition, original_offset)`
+- `dead_letter_events(source_topic, source_partition, source_offset)`
 
-`event_id`는 DLQ 조회와 중복 방어를 위한 index로 둡니다. Kafka 실패 이벤트의 원천 식별자는 `original_topic`, `original_partition`, `original_offset`이 더 정확합니다.
+`event_id`는 DLT 조회를 위한 index로 둡니다. Kafka 실패 이벤트의 원천 식별자는 `source_topic`, `source_partition`, `source_offset`이 더 정확합니다.
 
 Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않습니다. 같은 `eventId`가 재소비 또는 재처리 실험에서 여러 번 관측될 수 있으므로, 중복 processing log 방어 기준은 `(topic, partition_no, offset_no)`로 둡니다.
 
@@ -154,7 +187,7 @@ Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않
 |---|---|---|
 | `event_processing_logs` | 30d 또는 실험 범위 내 보존 | Consumer 처리 추적과 장애 분석 |
 | `fraud_detection_results` | 장기 보존 대상 | 탐지 결과 조회와 감사 기준 |
-| `dlq_events` | 상태 종료 후 일정 기간 보존 | 실패 원인 분석과 재처리 감사 |
+| `dead_letter_events` | 상태 종료 후 일정 기간 보존 | 실패 원인 분석과 재처리 감사 |
 | `reprocessing_history` | 감사 목적 보존 | 운영자 조치 이력 추적 |
 
 보존 기간은 로컬 검증 기준입니다. 운영 환경에서는 법적 보존 기준, 개인정보 최소 보관 원칙, 저장 비용을 함께 고려해 조정합니다.

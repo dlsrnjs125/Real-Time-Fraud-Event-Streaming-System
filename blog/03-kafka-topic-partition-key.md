@@ -9,7 +9,7 @@
 
 ## 초기 설계
 
-`transaction-events`, `fraud-risk-events`, `fraud-alert-events`, `transaction-events.retry`, `transaction-events.dlt`를 사용합니다. 기본 key는 `userId`입니다.
+`transaction-events`, `fraud-risk-events`, `fraud-alert-events`, `transaction-events.retry`, `transaction-events-dlt`를 사용합니다. 기본 key는 `userId`입니다.
 
 ## 구현
 

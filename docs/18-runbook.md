@@ -157,7 +157,7 @@ docker logs fraud-kafka --tail 100
 
 장애 상황:
 
-- `transaction-events.dlt` 이벤트가 증가합니다.
+- `transaction-events-dlt` 이벤트가 증가합니다.
 
 탐지 지표:
 
@@ -172,7 +172,7 @@ docker logs fraud-kafka --tail 100
 확인 명령:
 
 ```bash
-docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events.dlt
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events-dlt
 ```
 
 대응 방법:
@@ -331,7 +331,7 @@ docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --desc
 확인 명령:
 
 ```bash
-docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events.dlt
+docker exec fraud-kafka kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic transaction-events-dlt
 ```
 
 대응 방법:
@@ -818,3 +818,72 @@ scripts/failure_drills/check_event_consistency.sh evt-phase8-redis-down-123
 - Retry/DLT 자동 복구는 후속 Phase에서 구현합니다.
 - Kafka + Redis + PostgreSQL full E2E 부하 검증은 후속 Phase에서 수행합니다.
 - Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
+
+## 19. Phase 9 DLT 운영 절차
+
+### DLT 이벤트 조회
+
+```bash
+curl "http://localhost:8080/api/v1/admin/dlt-events?status=PENDING&page=0&size=20"
+curl "http://localhost:8080/api/v1/admin/dlt-events/{id}"
+```
+
+확인 항목:
+
+- `failureStage`
+- `errorType`, `errorMessage`
+- `sourceTopic`, `sourcePartition`, `sourceOffset`
+- `status`
+- `payloadJson`
+
+단건 조회는 payload를 포함합니다. 현재 local 검증은 synthetic identifier 기준이지만 운영 환경에서는 masking과 접근 권한 분리가 필요합니다.
+
+### DLT 재처리
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/reprocess"
+```
+
+기대 결과:
+
+- `PENDING` 또는 `REPROCESS_FAILED`만 재처리됩니다.
+- API 응답 status가 `REPROCESSED`이면 원본 payload가 `transaction-events`로 재발행된 상태입니다.
+- Kafka publish 실패 시 status는 `REPROCESS_FAILED`로 남고 API는 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
+- Consumer가 다시 처리할 때 원본 `eventId`가 유지됩니다.
+
+재처리 후 확인:
+
+```bash
+curl "http://localhost:8080/api/v1/admin/events/{eventId}/fraud-result"
+curl "http://localhost:8080/api/v1/admin/events/{eventId}/processing-log"
+```
+
+`fraud_detection_results.event_id` unique constraint 때문에 같은 eventId의 FraudResult는 중복 생성되지 않아야 합니다.
+
+### DLT 폐기
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/discard" \
+  -H "Content-Type: application/json" \
+  -d '{"operatorId":"local-admin","reason":"invalid payload cannot be reprocessed"}'
+```
+
+기대 결과:
+
+- `PENDING` 또는 `REPROCESS_FAILED`만 폐기됩니다.
+- `discardReason`과 `discardedAt`이 저장됩니다.
+- `REPROCESSED` 또는 `DISCARDED` 상태에서 재처리/폐기를 다시 요청하면 `409 DLT_STATE_CONFLICT`가 반환됩니다.
+
+### 잘못된 재처리 시 확인 항목
+
+1. DLT row의 `status`, `reprocessAttempts`, `lastReprocessedAt`
+2. app-api 로그의 Kafka publish 실패 여부
+3. app-consumer 로그의 `traceId`, `eventId`, topic/partition/offset
+4. fraud result row count가 eventId 기준 1건인지 여부
+5. processing log에 재처리 offset이 새로 기록되었는지 여부
+
+### 남은 한계
+
+- Phase 9 admin API는 local/development-only입니다.
+- batch reprocess, rate limit, operator audit log는 후속 Phase에서 보강합니다.
+- Kafka publish와 DB 상태 변경의 완전한 atomic transaction은 이번 Phase에서 구현하지 않았습니다.
