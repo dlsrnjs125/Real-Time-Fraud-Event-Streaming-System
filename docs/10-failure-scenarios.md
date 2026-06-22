@@ -166,7 +166,7 @@
 - 장애 상황: Redis container 중지 중 transaction event 처리
 - 예상 원인: Redis 장애, 네트워크 단절, Redis timeout
 - 사용자 영향: Redis 기반 velocity/window amount rule이 skipped 되고 탐지 민감도가 낮아질 수 있음
-- 탐지 방법: fraud result `degraded=true`, `skippedRules`, `fraud_redis_window_degraded_total`
+- 탐지 방법: fraud result `degraded=true`, `skippedRules`, `fraud_redis_window_degraded_total` 증가
 - 대응 방법: Redis 복구, degraded metric 추세 확인, 복구 후 신규 이벤트 `degraded=false` 확인
 - 재발 방지: Redis health/latency alert, 장애 drill 정기 실행
 - README에 기록할 문장: Redis 장애는 전체 Consumer 실패가 아니라 degraded mode로 처리하고 evidence를 남긴다.
@@ -186,7 +186,7 @@
 - 장애 상황: Kafka broker 중지 중 app-api가 이벤트 publish 시도
 - 예상 원인: Kafka container 장애, broker 재시작, 네트워크 단절
 - 사용자 영향: API는 publish 성공으로 응답하지 않아야 하며 접수 실패가 명확히 드러나야 함
-- 탐지 방법: API `503`, publish failure log, Kafka health failure
+- 탐지 방법: API non-2xx 응답, 로컬 기준 `503`, publish failure log, Kafka health failure
 - 대응 방법: Kafka 복구, topic 상태 확인, 복구 후 신규 이벤트 publish 검증
 - 재발 방지: producer timeout/backoff 정책, Retry/DLT Phase에서 보완
 - README에 기록할 문장: Kafka publish 성공 전에는 거래 이벤트 접수를 성공으로 간주하지 않는다.

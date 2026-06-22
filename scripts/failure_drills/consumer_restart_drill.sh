@@ -7,6 +7,7 @@ source "${SCRIPT_DIR}/common.sh"
 CONSUMER_RESTART_WAIT_SECONDS="${CONSUMER_RESTART_WAIT_SECONDS:-90}"
 
 require_command curl
+require_command docker
 
 EVENT_ID="${EVENT_ID:-evt-phase8-consumer-restart-$(date +%s)}"
 
@@ -34,5 +35,10 @@ PROCESSING_LOG="$(get_processing_log "$EVENT_ID")"
 assert_contains "$PROCESSING_LOG" '"logs":\[' "expected processing log response"
 assert_contains "$PROCESSING_LOG" '"status":"PROCESSED"' "expected processed processing log"
 
+ROW_COUNT="$(fraud_result_row_count "$EVENT_ID")"
+if [ "$ROW_COUNT" != "1" ]; then
+  fail "expected exactly one fraud_detection_results row for ${EVENT_ID}, got ${ROW_COUNT}"
+fi
+
 log "Consumer restart drill PASS"
-log "Idempotency evidence: fraud result lookup returned a single eventId result; DB unique constraint remains the final duplicate defense."
+log "Idempotency evidence: fraud_detection_results row count for ${EVENT_ID} is 1."

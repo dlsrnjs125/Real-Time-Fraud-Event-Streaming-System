@@ -22,10 +22,19 @@
 
 탐지 지표:
 
+현재 Phase에서 확인 가능한 metric:
+
+- `fraud_redis_window_record_latency_seconds_*`
+- `fraud_redis_window_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_detection_degraded_total`
+
+후속 Observability Phase 후보:
+
 - `kafka_consumer_lag`
-- `fraud_consumer_processing_duration_seconds_p95`
+- `fraud_consumer_processing_duration_seconds`
 - `db_insert_latency`
-- `redis_command_latency`
+- `publish_failure_count`
 
 영향:
 
@@ -66,10 +75,10 @@ Kafka UI에서 consumer group lag을 확인하고, Grafana Consumer dashboard에
 
 탐지 지표:
 
-- Redis error count
-- Redis command latency
-- Redis degraded count
-- skipped rule count
+- `fraud_redis_window_record_latency_seconds_*`
+- `fraud_redis_window_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_detection_degraded_total`
 
 영향:
 
@@ -107,6 +116,10 @@ docker logs fraud-redis --tail 100
 - app-api가 `transaction-events` publish에 실패합니다.
 
 탐지 지표:
+
+현재 API 응답과 receipt 상태를 우선 확인합니다.
+
+후속 Observability Phase 후보:
 
 - Kafka publish failure count
 - API error rate
@@ -741,7 +754,7 @@ make failure-drill-redis
 - Redis 중지 중에도 Consumer가 중단되지 않습니다.
 - fraud result가 저장되고 `degraded=true`입니다.
 - `skippedRules`에 `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM`이 포함됩니다.
-- `/actuator/prometheus`에서 Redis degraded/skipped metric이 확인됩니다.
+- `/actuator/prometheus`에서 Redis degraded/skipped/latency metric 증가가 확인됩니다.
 - Redis 재시작 후 신규 이벤트는 `degraded=false`로 처리됩니다.
 
 ### Consumer Restart Drill
@@ -763,7 +776,7 @@ make consumer
 - Consumer 중지 중 이벤트가 API를 통해 Kafka에 publish됩니다.
 - Consumer 재시작 후 fraud result가 생성됩니다.
 - processing log에 `PROCESSED` 기록이 남습니다.
-- duplicate fraud result가 생성되지 않습니다.
+- `fraud_detection_results` row count가 1건입니다.
 
 ### Kafka Unavailable Drill
 
@@ -775,7 +788,7 @@ cat scripts/failure_drills/kafka_unavailable_drill.md
 
 핵심 확인 항목:
 
-- Kafka broker 중지 중 API가 `202 Accepted`로 성공 응답하지 않습니다.
+- Kafka broker 중지 중 API가 `202 Accepted`로 성공 응답하지 않습니다. 로컬 검증에서는 `503 Service Unavailable`을 기준으로 보되, timeout/exception type에 따라 status가 달라질 수 있어 non-2xx를 핵심 PASS 기준으로 둡니다.
 - Kafka 복구 후 topic 조회가 가능합니다.
 - Consumer reconnect log를 확인합니다.
 - 복구 후 신규 이벤트를 발행하고 fraud result와 processing log를 확인합니다.

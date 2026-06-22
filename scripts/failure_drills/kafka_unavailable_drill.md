@@ -37,7 +37,7 @@ curl -i -X POST http://localhost:8080/api/v1/transactions/events \
   -d '{"eventId":"evt-phase8-kafka-down-001","userId":"user-phase8-kafka","accountId":"acc-phase8-kafka","amount":10000,"currency":"KRW","merchantId":"merchant-phase8","deviceId":"device-phase8","location":"SEOUL","eventType":"PAYMENT","eventTime":"2026-06-22T00:00:00Z"}'
 ```
 
-4. Confirm that API does not return a successful publish response for a broker outage. A `503` publish failure is expected for the current phase.
+4. Confirm that API does not return a successful publish response for a broker outage. The core PASS criterion is a non-2xx response. Local verification usually expects `503 Service Unavailable`, but timeout and exception type can change the exact status.
 
 5. Restart Kafka and wait for readiness.
 

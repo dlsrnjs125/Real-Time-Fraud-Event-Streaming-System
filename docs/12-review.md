@@ -349,8 +349,8 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 ### 잘한 점
 
 - Redis down을 전체 Consumer 실패로 보지 않고 degraded mode evidence를 자동 drill로 확인하도록 만들었습니다.
-- Redis drill은 Redis stop, 이벤트 발행, fraud result 조회, skipped rule 확인, degraded metric 확인, Redis restart, recovery event 확인까지 포함합니다.
-- Consumer restart drill은 로컬 Gradle process 구조를 고려해 precondition과 수동 재시작 절차를 명확히 했습니다.
+- Redis drill은 Redis stop, 이벤트 발행, fraud result 조회, skipped rule 확인, degraded/skipped/latency metric 증가 확인, Redis restart, recovery event 확인까지 포함합니다.
+- Consumer restart drill은 로컬 Gradle process 구조를 고려해 precondition과 수동 재시작 절차를 명확히 하고, DB row count 1건 검증을 포함했습니다.
 - Kafka unavailable은 자동화로 로컬 환경을 깨뜨릴 수 있어 markdown runbook으로 분리했습니다.
 - Metric만 보지 않고 fraud result API와 processing log API를 함께 확인하도록 했습니다.
 - Failure drill script는 synthetic identifier만 사용하고 credential을 하드코딩하지 않았습니다.

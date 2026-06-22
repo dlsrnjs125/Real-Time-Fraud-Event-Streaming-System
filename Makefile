@@ -10,7 +10,7 @@ help:
 	@echo "  make redis-integration-test - Run Redis integration tests"
 	@echo "  make failure-drill-redis - Run Redis down failure drill"
 	@echo "  make failure-drill-consumer - Run Consumer restart drill"
-	@echo "  make failure-drill  - Run automated failure drills"
+	@echo "  make failure-drill  - Run automated Redis failure drill only"
 	@echo "  make ci-check       - Run lightweight CI checks"
 	@echo "  make clean          - Clean Gradle build outputs"
 	@echo "  make api            - Run app-api"
@@ -58,6 +58,7 @@ failure-drill-consumer:
 
 failure-drill:
 	$(MAKE) failure-drill-redis
+	@echo "Consumer restart drill requires manual app-consumer restart. Run: make failure-drill-consumer"
 
 ci-check:
 	./gradlew test

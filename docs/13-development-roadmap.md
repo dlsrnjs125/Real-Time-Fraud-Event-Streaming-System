@@ -658,11 +658,11 @@ Done
 - `scripts/failure_drills/consumer_restart_drill.sh` 추가
 - `scripts/failure_drills/check_event_consistency.sh` 추가
 - `scripts/failure_drills/kafka_unavailable_drill.md` 추가
-- `scripts/failure_drills/common.sh`로 HTTP retry, event 발행, metric 확인 helper 정리
+- `scripts/failure_drills/common.sh`로 HTTP retry, event 발행, metric 증가 확인, DB row count helper 정리
 - `make failure-drill-redis`, `make failure-drill-consumer`, `make failure-drill` target 추가
 - `scripts-check`에 failure drill shell syntax check 추가
-- Redis down 시 `degraded=true`, skipped Redis rule, degraded metric 확인 절차 정리
-- Consumer restart 시 Kafka 보존 메시지 처리와 PostgreSQL unique constraint 기반 idempotency 확인 절차 정리
+- Redis down 시 `degraded=true`, skipped Redis rule, degraded metric 증가 확인 절차 정리
+- Consumer restart 시 Kafka 보존 메시지 처리와 `fraud_detection_results` row count 1건 확인 절차 정리
 - Kafka unavailable은 자동 script 대신 runbook으로 분리
 
 ### Commands
@@ -681,8 +681,8 @@ bash -n scripts/failure_drills/*.sh
 | CI check | PASS | `make ci-check` |
 | Redis integration test | PASS | `make redis-integration-test` |
 | script syntax check | PASS | `bash -n scripts/failure_drills/*.sh` |
-| Redis failure drill | PASS | Redis stop 중 degraded fraud result, skipped rule, degraded metric 확인 |
-| Consumer restart drill | MANUAL/RUNBOOK | app-consumer가 Docker Compose service가 아니라 local Gradle process라 수동 restart 전제 |
+| Redis failure drill | PASS | Redis stop 중 degraded fraud result, skipped rule, degraded metric 증가 확인 |
+| Consumer restart drill | MANUAL/RUNBOOK | app-consumer가 Docker Compose service가 아니라 local Gradle process라 수동 restart 전제, DB row count 검증 포함 |
 | Kafka unavailable drill | RUNBOOK | broker stop/start 자동화 위험 때문에 markdown runbook으로 분리 |
 
 ### Known Limitations

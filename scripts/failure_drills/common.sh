@@ -107,6 +107,32 @@ assert_metric_present() {
     || fail "metric not found from consumer prometheus endpoint: $pattern"
 }
 
+metric_value() {
+  local metric="$1"
+
+  curl -fsS "$CONSUMER_METRICS_URL" \
+    | awk -v name="$metric" '$1 ~ ("^" name "(\\{|$)") {sum += $2} END {print sum + 0}'
+}
+
+assert_metric_increased() {
+  local metric="$1"
+  local before="$2"
+  local after="$3"
+
+  awk -v before="$before" -v after="$after" 'BEGIN { exit !(after > before) }' \
+    || fail "expected ${metric} to increase, before=${before}, after=${after}"
+}
+
+fraud_result_row_count() {
+  local event_id="$1"
+  local db_container="${POSTGRES_CONTAINER:-fraud-postgres}"
+  local db_user="${POSTGRES_USER:-fraud}"
+  local db_name="${POSTGRES_DB:-fraud}"
+
+  docker exec "$db_container" psql -U "$db_user" -d "$db_name" \
+    -tAc "select count(*) from fraud_detection_results where event_id='${event_id}'"
+}
+
 wait_for_redis_ready() {
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     if docker exec fraud-redis redis-cli ping >/dev/null 2>&1; then
