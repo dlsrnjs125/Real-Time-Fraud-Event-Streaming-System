@@ -848,3 +848,79 @@ degraded count와 skipped rule count는 탐지 민감도 저하를 알려주는 
 - `fraud.rule.skipped.total`
 
 위 metric을 추가하고 Prometheus/Grafana alert 후보로 문서화했습니다.
+
+## Phase 8. Redis Down Drill에서 ack를 유지한 이유
+
+### 문제 상황
+
+Redis가 중단되면 Sliding Window 기반 stateful rule을 평가할 수 없습니다. 이때 ack를 막으면 Kafka Lag이 증가하고, Redis와 무관한 정상 이벤트까지 Consumer가 처리하지 못할 수 있습니다.
+
+### 판단
+
+Redis는 Source of Truth가 아니므로 Redis 장애는 degraded mode로 처리합니다. Redis 의존 rule은 skipped 처리하고, stateless rule만으로 fraud result를 저장한 뒤 ack를 유지합니다.
+
+### 트레이드오프
+
+Redis 장애 중에는 최근 거래 패턴 기반 탐지가 누락될 수 있습니다. 대신 이벤트 처리와 결과 저장은 유지되어 서비스 가용성을 확보합니다.
+
+### 검증
+
+`redis_down_drill.sh`는 Redis를 중지한 뒤 이벤트를 발행하고, fraud result의 `degraded=true`, `RAPID_TRANSACTION_COUNT`/`WINDOW_AMOUNT_SUM` skipped rule, Prometheus degraded metric 증가를 확인합니다.
+
+## Phase 8. Consumer 중지 중 발행된 메시지 확인 방법
+
+### 문제 상황
+
+app-consumer가 중지된 동안 app-api는 Kafka publish를 계속 성공할 수 있습니다. 이 경우 이벤트는 Kafka topic에 남고 fraud result는 Consumer 재시작 전까지 생성되지 않습니다.
+
+### 판단
+
+Consumer restart drill은 app-consumer를 먼저 중지한 상태에서 이벤트를 발행하고, app-consumer를 다시 시작한 뒤 fraud result와 processing log가 생성되는지 확인합니다.
+
+### 검증 기준
+
+- Consumer 중지 중 API publish는 `202 Accepted`
+- Consumer 재시작 후 fraud result 조회 가능
+- processing log에 `PROCESSED` 기록 존재
+- 같은 `eventId`에 대한 fraud result는 PostgreSQL unique constraint 때문에 1건만 유지
+
+## Phase 8. Kafka Unavailable Drill을 Runbook으로 분리한 이유
+
+### 문제 상황
+
+Kafka broker stop/start는 topic metadata, producer timeout, Consumer reconnect, 로컬 smoke workflow에 모두 영향을 줍니다. 자동 script로 기본 target에 포함하면 로컬 개발 환경을 쉽게 깨뜨릴 수 있습니다.
+
+### 판단
+
+Phase 8에서는 Kafka unavailable을 markdown runbook으로 분리하고, 수동으로 API publish failure와 Consumer reconnect log를 확인합니다.
+
+### 한계
+
+Retry/DLT, DLQ 저장, 자동 reprocess는 이번 Phase 범위가 아닙니다. Kafka 장애 자동 복구 정책은 후속 Retry/DLT Phase에서 구현합니다.
+
+## Phase 8. Drill PASS/FAIL 기준
+
+### Redis Down PASS
+
+- app-api와 app-consumer health endpoint가 drill 시작 전에 응답
+- Redis stop 후 이벤트 발행 성공
+- fraud result `degraded=true`
+- Redis 의존 rule이 `skippedRules`에 포함
+- `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total`, `fraud_rule_skipped_total` 확인
+- Redis restart 후 신규 이벤트는 `degraded=false`
+
+### Consumer Restart PASS
+
+- Consumer 중지 중 이벤트가 Kafka에 publish됨
+- Consumer 재시작 후 fraud result와 processing log 조회 가능
+- 무한 재처리나 duplicate fraud result가 관측되지 않음
+
+### Kafka Unavailable PASS
+
+- Kafka 중지 중 API가 publish 성공으로 응답하지 않음
+- Kafka 복구 후 topic 조회와 Consumer reconnect가 가능
+- 복구 후 신규 이벤트 처리 가능
+
+## Phase 8. Metric만 보지 않고 API/DB 조회를 함께 보는 이유
+
+Metric은 장애 추세를 보여주지만 단일 이벤트가 실제로 저장되었는지, 어떤 rule이 skipped 되었는지, processing log가 남았는지는 보장하지 않습니다. Phase 8 drill은 Prometheus metric과 함께 fraud result API, processing log API를 확인해 운영 증거를 남깁니다.

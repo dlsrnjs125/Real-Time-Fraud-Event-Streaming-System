@@ -718,3 +718,89 @@ docker compose -f infra/docker-compose.yml start redis
 
 - Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
 - Redis integration test는 기본 `make ci-check`와 분리되어 있습니다.
+
+## 18. Phase 8 Failure Drill
+
+### Redis Down Drill
+
+사전 조건:
+
+- `make infra-up`
+- `make topics`
+- `make api`
+- `make consumer`
+
+실행:
+
+```bash
+make failure-drill-redis
+```
+
+확인 항목:
+
+- Redis 중지 중에도 Consumer가 중단되지 않습니다.
+- fraud result가 저장되고 `degraded=true`입니다.
+- `skippedRules`에 `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM`이 포함됩니다.
+- `/actuator/prometheus`에서 Redis degraded/skipped metric이 확인됩니다.
+- Redis 재시작 후 신규 이벤트는 `degraded=false`로 처리됩니다.
+
+### Consumer Restart Drill
+
+이 저장소의 app-consumer는 Docker Compose service가 아니라 로컬 Gradle process로 실행합니다. 따라서 restart drill은 아래 순서로 수행합니다.
+
+```bash
+make infra-up
+make topics
+make api
+# app-consumer를 실행 중이면 중지합니다.
+make failure-drill-consumer
+# 스크립트가 안내하면 다른 터미널에서 app-consumer를 다시 시작합니다.
+make consumer
+```
+
+확인 항목:
+
+- Consumer 중지 중 이벤트가 API를 통해 Kafka에 publish됩니다.
+- Consumer 재시작 후 fraud result가 생성됩니다.
+- processing log에 `PROCESSED` 기록이 남습니다.
+- duplicate fraud result가 생성되지 않습니다.
+
+### Kafka Unavailable Drill
+
+Kafka unavailable drill은 자동 script가 아니라 runbook으로 분리했습니다.
+
+```bash
+cat scripts/failure_drills/kafka_unavailable_drill.md
+```
+
+핵심 확인 항목:
+
+- Kafka broker 중지 중 API가 `202 Accepted`로 성공 응답하지 않습니다.
+- Kafka 복구 후 topic 조회가 가능합니다.
+- Consumer reconnect log를 확인합니다.
+- 복구 후 신규 이벤트를 발행하고 fraud result와 processing log를 확인합니다.
+
+### Event Consistency Check
+
+특정 이벤트의 fraud result와 processing log를 함께 확인합니다.
+
+```bash
+scripts/failure_drills/check_event_consistency.sh evt-phase8-redis-down-123
+```
+
+### 실패 시 확인 순서
+
+1. `docker compose -f infra/docker-compose.yml ps`
+2. `curl http://localhost:8080/actuator/health`
+3. `curl http://localhost:8081/actuator/health`
+4. `./scripts/wait-for-kafka.sh`
+5. `curl http://localhost:8081/actuator/prometheus | grep fraud`
+6. fraud result API 조회
+7. processing log API 조회
+8. app-api/app-consumer 로그에서 `traceId`, `eventId`, topic/partition/offset 확인
+
+### 남은 한계
+
+- Retry/DLT 자동 복구는 후속 Phase에서 구현합니다.
+- Kafka + Redis + PostgreSQL full E2E 부하 검증은 후속 Phase에서 수행합니다.
+- Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.

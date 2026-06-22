@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke final-check
 
 help:
 	@echo "Available targets:"
@@ -8,6 +8,9 @@ help:
 	@echo "  make test-api       - Run app-api tests"
 	@echo "  make test-consumer  - Run app-consumer tests"
 	@echo "  make redis-integration-test - Run Redis integration tests"
+	@echo "  make failure-drill-redis - Run Redis down failure drill"
+	@echo "  make failure-drill-consumer - Run Consumer restart drill"
+	@echo "  make failure-drill  - Run automated failure drills"
 	@echo "  make ci-check       - Run lightweight CI checks"
 	@echo "  make clean          - Clean Gradle build outputs"
 	@echo "  make api            - Run app-api"
@@ -47,6 +50,15 @@ redis-integration-test:
 	exit 1
 	./gradlew :app-consumer:redisIntegrationTest
 
+failure-drill-redis:
+	bash scripts/failure_drills/redis_down_drill.sh
+
+failure-drill-consumer:
+	bash scripts/failure_drills/consumer_restart_drill.sh
+
+failure-drill:
+	$(MAKE) failure-drill-redis
+
 ci-check:
 	./gradlew test
 	./gradlew assemble
@@ -80,6 +92,7 @@ scripts-check:
 	bash -n scripts/reset-local-env.sh
 	bash -n scripts/run-smoke-test.sh
 	bash -n scripts/wait-for-kafka.sh
+	bash -n scripts/failure_drills/*.sh
 
 topics:
 	./scripts/create-topics.sh
