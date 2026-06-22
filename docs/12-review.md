@@ -343,3 +343,34 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - Prometheus/Grafana dashboard에 Phase 7 metric을 연결합니다.
 - Redis down failure scenario에서 degraded metric 증가와 Consumer Lag 변화를 함께 기록합니다.
 - k6 부하 테스트로 Redis latency와 skipped rule count가 어떻게 변하는지 측정합니다.
+
+## Phase 8 Review
+
+### 잘한 점
+
+- Redis down을 전체 Consumer 실패로 보지 않고 degraded mode evidence를 자동 drill로 확인하도록 만들었습니다.
+- Redis drill은 Redis stop, 이벤트 발행, fraud result 조회, skipped rule 확인, degraded/skipped/latency metric 증가 확인, Redis restart, recovery event 확인까지 포함합니다.
+- Consumer restart drill은 로컬 Gradle process 구조를 고려해 precondition과 수동 재시작 절차를 명확히 하고, DB row count 1건 검증을 포함했습니다.
+- Kafka unavailable은 자동화로 로컬 환경을 깨뜨릴 수 있어 markdown runbook으로 분리했습니다.
+- Metric만 보지 않고 fraud result API와 processing log API를 함께 확인하도록 했습니다.
+- Failure drill script는 synthetic identifier만 사용하고 credential을 하드코딩하지 않았습니다.
+
+### 의도적으로 제외한 것
+
+- Retry/DLT 자동 복구 구현은 이번 Phase에 포함하지 않았습니다.
+- Kafka stop/start 자동 script를 기본 target에 포함하지 않았습니다.
+- k6 기반 장애 부하 테스트와 Grafana dashboard 구성은 제외했습니다.
+- app-consumer Docker Compose service 추가는 현재 로컬 실행 구조를 바꾸므로 제외했습니다.
+
+### 남은 한계
+
+- Consumer restart drill은 완전 자동화가 아니라 app-consumer 수동 재시작을 전제합니다.
+- Kafka unavailable drill은 runbook이며 자동 PASS/FAIL 결과를 만들지 않습니다.
+- Consumer Lag과 detection latency dashboard evidence는 아직 연결되지 않았습니다.
+- PostgreSQL 장애 drill은 문서 시나리오로 남아 있고 자동화하지 않았습니다.
+
+### 다음 보완
+
+- Retry/DLT Phase에서 transient failure와 unrecoverable failure를 분리합니다.
+- Observability Phase에서 Consumer Lag, detection latency, DLQ count dashboard를 연결합니다.
+- Load/Failure Test Phase에서 k6 Redis down, Consumer restart, hot partition 시나리오를 측정합니다.

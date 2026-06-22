@@ -119,4 +119,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 7까지 완료된 상태입니다. Phase 7에서는 Redis Sliding Window의 실제 Redis 통합 검증을 추가하고, Redis command latency, degraded count, skipped rule count를 관측할 수 있는 metric foundation을 보강했습니다. 상세 내용은 docs와 blog에 정리했습니다.
+현재는 Phase 8까지 완료된 상태입니다. Phase 8에서는 Redis down과 Consumer restart 상황을 재현하는 failure drill script/runbook을 추가하고, degraded metric/log/API 조회를 통해 복구 가능성을 검증했습니다. 상세 내용은 docs와 blog에 정리했습니다.

@@ -12,7 +12,7 @@
 | Phase 5 | Done | Rule Engine v1과 FraudResult 저장/조회 구현 완료 | fraud_detection_results, Rule Engine v1, fraud result query API | Redis Sliding Window rule 구현 |
 | Phase 6 | Done | Redis Sliding Window 기반 최근 거래 패턴 탐지 구현 완료 | Redis window store, stateful rules, degraded mode, fraud result degraded fields | Redis command metric과 integration test 보강 |
 | Phase 7 | Done | Redis 통합 검증과 metric foundation 구현 완료 | Redis integration test, Redis latency/degraded/skipped metrics | Grafana dashboard와 alert 후보 연결 |
-| Phase 8 | Not Started | Load/failure 검증 미실행 | k6 시나리오 초안 | Redis down, consumer lag, hot partition 검증 |
+| Phase 8 | Done | Redis/Kafka failure drill과 Consumer recovery 검증 절차 작성 완료 | failure drill scripts, Kafka unavailable runbook, recovery evidence docs | Retry/DLT 설계 구현 |
 | Phase 9 | Not Started | Retry/DLT 설계만 작성 | retry/dlt topic, reprocessing docs | DLT 저장, 조회, 재처리, 폐기 흐름 구현 |
 | Phase 10 | Not Started | Actuator/Prometheus 설정 초안 | prometheus.yml, actuator config | custom metrics와 Grafana dashboard 구성 |
 | Phase 11 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
@@ -632,24 +632,65 @@ make redis-integration-test
 - Prometheus/Grafana dashboard에 Redis degraded, skipped rule, latency metric을 연결합니다.
 - Redis down failure scenario와 k6 부하 테스트로 degraded 비율과 Consumer Lag 영향을 측정합니다.
 
-## Phase 8. Context Rules
+## Phase 8. Redis/Kafka Failure Drill and Consumer Recovery
 
 ### 목표
 
-기기/위치 기반 rule을 추가하거나, 초기 범위에서 제외할 경우 그 이유와 후속 작업을 명확히 기록합니다.
+Redis down, Consumer restart, Kafka unavailable 상황을 재현하고, degraded mode와 idempotency가 유지되는지 검증합니다.
 
-### 범위 후보
+### Status
 
-- `NEW_DEVICE`
-- `LOCATION_CHANGE`
-- 최근 device/location context 저장 정책
-- context 데이터 부재 시 fallback 정책
-- 오탐 가능성 문서화
+Done
 
-### 완료 기준
+### 범위
 
-- 구현 시 rule result와 risk score 반영
-- 제외 시 `docs/16-fraud-detection-strategy.md`에 제외 이유와 다음 Phase 조건 기록
+- Redis down drill script
+- Consumer restart drill script/runbook
+- Kafka unavailable drill runbook
+- failure drill Makefile target
+- degraded metric/log/API 조회 절차
+- event consistency 보조 script
+- failure scenario, troubleshooting, runbook, blog 기록
+
+### Completed
+
+- `scripts/failure_drills/redis_down_drill.sh` 추가
+- `scripts/failure_drills/consumer_restart_drill.sh` 추가
+- `scripts/failure_drills/check_event_consistency.sh` 추가
+- `scripts/failure_drills/kafka_unavailable_drill.md` 추가
+- `scripts/failure_drills/common.sh`로 HTTP retry, event 발행, metric 증가 확인, DB row count helper 정리
+- `make failure-drill-redis`, `make failure-drill-consumer`, `make failure-drill` target 추가
+- `scripts-check`에 failure drill shell syntax check 추가
+- Redis down 시 `degraded=true`, skipped Redis rule, degraded metric 증가 확인 절차 정리
+- Consumer restart 시 Kafka 보존 메시지 처리와 `fraud_detection_results` row count 1건 확인 절차 정리
+- Kafka unavailable은 자동 script 대신 runbook으로 분리
+
+### Commands
+
+```bash
+make ci-check
+make redis-integration-test
+make failure-drill-redis
+bash -n scripts/failure_drills/*.sh
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| CI check | PASS | `make ci-check` |
+| Redis integration test | PASS | `make redis-integration-test` |
+| script syntax check | PASS | `bash -n scripts/failure_drills/*.sh` |
+| Redis failure drill | PASS | Redis stop 중 degraded fraud result, skipped rule, degraded metric 증가 확인 |
+| Consumer restart drill | MANUAL/RUNBOOK | app-consumer가 Docker Compose service가 아니라 local Gradle process라 수동 restart 전제, DB row count 검증 포함 |
+| Kafka unavailable drill | RUNBOOK | broker stop/start 자동화 위험 때문에 markdown runbook으로 분리 |
+
+### Known Limitations
+
+- Retry/DLT 자동 복구는 후속 Phase 범위입니다.
+- Kafka + Redis + PostgreSQL full E2E 부하 검증은 후속 Phase 범위입니다.
+- Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
+- k6 기반 장애 부하 테스트는 후속 Load/Failure Test Phase에서 수행합니다.
 
 ## Phase 9. Retry, DLT, and Reprocessing
 

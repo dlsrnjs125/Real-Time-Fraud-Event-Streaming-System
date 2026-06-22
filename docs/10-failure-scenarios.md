@@ -158,3 +158,65 @@
 - 허용 가능한 clock skew 범위를 초과하면 validation 실패 또는 DLT 이동
 - ingest_delay 계산에서 음수 지연이 조용히 기록되지 않음
 - 원인 분석을 위해 traceId와 eventId 기록
+
+## 14. Phase 8 Drill Scenarios
+
+### Redis Down During Detection
+
+- 장애 상황: Redis container 중지 중 transaction event 처리
+- 예상 원인: Redis 장애, 네트워크 단절, Redis timeout
+- 사용자 영향: Redis 기반 velocity/window amount rule이 skipped 되고 탐지 민감도가 낮아질 수 있음
+- 탐지 방법: fraud result `degraded=true`, `skippedRules`, `fraud_redis_window_degraded_total` 증가
+- 대응 방법: Redis 복구, degraded metric 추세 확인, 복구 후 신규 이벤트 `degraded=false` 확인
+- 재발 방지: Redis health/latency alert, 장애 drill 정기 실행
+- README에 기록할 문장: Redis 장애는 전체 Consumer 실패가 아니라 degraded mode로 처리하고 evidence를 남긴다.
+
+### Consumer Stopped While Events Are Produced
+
+- 장애 상황: app-consumer 중지 중 app-api가 transaction event를 Kafka에 publish
+- 예상 원인: Consumer 배포, 프로세스 장애, 로컬 재시작
+- 사용자 영향: API 접수는 가능하지만 fraud result 생성이 Consumer 재시작까지 지연됨
+- 탐지 방법: Consumer health down, fraud result 미생성, Kafka Lag 증가
+- 대응 방법: Consumer 재시작 후 fraud result와 processing log 확인
+- 재발 방지: Consumer restart drill, lag alert, graceful shutdown 점검
+- README에 기록할 문장: Consumer 재시작 후 Kafka에 남은 메시지를 재처리하고 DB unique constraint로 중복 결과를 방어한다.
+
+### Kafka Broker Unavailable During API Publish
+
+- 장애 상황: Kafka broker 중지 중 app-api가 이벤트 publish 시도
+- 예상 원인: Kafka container 장애, broker 재시작, 네트워크 단절
+- 사용자 영향: API는 publish 성공으로 응답하지 않아야 하며 접수 실패가 명확히 드러나야 함
+- 탐지 방법: API non-2xx 응답, 로컬 기준 `503`, publish failure log, Kafka health failure
+- 대응 방법: Kafka 복구, topic 상태 확인, 복구 후 신규 이벤트 publish 검증
+- 재발 방지: producer timeout/backoff 정책, Retry/DLT Phase에서 보완
+- README에 기록할 문장: Kafka publish 성공 전에는 거래 이벤트 접수를 성공으로 간주하지 않는다.
+
+### Fraud Result Duplicate Replay
+
+- 장애 상황: 같은 Kafka message 또는 같은 `eventId`가 재처리됨
+- 예상 원인: ack 직전 Consumer 장애, rebalance, manual replay
+- 사용자 영향: 중복 fraud result가 생성되면 운영 조회와 지표가 왜곡됨
+- 탐지 방법: `fraud_detection_results.event_id` unique constraint, duplicate log, eventId 조회
+- 대응 방법: duplicate result는 idempotent 성공으로 처리하고 ack 가능하게 유지
+- 재발 방지: unique constraint 유지, duplicate path test, reprocessing drill
+- README에 기록할 문장: 최종 중복 방어는 PostgreSQL `fraud_detection_results.event_id` unique constraint가 담당한다.
+
+### Prometheus Metric Endpoint Unavailable
+
+- 장애 상황: `/actuator/prometheus` 또는 Prometheus scrape 실패
+- 예상 원인: app-consumer down, management endpoint 장애, Prometheus 장애
+- 사용자 영향: 비즈니스 처리는 계속될 수 있지만 degraded trend와 alert 확인이 어려움
+- 탐지 방법: actuator endpoint failure, Prometheus target down
+- 대응 방법: structured log와 admin API로 단건 evidence 확인, metric backend 복구
+- 재발 방지: Prometheus target alert, actuator endpoint 제한 점검
+- README에 기록할 문장: metric 장애는 처리 실패와 분리하고, API/log evidence를 함께 확인한다.
+
+### PostgreSQL Unavailable During Result Save
+
+- 장애 상황: Consumer가 fraud result 저장 중 DB connection failure 발생
+- 예상 원인: PostgreSQL 중지, connection pool 고갈, network issue
+- 사용자 영향: fraud result 저장 실패 시 ack가 호출되지 않아 Kafka 재소비 대상이 됨
+- 탐지 방법: Consumer error log, DB health failure, fraud result 미생성
+- 대응 방법: PostgreSQL 복구 후 Consumer 재처리 확인
+- 재발 방지: DB health/connection pool metric, Retry/DLT Phase에서 transient failure 정책 보강
+- README에 기록할 문장: DB 저장 성공 전 offset commit을 하지 않아 silent event loss를 피한다.

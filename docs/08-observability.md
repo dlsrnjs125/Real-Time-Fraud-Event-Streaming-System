@@ -88,7 +88,36 @@ Phase 4 Consumer log 최소 필드:
 
 Phase 7에서는 Redis degraded와 skipped rule을 먼저 metric foundation으로 추가했습니다. Consumer Lag, detection latency, DLQ count dashboard는 후속 Observability Phase에서 연결합니다.
 
-## 6. 개인정보와 로그 마스킹
+## 6. Failure Drill에서 확인할 신호
+
+Phase 8 failure drill은 metric 하나만으로 PASS/FAIL을 판단하지 않고 metric, structured log, admin API 조회를 함께 봅니다.
+
+Redis down drill에서 증가를 확인할 metric:
+
+- `fraud_redis_window_degraded_total`
+- `fraud_detection_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_redis_window_record_latency_seconds_count`
+
+Redis down drill에서 확인할 API evidence:
+
+- fraud result `degraded=true`
+- `skippedRules`에 Redis 의존 rule 포함
+- Redis 복구 후 신규 이벤트 `degraded=false`
+
+Consumer restart drill에서 확인할 evidence:
+
+- Consumer 중지 중 API publish 성공
+- Consumer 재시작 후 fraud result 조회 가능
+- processing log에 `PROCESSED` 기록 존재
+- `fraud_detection_results` row count 1건
+
+Kafka unavailable drill의 현재 한계:
+
+- API publish failure와 Consumer reconnect log는 수동 runbook으로 확인합니다.
+- Retry/DLT metric, DLQ count, Consumer Lag dashboard는 후속 Phase에서 연결합니다.
+
+## 7. 개인정보와 로그 마스킹
 
 구조화 로그에는 `eventId`와 `traceId`를 남기되, `accountId`와 `deviceId`는 원문 전체를 기록하지 않습니다.
 
