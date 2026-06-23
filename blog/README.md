@@ -22,6 +22,7 @@
 11. [Partition Hot Spot과 userId key의 트레이드오프](11-hot-partition-tradeoff.md)
 12. [최종 결과와 설계 변경 기록](12-result-and-design-changes.md)
 13. [DLT 재처리 이후, 운영 가능한 이상거래 탐지 시스템으로 마무리하기](13-phase-10-final-readiness.md)
+14. [실시간 이상거래 탐지 시스템 최종 운영 준비도 점검](11-final-readiness-review.md)
 
 ## 글 구조
 

@@ -14,6 +14,22 @@
 - 복구 확인
 - 재발 방지
 
+## 1-1. 최신 로컬 운영 명령
+
+현재 Makefile 기준으로 반복 검증과 로컬 drill은 아래 명령을 사용합니다.
+
+| 목적 | Command | 비고 |
+|---|---|---|
+| lightweight CI | `make ci-check` | `./gradlew test`, `./gradlew assemble` |
+| Redis integration test | `make redis-integration-test` | Docker Compose Redis DB 15 사용 |
+| Redis down drill | `make failure-drill-redis` | 자동 script |
+| Consumer restart drill | `make failure-drill-consumer` | app-consumer 재시작은 별도 터미널에서 수행 |
+| Kafka topics 생성 | `make topics` | `scripts/create-topics.sh` 실행 |
+| script syntax check | `make scripts-check` | failure drill script 포함 |
+| final static check | `make final-check` | build, compose config, script syntax check |
+
+Kafka unavailable drill은 자동화하지 않고 `scripts/failure_drills/kafka_unavailable_drill.md` runbook으로 확인합니다. Broker stop/start는 로컬 환경에 미치는 영향이 커서 수동 절차로 유지합니다.
+
 ## 2. Consumer Lag 지속 증가
 
 장애 상황:
@@ -396,7 +412,7 @@ docker logs fraud-kafka --tail 100
 
 - DB unique constraint conflict count
 - duplicate reprocess count
-- reprocessing_history result
+- `dead_letter_events.reprocess_attempts`
 
 영향:
 
@@ -405,13 +421,13 @@ docker logs fraud-kafka --tail 100
 확인 명령:
 
 ```bash
-docker exec fraud-postgres psql -U fraud -d fraud -c "select event_id, count(*) from fraud_results group by event_id having count(*) > 1;"
+docker exec fraud-postgres psql -U fraud -d fraud -c "select event_id, count(*) from fraud_detection_results group by event_id having count(*) > 1;"
 ```
 
 대응 방법:
 
 - 재처리 결과를 duplicate 또는 already processed로 기록
-- DLQ status와 reprocessing_history 확인
+- DLQ status와 `reprocess_attempts`, `last_reprocessed_at` 확인
 
 복구 확인:
 
@@ -420,7 +436,7 @@ docker exec fraud-postgres psql -U fraud -d fraud -c "select event_id, count(*) 
 
 재발 방지:
 
-- `fraud_results.event_id` unique constraint 유지
+- `fraud_detection_results.event_id` unique constraint 유지
 - reprocess API 중복 요청 테스트 추가
 
 ## 12. Prometheus Target Down
@@ -887,3 +903,22 @@ curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/discard" \
 - Phase 9 admin API는 local/development-only입니다.
 - batch reprocess, rate limit, operator audit log는 후속 Phase에서 보강합니다.
 - Kafka publish와 DB 상태 변경의 완전한 atomic transaction은 이번 Phase에서 구현하지 않았습니다.
+
+## 20. Phase 11 Final Readiness Review
+
+Phase 11에서는 새로운 운영 기능을 추가하지 않고, Phase 1~10에서 남긴 evidence를 찾기 쉽게 정리합니다.
+
+확인 문서:
+
+- `docs/19-final-readiness-checklist.md`
+- `docs/20-evidence-index.md`
+- `docs/21-troubleshooting-index.md`
+- `docs/19-phase-10-final-readiness.md`
+
+운영 준비도 판단 순서:
+
+1. README에서 현재 구현 범위와 링크를 확인합니다.
+2. `docs/20-evidence-index.md`에서 build/test, consistency, failure drill, observability evidence 위치를 확인합니다.
+3. `docs/19-final-readiness-checklist.md`에서 완료 항목과 follow-up 항목을 분리해 봅니다.
+4. 장애 유형별 상세 대응은 `docs/18-runbook.md`와 `docs/21-troubleshooting-index.md`에서 찾습니다.
+5. 구현되지 않은 보안/관측/부하 항목은 후속 운영 고도화 후보로 기록합니다.
