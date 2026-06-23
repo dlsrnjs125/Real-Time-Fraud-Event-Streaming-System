@@ -21,6 +21,7 @@
 10. [Consumer 장애와 Redis 장애 실험](10-consumer-redis-failure.md)
 11. [Partition Hot Spot과 userId key의 트레이드오프](11-hot-partition-tradeoff.md)
 12. [최종 결과와 설계 변경 기록](12-result-and-design-changes.md)
+13. [DLT 재처리 이후, 운영 가능한 이상거래 탐지 시스템으로 마무리하기](13-phase-10-final-readiness.md)
 
 ## 글 구조
 

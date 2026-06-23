@@ -1007,3 +1007,38 @@ Phase 9에서는 `reprocess_attempts`를 기록하지만 최대 재처리 횟수
 Phase 9의 DLT Admin API는 운영자용 계약과 상태 전이 검증에 집중했습니다. 실제 운영 환경에서는 ADMIN 권한 기반 인증/인가, 재처리/폐기 audit log, 요청자 식별자, 변경 전후 상태 기록이 필수입니다.
 
 DLT 상태는 DB와 Admin API로 조회 가능하게 만들었습니다. DLT pending count, reprocess failed count, discard count 기반 metric과 alert rule은 후속 Observability Phase에서 추가합니다.
+
+## Phase 10 - DLT 재처리 이후 운영 완료 기준 정리
+
+### Problem
+
+DLT 재처리 기능은 구현되었지만, 재처리 API 성공만으로 운영 복구가 끝났다고 판단하면 Consumer Lag, duplicate FraudResult, processing log, DLQ 상태 전이 확인이 빠질 수 있습니다.
+
+### Cause
+
+Phase 9는 실패 이벤트를 격리하고 재처리하는 기능 구현에 집중했습니다. 운영자가 "복구 완료"라고 판단할 때 확인해야 하는 API, Consumer, Kafka, Redis, PostgreSQL 증거 기준은 별도 문서로 정리되어 있지 않았습니다.
+
+### Decision
+
+Phase 10에서는 신규 기능이나 아키텍처 변경을 추가하지 않고, final readiness checklist와 검증 evidence 기준을 문서화하는 것으로 범위를 제한했습니다.
+
+### Action
+
+`docs/19-phase-10-final-readiness.md`를 추가해 Phase 9까지의 구현 요약, 최종 체크리스트, 운영 관점별 검증 기준, 남은 한계와 후속 보완 후보를 정리했습니다. README는 Phase 10 문서 링크와 현재 구현 범위만 최소 수정했고, blog에는 DLT 재처리 이후 운영 검증 흐름을 초안으로 추가했습니다.
+
+### Verification
+
+다음 명령을 실행했습니다.
+
+```bash
+./gradlew clean build
+./gradlew test
+make test
+make final-check
+```
+
+모두 PASS했습니다. 최초 `./gradlew clean build`는 sandbox가 `~/.gradle` lock file 생성을 막아 실패했지만, 승인된 로컬 권한으로 재실행한 결과 build/test는 성공했습니다.
+
+### Lesson
+
+DLT 재처리는 메시지를 다시 넣는 기능만으로 끝나지 않습니다. 재처리 후 중복 탐지 결과가 생기지 않았는지, DLQ 상태가 종료 상태로 전이됐는지, Consumer Lag이 회복됐는지, processing log와 감사 근거가 남았는지까지 확인할 수 있어야 운영 기능이라고 볼 수 있습니다.
