@@ -102,4 +102,4 @@ Phase 4는 Consumer 처리 사실을 남기는 단계입니다.
 
 ## 9. 다음 Phase에서 보완할 점
 
-Phase 5에서는 기본 `LOW` FraudResult 저장과 eventId 기준 business idempotency를 구현합니다. Retry/DLT는 Phase 9, custom metric과 Grafana dashboard는 Phase 10에서 다룹니다.
+Phase 5에서는 기본 `LOW` FraudResult 저장과 eventId 기준 business idempotency를 구현합니다. Retry/DLT는 Phase 9에서 다루고, custom metric과 Grafana dashboard는 후속 Observability Hardening에서 다룹니다.

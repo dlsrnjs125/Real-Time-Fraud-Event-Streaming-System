@@ -168,3 +168,26 @@ DLT payload에는 원본 이벤트 일부가 저장되므로 운영 환경에서
 Phase 9에서는 DLT payload 저장 경로를 별도 sanitizer 메서드로 분리했습니다. 현재 프로젝트는 synthetic identifier만 사용하므로 필드 마스킹은 적용하지 않았지만, `errorMessage`는 500자로 길이를 제한하고 null/blank message는 예외 class 이름으로 대체합니다. Stacktrace 전체는 DLT topic payload나 `dead_letter_events.error_message`에 저장하지 않습니다.
 
 운영 확장 시 카드번호, 계좌번호, 이메일, 전화번호 등 직접 식별자는 DLT 저장 전에 제거하거나 masking/redaction 해야 합니다. DLT topic payload와 `dead_letter_events.payload_json`은 운영자 복구에 필요한 최소 범위로 제한해야 하며, 운영 환경 노출 전 관리자 인증/인가와 감사 로그를 추가해야 합니다.
+
+## 15. Phase 11 Readiness Review 기준
+
+Phase 11 기준으로 보안 관련 구현과 후속 후보를 다음처럼 분리합니다.
+
+현재 문서화/구현된 기준:
+
+- Admin API는 local/development-only로 취급합니다.
+- DLT 조회, 재처리, 폐기에는 운영 환경에서 인증/인가가 필요하다고 명시합니다.
+- DLT payload 저장 경로는 sanitizer 메서드로 분리되어 있습니다.
+- `errorMessage`는 길이를 제한하고 stacktrace 전체를 저장하지 않습니다.
+- Redis key/value에는 synthetic identifier만 사용합니다.
+- Metric tag에는 `eventId`, `traceId`, `userId`, `accountId`, `deviceId`를 넣지 않습니다.
+- Failure drill은 synthetic data만 사용합니다.
+
+후속 운영 보안 고도화 후보:
+
+- Admin API 인증/인가
+- 재처리/폐기 audit log와 요청자 기록 강화
+- DLT payload masking/redaction 정책의 실제 운영 데이터 적용
+- DLQ payload 원문 접근 권한 분리
+- Redis 인증, 네트워크 격리, key scan 제한
+- Grafana/Prometheus 접근 권한과 retention 정책

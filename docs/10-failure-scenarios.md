@@ -96,7 +96,8 @@
 기대 결과:
 
 - 중복 FraudResult 생성 실패 또는 skip
-- reprocessing_history에 duplicate result 기록
+- `dead_letter_events.reprocess_attempts`와 상태 전이에 재처리 시도 기록
+- 별도 재처리 감사 이력은 후속 운영 고도화 후보
 - 운영자가 결과를 조회 가능
 
 ## 9. Redis 복구 직후 Stale Window 데이터

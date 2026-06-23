@@ -79,10 +79,10 @@ Docker Compose healthcheck:
 
 운영 환경 가정에서는 다음 데이터를 보존 대상으로 봅니다.
 
-- PostgreSQL fraud_results
+- PostgreSQL fraud_detection_results
 - PostgreSQL event_processing_logs
 - DLQ metadata
-- reprocessing_history
+- reprocessing audit history if added later
 - Grafana dashboard provisioning
 
 Kafka topic retention과 PostgreSQL retention은 별도로 관리합니다.

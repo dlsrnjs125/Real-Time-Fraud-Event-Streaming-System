@@ -14,10 +14,11 @@
 | Phase 7 | Done | Redis 통합 검증과 metric foundation 구현 완료 | Redis integration test, Redis latency/degraded/skipped metrics | Grafana dashboard와 alert 후보 연결 |
 | Phase 8 | Done | Redis/Kafka failure drill과 Consumer recovery 검증 절차 작성 완료 | failure drill scripts, Kafka unavailable runbook, recovery evidence docs | Retry/DLT 설계 구현 |
 | Phase 9 | Done | DLT 저장, 조회, 재처리, 폐기 흐름 구현 완료 | transaction-events-dlt, dead_letter_events, admin DLT API, 상태 전이 테스트 | 운영 관측 고도화와 부하/장애 검증 |
-| Phase 10 | Done | 최종 운영 검증 기준과 Phase 10 readiness 문서화 완료 | docs/19, troubleshooting 보강, blog 초안, README 링크 | Observability hardening |
-| Phase 11 | Not Started | Observability Hardening | Prometheus metric, Grafana dashboard, alert rule | k6 load/failure measurement |
-| Phase 12 | Not Started | Load and Failure Test | k6 normal/peak/hot partition/Redis down/Consumer restart | result docs |
-| Phase 13+ | Not Started | Operational Security and Automation | admin auth, audit log, DLQ rate limit, CI/E2E drill | production hardening |
+| Phase 10 | Done | 최종 운영 검증 기준과 Phase 10 readiness 문서화 완료 | docs/19, troubleshooting 보강, blog 초안, README 링크 | Final readiness review |
+| Phase 11 | Done | Final Readiness Review and Portfolio Documentation | readiness checklist, evidence index, troubleshooting index, final review blog | Observability hardening |
+| Phase 12 | Not Started | Observability Hardening | Prometheus metric, Grafana dashboard, alert rule | k6 load/failure measurement |
+| Phase 13 | Not Started | Load and Failure Test | k6 normal/peak/hot partition/Redis down/Consumer restart | result docs |
+| Phase 14+ | Not Started | Operational Security and Automation | admin auth, audit log, DLQ rate limit, CI/E2E drill | production hardening |
 
 Status 기준:
 
@@ -404,7 +405,7 @@ Evidence:
 
 - Phase 4에서는 FraudResult를 저장하지 않습니다.
 - Retry/DLT는 Phase 9 범위입니다.
-- Consumer Lag과 custom metric은 Phase 10 범위입니다.
+- Consumer Lag dashboard와 추가 custom metric은 후속 Observability Hardening 범위입니다.
 - Phase 4에서는 eventId 기준 전체 processing log를 조회합니다. Retry/DLT와 재처리 API가 추가되면 `limit`, `page`, `processedAt` range 조건을 추가합니다.
 - Phase 4에서는 app-consumer write model과 app-api read model을 분리하기 위해 entity를 모듈별로 유지했습니다. status enum과 column 정의 drift를 막기 위해 후속 Phase에서 shared enum 또는 projection 기반 조회를 검토합니다.
 - 같은 offset이 이미 processing log에 있으면 이전 처리 성공으로 보고 ack 가능하게 처리합니다. 이 정책은 processing log 기준이며, eventId 기준 business idempotency는 Phase 5 이후에서 구현합니다.
@@ -765,11 +766,41 @@ Phase 9 DLT 재처리 흐름 이후 운영자가 복구 완료를 판단할 수 
 - Prometheus/Grafana dashboard와 alert rule hardening은 별도 Phase에서 보강합니다.
 - k6 부하 수치와 hot partition 측정은 후속 Load/Failure Test에서 최신 기준으로 재측정합니다.
 
-## Phase 11. Observability Hardening
+## Phase 11. Final Readiness Review and Portfolio Documentation
 
 ### 목표
 
-Phase 10에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dashboard, alert rule로 연결합니다.
+Phase 1~10까지 구현한 기능, 운영 검증, 장애 대응, metric, DLT 재처리 흐름을 최종 포트폴리오 관점으로 정리합니다.
+
+### 구현
+
+- README 최소 요약 정리
+- 운영 준비도 checklist 추가
+- phase별 evidence index 추가
+- stale limitation 정리
+- troubleshooting index 추가
+- blog final review 초안 추가
+
+### 검증
+
+- `make ci-check`
+- `make redis-integration-test`
+- `make failure-drill-redis`
+- `make scripts-check`
+- `make topics`
+- docs 링크 검토
+
+### 한계
+
+- 실제 운영 인증/인가와 audit log는 후속 보안 고도화 범위입니다.
+- k6 기반 본격 부하 테스트와 Grafana dashboard 캡처는 후속 evidence phase 후보입니다.
+- DLT pending/reprocess failed/discard metric과 alert rule은 후속 Observability Hardening에서 보강합니다.
+
+## Phase 12. Observability Hardening
+
+### 목표
+
+Phase 10~11에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dashboard, alert rule로 연결합니다.
 
 ### 범위
 
@@ -787,7 +818,7 @@ Phase 10에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dash
 - DLT 재처리 이후 상태 판단에 필요한 metric과 PostgreSQL 조회 기준이 문서에 연결됨
 - alert rule은 threshold 근거와 known limitation을 함께 기록함
 
-## Phase 12. Load and Failure Test
+## Phase 13. Load and Failure Test
 
 ### 목표
 
@@ -814,7 +845,7 @@ Phase 10에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dash
 - duplicate result count 기록
 - 테스트 조건, VU, duration, event count, local environment notes 기록
 
-## Phase 13+. Operational Security and Automation
+## Phase 14+. Operational Security and Automation
 
 ### 목표
 

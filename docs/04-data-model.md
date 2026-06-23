@@ -127,6 +127,10 @@ Phase 9에서 Consumer 처리 실패 이벤트를 운영자가 조회/재처리/
 
 ### reprocessing_history
 
+별도 `reprocessing_history` 테이블은 현재 구현하지 않았습니다. Phase 9는 `dead_letter_events`의 상태, `reprocess_attempts`, `last_reprocessed_at`, `discard_reason`, `discarded_at`으로 단건 수동 재처리와 폐기 상태를 추적합니다.
+
+운영 확장 시에는 다음 필드를 가진 별도 audit history 테이블을 후속 후보로 둡니다.
+
 - `id`: 재처리 이력 ID
 - `dlq_id`: DLQ 이벤트 ID
 - `operator_id`: 작업자 ID
@@ -188,6 +192,6 @@ Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않
 | `event_processing_logs` | 30d 또는 실험 범위 내 보존 | Consumer 처리 추적과 장애 분석 |
 | `fraud_detection_results` | 장기 보존 대상 | 탐지 결과 조회와 감사 기준 |
 | `dead_letter_events` | 상태 종료 후 일정 기간 보존 | 실패 원인 분석과 재처리 감사 |
-| `reprocessing_history` | 감사 목적 보존 | 운영자 조치 이력 추적 |
+| `reprocessing_history` | 후속 구현 시 감사 목적 보존 | 운영자 조치 이력 추적 |
 
 보존 기간은 로컬 검증 기준입니다. 운영 환경에서는 법적 보존 기준, 개인정보 최소 보관 원칙, 저장 비용을 함께 고려해 조정합니다.
