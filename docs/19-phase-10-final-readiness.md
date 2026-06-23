@@ -89,6 +89,25 @@ Phase 10은 새로운 기능을 크게 추가하는 단계가 아니라, Phase 9
 
 검증 중 sandbox 환경에서는 Gradle wrapper가 `~/.gradle` lock file을 생성하지 못해 최초 실행이 실패했습니다. 승인된 로컬 권한으로 다시 실행한 결과 build/test는 통과했습니다. 이는 애플리케이션 코드 실패가 아니라 검증 실행 환경의 파일 권한 제약입니다.
 
+## 5-1. 운영 시나리오 검증 범위와 한계
+
+이번 Phase 10에서 자동 검증한 항목은 build/test, Docker Compose config, shell script syntax check입니다. `make final-check` 역시 build, infra config, script syntax validation을 묶는 반복 검증 target이며, Kafka topic 생성부터 DLT 재처리 이후 DB 상태 확인까지의 end-to-end 운영 drill을 자동 실행하지는 않습니다.
+
+DLT 재처리 이후의 실제 운영 검증은 아래 절차로 확인해야 합니다.
+
+1. infra 기동
+2. topic 생성
+3. API와 Consumer 실행
+4. 실패 이벤트를 DLT로 격리
+5. Admin API로 DLT row 조회
+6. 재처리 실행
+7. FraudResult 중복 row 없음 확인
+8. `dead_letter_events` 상태가 `REPROCESSED` 또는 `DISCARDED`인지 확인
+9. `event_processing_logs`에 topic/partition/offset 기록 확인
+10. Consumer Lag 회복 여부 확인
+
+이번 PR에서는 해당 절차와 판단 기준을 문서화했습니다. 실제 end-to-end DLT recovery evidence는 후속 Phase 또는 별도 local drill에서 캡처합니다.
+
 ## 6. 운영 관점에서 남은 한계
 
 - Kafka publish와 DB 상태 변경은 하나의 atomic transaction으로 묶여 있지 않습니다.

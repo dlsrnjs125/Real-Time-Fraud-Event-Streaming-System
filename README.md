@@ -121,4 +121,4 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 10 final readiness 정리까지 완료된 상태입니다. Phase 9에서는 Consumer 실패 이벤트를 DLT로 격리하고, `dead_letter_events` 저장, 운영자 조회, 재처리, 폐기 흐름을 구현했습니다. Phase 10에서는 최종 검증 기준, 운영 한계, 후속 보완 후보를 docs와 blog에 정리했습니다.
+현재는 Phase 10까지 완료된 상태입니다. Phase 9에서 DLT 저장, 조회, 재처리, 폐기 흐름을 구현했고, Phase 10에서는 재처리 이후 운영 완료 기준과 후속 보완 후보를 docs/blog에 정리했습니다.

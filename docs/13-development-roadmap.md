@@ -13,11 +13,11 @@
 | Phase 6 | Done | Redis Sliding Window 기반 최근 거래 패턴 탐지 구현 완료 | Redis window store, stateful rules, degraded mode, fraud result degraded fields | Redis command metric과 integration test 보강 |
 | Phase 7 | Done | Redis 통합 검증과 metric foundation 구현 완료 | Redis integration test, Redis latency/degraded/skipped metrics | Grafana dashboard와 alert 후보 연결 |
 | Phase 8 | Done | Redis/Kafka failure drill과 Consumer recovery 검증 절차 작성 완료 | failure drill scripts, Kafka unavailable runbook, recovery evidence docs | Retry/DLT 설계 구현 |
-| Phase 9 | Done | DLT 저장, 조회, 재처리, 폐기 흐름 구현 완료 | transaction-events-dlt, dead_letter_events, admin DLT API, 상태 전이 테스트 | Observability dashboard와 batch reprocess 보강 |
-| Phase 10 | Done | 최종 운영 검증 기준과 Phase 10 readiness 문서화 완료 | docs/19, troubleshooting 보강, blog 초안, README 링크 | dashboard/alert hardening |
-| Phase 11 | Not Started | k6 시나리오 초안 | load-test/k6 scripts | 정상/피크/장애 부하 측정 |
-| Phase 12 | Not Started | 결과 문서 템플릿 준비 | troubleshooting/failure docs | 측정 결과와 설계 변경 기록 |
-| Phase 13+ | Not Started | 운영/보안 확장 후보 정리 | security, SLO, DevOps, runbook docs | CI/CD, 인증/인가, alert hardening |
+| Phase 9 | Done | DLT 저장, 조회, 재처리, 폐기 흐름 구현 완료 | transaction-events-dlt, dead_letter_events, admin DLT API, 상태 전이 테스트 | 운영 관측 고도화와 부하/장애 검증 |
+| Phase 10 | Done | 최종 운영 검증 기준과 Phase 10 readiness 문서화 완료 | docs/19, troubleshooting 보강, blog 초안, README 링크 | Observability hardening |
+| Phase 11 | Not Started | Observability Hardening | Prometheus metric, Grafana dashboard, alert rule | k6 load/failure measurement |
+| Phase 12 | Not Started | Load and Failure Test | k6 normal/peak/hot partition/Redis down/Consumer restart | result docs |
+| Phase 13+ | Not Started | Operational Security and Automation | admin auth, audit log, DLQ rate limit, CI/E2E drill | production hardening |
 
 Status 기준:
 
@@ -760,23 +760,46 @@ Phase 9 DLT 재처리 흐름 이후 운영자가 복구 완료를 판단할 수 
 
 ### 남은 한계
 
+- 실제 end-to-end DLT recovery evidence는 후속 local drill에서 캡처합니다.
 - DLT batch reprocess, rate limit, 관리자 인증/인가, audit log는 후속 운영 안정화 후보입니다.
 - Prometheus/Grafana dashboard와 alert rule hardening은 별도 Phase에서 보강합니다.
 - k6 부하 수치와 hot partition 측정은 후속 Load/Failure Test에서 최신 기준으로 재측정합니다.
 
-## Phase 11. Load and Failure Test
+## Phase 11. Observability Hardening
 
 ### 목표
 
-정상 부하, 피크 부하, Consumer 장애, Redis 장애, hot partition, invalid schemaVersion을 재현합니다.
+Phase 10에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dashboard, alert rule로 연결합니다.
 
 ### 범위
 
-- normal load
-- peak load
-- consumer down/restart
-- redis down
+- Consumer Lag dashboard
+- detection latency dashboard
+- DLT pending/reprocess failed/discard count metric
+- duplicate skip count metric
+- Redis degraded/skipped rule metric
+- API latency와 Kafka publish result dashboard
+- alert rule 후보
+
+### 완료 기준
+
+- API latency, Consumer Lag, detection latency, DLQ count, duplicate skip count, Redis degraded count를 dashboard에서 확인할 수 있음
+- DLT 재처리 이후 상태 판단에 필요한 metric과 PostgreSQL 조회 기준이 문서에 연결됨
+- alert rule은 threshold 근거와 known limitation을 함께 기록함
+
+## Phase 12. Load and Failure Test
+
+### 목표
+
+정상 부하, 피크 부하, Consumer 장애, Redis 장애, hot partition, invalid schemaVersion을 재현하고 측정 결과를 남깁니다.
+
+### 범위
+
+- k6 normal load
+- k6 peak load
 - hot partition
+- Redis down
+- Consumer down/restart
 - invalid schemaVersion
 - future eventTime validation
 
@@ -791,45 +814,30 @@ Phase 9 DLT 재처리 흐름 이후 운영자가 복구 완료를 판단할 수 
 - duplicate result count 기록
 - 테스트 조건, VU, duration, event count, local environment notes 기록
 
-## Phase 12. Result Documentation and Hardening
+## Phase 13+. Operational Security and Automation
 
 ### 목표
 
-초기 설계와 실제 구현 차이, 장애 재현 결과, 알려진 한계를 문서화합니다.
-
-### 범위
-
-- `docs/10-failure-scenarios.md`
-- `docs/11-troubleshooting-log.md`
-- `docs/12-review.md`
-- `docs/13-development-roadmap.md`
-- README 구현 상태
-- benchmark 결과 표
-- known limitations
-
-### 완료 기준
-
-- 실행한 검증 명령과 결과가 남아 있음
-- 실패한 검증의 원인과 후속 작업이 남아 있음
-- README/docs가 실제 구현 상태와 일치함
-- 완료되지 않은 기능을 완료로 표현하지 않음
-
-## Phase 13+. Operational and Security Hardening
-
-### 목표
-
-초기 기능 구현 이후 운영 안정성, 보안, 배포 안전성을 보강합니다.
+부하/장애 검증 이후 운영 보안, 자동화, 배포 안전성을 보강합니다.
 
 ### 후보 작업
 
-- CI/CD gate
-- 인증/인가
+- 관리자 인증/인가
+- DLQ 재처리 audit log와 요청자 기록
+- DLT batch reprocess, cooldown, rate limit
+- CI gate와 E2E drill 자동화
 - secret 관리
 - Nginx reverse proxy
 - 운영 환경용 Kafka listener 분리
 - 보안/개인정보 점검
 - SLO 기반 dashboard와 alert 정리
 - optional blue-green simulation
+
+### 완료 기준
+
+- admin API 보호 기준이 문서와 구현에 반영됨
+- 재처리/폐기 이력이 감사 가능한 형태로 남음
+- CI 또는 local automation에서 핵심 build/test/config/drill 검증을 반복 실행할 수 있음
 
 ## Minimum Verification Gate
 
