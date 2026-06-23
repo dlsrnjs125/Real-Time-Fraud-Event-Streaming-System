@@ -117,9 +117,9 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [17. DevOps Architecture](docs/17-devops-architecture.md)
 - [18. Runbook](docs/18-runbook.md)
 - [19. Phase 10 Final Readiness](docs/19-phase-10-final-readiness.md)
-- [19. Final Readiness Checklist](docs/19-final-readiness-checklist.md)
-- [20. Evidence Index](docs/20-evidence-index.md)
-- [21. Troubleshooting Index](docs/21-troubleshooting-index.md)
+- [20. Final Readiness Checklist](docs/19-final-readiness-checklist.md)
+- [21. Evidence Index](docs/20-evidence-index.md)
+- [22. Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [Blog Drafts](blog/README.md)
 
 ## 현재 구현 범위

@@ -406,3 +406,25 @@ Phase 5 이후 Rule Engine과 Fraud Result 저장이 안정화되면, Kafka end-
 - outbox 또는 reconciliation job으로 Kafka publish와 DB 상태 변경 사이의 중간 상태를 보정합니다.
 - DLT batch reprocess, rate limit, max attempts, audit log를 추가합니다.
 - DLT count, reprocess failure count를 Prometheus/Grafana dashboard에 연결합니다.
+
+## Phase 11 Review
+
+### 잘한 점
+
+- README를 과도하게 늘리지 않고 readiness checklist, evidence index, troubleshooting index로 상세 문서를 분리했습니다.
+- Phase 1~10 evidence와 후속 운영 고도화 후보를 분리해 완료된 것과 남은 일을 구분했습니다.
+- 보안/개인정보 문서에서 Admin API local-only, DLT payload 한계, Redis key/value privacy, metric tag privacy를 최신 기준으로 정리했습니다.
+
+### 검증 기록
+
+```bash
+rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
+  README.md .github app-api app-common app-consumer docs blog scripts
+```
+
+결과: no result. Hidden/bidirectional Unicode control character는 발견되지 않았습니다.
+
+### 남은 한계
+
+- GitHub UI의 hidden/bidirectional Unicode 경고가 한국어 Markdown 파일에서 계속 표시될 수 있으므로, PR 본문에도 검사 결과를 함께 남깁니다.
+- DLT metric/alert, Grafana dashboard capture, k6 부하 수치는 후속 Phase에서 별도 evidence로 기록합니다.

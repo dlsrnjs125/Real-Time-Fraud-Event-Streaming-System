@@ -6,17 +6,17 @@
 
 | Phase | Evidence | Command / Check | Status |
 |---|---|---|---|
-| Phase 1 | Local infra scaffold validation | `docker compose config`, app health check | PASS 기록 |
-| Phase 2 | API contract and event schema | `make test`, OpenAPI smoke test | PASS 기록 |
-| Phase 3 | Transaction intake and Kafka producer | producer key test, receipt persistence test | PASS 기록 |
-| Phase 4 | Consumer manual ack and processing log | listener ack tests, manual replay drill | PASS 기록 |
-| Phase 5 | Rule Engine and FraudResult idempotency | rule tests, duplicate eventId tests | PASS 기록 |
-| Phase 6 | Redis Sliding Window and degraded mode | Redis store tests, rule skip tests | PASS 기록 |
-| Phase 7 | Redis integration and metrics foundation | `make redis-integration-test` | PASS 기록 |
-| Phase 8 | Failure drill and Consumer recovery | `make failure-drill-redis`, runbooks | PASS/RUNBOOK 기록 |
-| Phase 9 | DLT store/query/reprocess/discard | Admin API tests, state transition tests | PASS 기록 |
-| Phase 10 | Final readiness criteria | `make final-check`, docs review | PASS 기록 |
-| Phase 11 | Final readiness review and documentation | docs link check, validation commands | This PR |
+| Phase 1 | Local infra scaffold validation | `docker compose config`, app health check | Roadmap/review docs에 검증 절차와 결과 기록 |
+| Phase 2 | API contract and event schema | `make test`, OpenAPI smoke test | Roadmap/review docs에 검증 절차와 결과 기록 |
+| Phase 3 | Transaction intake and Kafka producer | producer key test, receipt persistence test | Roadmap/review docs에 검증 절차와 결과 기록 |
+| Phase 4 | Consumer manual ack and processing log | listener ack tests, manual replay drill | Roadmap/runbook에 검증 절차와 기대 결과 기록 |
+| Phase 5 | Rule Engine and FraudResult idempotency | rule tests, duplicate eventId tests | Roadmap/review docs에 검증 절차와 결과 기록 |
+| Phase 6 | Redis Sliding Window and degraded mode | Redis store tests, rule skip tests | Roadmap/review docs에 검증 절차와 결과 기록 |
+| Phase 7 | Redis integration and metrics foundation | `make redis-integration-test` | Runbook 기준 검증 절차 기록 |
+| Phase 8 | Failure drill and Consumer recovery | `make failure-drill-redis`, runbooks | Script/runbook 기준 검증 절차 기록 |
+| Phase 9 | DLT store/query/reprocess/discard | Admin API tests, state transition tests | Test/review docs에 검증 절차와 결과 기록 |
+| Phase 10 | Final readiness criteria | `make final-check`, docs review | Readiness 문서에 자동 검증 범위와 한계 기록 |
+| Phase 11 | Final readiness review and documentation | docs link check, validation commands | 현재 PR에서 실행 결과 기록 |
 
 ## CI / Build
 
