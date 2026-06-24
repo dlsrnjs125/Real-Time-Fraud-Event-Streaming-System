@@ -14,7 +14,7 @@ Phase 13에서는 k6 결과만 보지 않고 Prometheus/Actuator metric과 Postg
 
 ## 3. Smoke 시나리오
 
-Smoke는 k6 실행 가능 여부와 API 이벤트 접수 경로를 10초 내 빠르게 확인합니다.
+Smoke는 k6 실행 가능 여부와 API 이벤트 접수 경로를 1~3회 요청으로 빠르게 확인합니다. Smoke는 부하 측정이 아니라 연결 확인입니다.
 
 `make k6-smoke`는 dedicated `load-test/k6/scenarios/smoke.js`를 실행합니다. Normal load script를 CLI option으로 덮어쓰지 않습니다.
 

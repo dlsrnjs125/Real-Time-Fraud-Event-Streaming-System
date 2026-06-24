@@ -6,26 +6,19 @@
 
 ## 2. 시나리오
 
-## Implemented in Phase 12
-
-Phase 12에서 실제 k6 script로 정리한 시나리오는 아래 4개입니다.
-
-- `normal-load`
-- `peak-load`
-- `duplicate-replay`
-- `redis-down-load`
-
 ## Phase 13 k6 Scenarios
 
-Phase 13은 Phase 12에서 추가한 k6 구조를 실제 부하/장애 evidence 기록 기준으로 정렬합니다. 결과 요약은 `docs/23-load-test-results.md`에 남기고, 원시 JSON/CSV 결과 파일은 `load-test/k6/results/`에만 임시 저장합니다.
+Phase 13은 k6 구조를 실제 부하/장애 evidence 기록 기준으로 정렬합니다. 결과 요약은 `docs/23-load-test-results.md`에 남기고, 원시 JSON/CSV 결과 파일은 `load-test/k6/results/`에만 임시 저장합니다.
+
+Smoke는 부하 측정이 아니라 k6 실행 가능 여부와 API 접수 경로 확인을 위한 1~3회 요청 테스트로 제한합니다. Normal/Peak 시나리오가 부하 측정을 담당합니다.
 
 | Scenario | Command | Purpose | Expected |
 | --- | --- | --- | --- |
-| Smoke | `make k6-smoke` | k6/API 경로 빠른 확인 | 10초 내 기본 요청 성공 |
+| Smoke | `make k6-smoke` | k6/API 경로 빠른 확인 | 1~3회 기본 요청 성공 |
 | Normal Load | `make k6-normal` | 일반 이벤트 유입 검증 | p95 목표 이내, error rate 낮음 |
 | Peak Load | `make k6-peak` | 순간 유입 증가 검증 | latency 상승 관찰, 5xx 원인 기록 |
-| Duplicate Replay | `make k6-duplicate` | 중복 eventId 방어 검증 | fraud result count = 1 |
-| Redis Down Load | `make k6-redis-down` | degraded mode 검증 | degraded metric 증가, Consumer 유지 |
+| Duplicate Replay | `make k6-duplicate-check` | 중복 eventId 방어 검증 | fraud result count = 1 |
+| Redis Down Load | `make k6-redis-down` | degraded mode 검증 | degraded metric 증가 검증, Consumer 유지 |
 
 ## Implemented in Phase 13
 
@@ -140,21 +133,11 @@ Redis 장애 상태에서 degraded mode가 동작하는지 확인합니다.
 - Redis degraded count
 - duplicate result count
 
-## Phase 12 k6 Scenarios
-
-Phase 12는 k6 script와 결과 기록 체계를 추가하고, 실제 측정값은 `docs/22-load-test-results.md`에 분리해 남깁니다. 원시 JSON/CSV 결과 파일은 `load-test/k6/results/`에 임시 저장하되 git에는 커밋하지 않습니다.
-
-| Scenario | Command | Purpose | Expected |
-| --- | --- | --- | --- |
-| Normal Load | `make k6-normal` | 일반 이벤트 유입 검증 | p95 목표 이내, error rate 낮음 |
-| Peak Load | `make k6-peak` | 순간 유입 증가 검증 | latency 상승 관찰, 5xx 원인 기록 |
-| Duplicate Replay | `make k6-duplicate` | 중복 eventId 방어 검증 | fraud result count = 1 |
-| Redis Down Load | `make k6-redis-down` | degraded mode 검증 | degraded metric 증가, Consumer 유지 |
-
 해석 기준:
 
+- Smoke 결과는 성능 한계 측정이 아니라 API 접수 경로와 k6 실행 가능 여부를 확인하기 위한 참고값입니다. RPS와 latency는 Normal/Peak load 결과에서 해석합니다.
 - Normal/Peak는 `http_req_failed`, p50/p95/p99, status code 분포를 함께 봅니다.
 - Duplicate Replay는 409 또는 duplicate response가 의도된 결과일 수 있으므로 k6 failure rate만으로 성공/실패를 판단하지 않습니다.
-- Duplicate Replay 이후 `scripts/load_tests/check_duplicate_result_count.sh <eventId>`로 fraud result count를 확인할 수 있습니다.
-- Redis Down Load는 Redis container가 반드시 복구되어야 하며, script가 출력하는 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total`, `fraud_rule_skipped_total` before/after 값을 함께 확인합니다.
+- Duplicate Replay는 `make k6-duplicate-check`로 k6 replay와 `fraud_detection_results` count 검증을 함께 실행할 수 있습니다.
+- Redis Down Load는 Redis container가 반드시 복구되어야 하며, script가 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total` 증가를 검증하고 `fraud_rule_skipped_total` before/after 값을 출력합니다.
 - Consumer Lag과 Grafana dashboard evidence는 후속 Observability hardening 범위로 둡니다.

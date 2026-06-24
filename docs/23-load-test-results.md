@@ -14,27 +14,28 @@
 
 | Scenario | Date | Command | Result | Notes |
 | --- | --- | --- | --- | --- |
-| Smoke | 2026-06-24 | `make k6-smoke` | PASS | Dedicated `smoke.js`, API/Consumer health UP after run |
+| Smoke | 2026-06-24 | `make k6-smoke` | PASS | Dedicated 3-request `smoke.js`, API/Consumer health UP after run |
 | Normal Load | TBD | `make k6-normal` | TBD | |
 | Peak Load | TBD | `make k6-peak` | TBD | |
-| Duplicate Replay | TBD | `make k6-duplicate` | TBD | |
+| Duplicate Replay | TBD | `make k6-duplicate-check` | TBD | k6 replay plus DB count check |
 | Redis Down Load | TBD | `make k6-redis-down` | TBD | |
 
 ## Smoke Result
 
 - VUs: 1
-- Duration: 10s
-- Total requests: 1459
-- RPS: 145.851329/s
+- Iterations: 3
+- Max duration: 30s
+- Total requests: 3
+- RPS: 54.501853/s
 - http_req_failed: 0.00%
-- p50: 5.73ms
-- p95: 9.41ms
-- p99: 19.55ms
-- Max: 535.4ms
+- p50: 10.6ms
+- p95: 24ms
+- p99: 25.19ms
+- Max: 25.49ms
 - Status code distribution: not captured in default smoke output
 - API health after run: UP
 - Consumer health after run: UP
-- Notes: Dedicated `load-test/k6/scenarios/smoke.js` executed against local Docker Compose infra.
+- Notes: Smoke is not a capacity test. It only confirms k6 execution and the API intake path; interpret RPS and latency in Normal/Peak results. The first immediate run after app startup failed the p95 threshold by cold-start noise (`p95=501.33ms`); the warm rerun passed.
 
 ## Normal Load Result
 
@@ -62,7 +63,7 @@
 - Expected: fraud result count = 1
 - Actual: TBD
 - API response policy: 2xx accepted or 409 duplicate response are interpreted with the consistency check
-- Manual consistency command: `scripts/load_tests/check_duplicate_result_count.sh phase13-duplicate-fixed-event-id`
+- Consistency command: `make k6-duplicate-check`
 - Notes:
 
 ## Redis Down Load Result
@@ -76,14 +77,14 @@
 - DLT count before: TBD
 - DLT count after: TBD
 - Redis container recovery: TBD
-- Script evidence: `make k6-redis-down` prints degraded metric before/after values and waits for Redis readiness during cleanup.
+- Script evidence: `make k6-redis-down` validates Redis/detection degraded metric increases and waits for Redis readiness during cleanup.
 - Notes:
 
 ## Prometheus / Actuator Metrics
 
-- `fraud_redis_window_record_latency_seconds_count`: 306
-- `fraud_redis_window_record_latency_seconds_sum`: 20.056054248
-- `fraud_redis_window_record_latency_seconds_max`: 0.152756209
+- `fraud_redis_window_record_latency_seconds_count`: 6
+- `fraud_redis_window_record_latency_seconds_sum`: 0.062478834
+- `fraud_redis_window_record_latency_seconds_max`: 0.038931292
 - `fraud_redis_window_degraded_total`: TBD
 - `fraud_rule_skipped_total`: TBD
 - `fraud_detection_degraded_total`: TBD
@@ -107,3 +108,5 @@
 ## Notes
 
 Do not generalize these local Docker Compose results as production capacity. Values depend on local hardware, Docker resource limits, JVM warmup, Kafka partition state, and whether app-api/app-consumer are already warmed up.
+
+k6 `http_req_duration` measures the synchronous path where app-api accepts the event and publishes to Kafka. FraudResult persistence is asynchronous Consumer work, so final detection completion must be checked with fraud result lookup, processing log evidence, and Redis degraded metrics.

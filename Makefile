@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 help:
 	@echo "Available targets:"
@@ -27,6 +27,7 @@ help:
 	@echo "  make k6-normal      - Run normal load k6 scenario"
 	@echo "  make k6-peak        - Run peak load k6 scenario"
 	@echo "  make k6-duplicate   - Run duplicate replay k6 scenario"
+	@echo "  make k6-duplicate-check - Run duplicate replay and DB count check"
 	@echo "  make k6-redis-down  - Run Redis down load k6 scenario"
 	@echo "  make final-check    - Run Phase validation checks"
 
@@ -118,6 +119,10 @@ k6-peak:
 
 k6-duplicate:
 	k6 run load-test/k6/scenarios/duplicate-replay.js
+
+k6-duplicate-check:
+	EVENT_PREFIX=phase13 k6 run load-test/k6/scenarios/duplicate-replay.js
+	bash scripts/load_tests/check_duplicate_result_count.sh phase13-duplicate-fixed-event-id
 
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh

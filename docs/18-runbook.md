@@ -51,6 +51,8 @@ make consumer
 make k6-smoke
 ```
 
+Smoke는 부하 측정이 아니라 k6 실행 가능 여부와 API 접수 경로 확인을 위한 1~3회 요청 테스트입니다.
+
 ### Normal Load
 
 ```bash
@@ -122,6 +124,8 @@ make consumer
 make k6-smoke
 ```
 
+Smoke는 부하 측정이 아니라 k6 실행 가능 여부와 API 접수 경로 확인을 위한 1~3회 요청 테스트입니다.
+
 ### Normal Load
 
 ```bash
@@ -137,8 +141,7 @@ make k6-peak
 ### Duplicate Replay
 
 ```bash
-make k6-duplicate
-scripts/load_tests/check_duplicate_result_count.sh phase13-duplicate-fixed-event-id
+make k6-duplicate-check
 ```
 
 확인 항목:
@@ -155,7 +158,7 @@ make k6-redis-down
 docker compose -f infra/docker-compose.yml ps redis
 ```
 
-`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded, detection degraded, skipped rule metric before/after 값을 출력합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
+`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded와 detection degraded metric 증가를 검증하고, skipped rule metric before/after 값을 출력합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
 
 ### Failure Check
 

@@ -126,6 +126,6 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 13까지 완료된 상태입니다. Phase 13에서는 k6 기반 정상/피크/중복/Redis down 부하 시나리오를 정렬하고, 성능 결과와 병목 후보를 docs/blog에 기록할 수 있도록 evidence template을 보강했습니다.
+현재는 Phase 13까지 완료된 상태입니다. Phase 13에서는 k6 기반 smoke/normal/peak/duplicate/Redis down 시나리오를 정리하고, 성능 결과와 병목 후보를 docs/blog에 기록할 수 있도록 evidence template을 보강했습니다.
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.

@@ -18,7 +18,7 @@
 | Phase 10 | Final readiness criteria | `make final-check`, docs review | Readiness 문서에 자동 검증 범위와 한계 기록 |
 | Phase 11 | Final readiness review and documentation | docs link check, validation commands | 현재 PR에서 실행 결과 기록 |
 | Phase 12 | Load test evidence | `make k6-normal`, `make k6-peak`, `make k6-duplicate`, `make k6-redis-down` | `docs/22-load-test-results.md` |
-| Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate`, `make k6-redis-down` | `docs/23-load-test-results.md` |
+| Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 
 ## CI / Build
 
@@ -65,7 +65,7 @@
 | Peak load result | `make k6-peak` | `docs/22-load-test-results.md` |
 | Duplicate replay consistency | `make k6-duplicate` | `docs/22-load-test-results.md` |
 | Redis down degraded mode | `make k6-redis-down` | `docs/22-load-test-results.md` |
-| Phase 13 load/failure evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate`, `make k6-redis-down` | `docs/23-load-test-results.md` |
+| Phase 13 load/failure evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 
 ## Documentation
 
