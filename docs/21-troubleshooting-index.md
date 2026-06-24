@@ -35,3 +35,10 @@
 - Redis integration test separation: `Makefile`, `docs/18-runbook.md#17-redis-integration-test와-metric-확인`
 - Failure drill script line ending issue: `docs/11-troubleshooting-log.md`
 - Phase 11 evidence index: `docs/20-evidence-index.md`
+
+## Load Test
+
+- Phase 12 k6 scenarios: `load-test/k6/README.md`
+- Load test result template: `docs/22-load-test-results.md`
+- Duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-12-duplicate-replay와-k6-failure-기준`
+- Redis down load recovery: `docs/18-runbook.md#1-2-phase-12-load-test-runbook`

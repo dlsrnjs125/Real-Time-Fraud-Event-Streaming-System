@@ -130,6 +130,33 @@ Kafka unavailable drill의 현재 한계:
 - API publish failure와 Consumer reconnect log는 수동 runbook으로 확인합니다.
 - Retry/DLT metric, DLQ count, Consumer Lag dashboard는 후속 Phase에서 연결합니다.
 
+## 6-1. Phase 12 Load Test 관측 기준
+
+k6 결과는 API 요청 관점의 지표이고, Prometheus/Actuator metric은 Consumer와 Redis degraded 영향을 설명하는 지표입니다. Phase 12 load test 결과를 해석할 때는 두 축을 함께 봅니다.
+
+k6에서 확인할 항목:
+
+- total requests
+- request rate
+- `http_req_failed`
+- `http_req_duration` p50/p95/p99
+- status code distribution
+
+Redis down load에서 확인할 Prometheus metric:
+
+- `fraud_redis_window_record_latency_seconds_count`
+- `fraud_redis_window_record_latency_seconds_sum`
+- `fraud_redis_window_record_latency_seconds_max`
+- `fraud_redis_window_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_detection_degraded_total`
+
+Duplicate Replay는 API 409 응답이 의도된 결과일 수 있으므로 `http_req_failed`만으로 실패를 판단하지 않습니다. 최종 기준은 `fraud_detection_results.event_id` unique constraint와 fraud result count 1건 유지 여부입니다.
+
+현재 Consumer Lag metric은 후속 Observability hardening 후보입니다. Phase 12에서는 Kafka UI, 처리 결과 조회, processing log, degraded metric을 함께 사용해 비동기 처리 영향을 보조적으로 판단합니다.
+
+Metric tag에는 계속 `eventId`, `traceId`, `userId`, `accountId`를 넣지 않습니다. 부하 테스트는 많은 synthetic event를 만들기 때문에 high-cardinality tag가 붙으면 Prometheus 저장 비용과 query 성능 문제가 빠르게 커질 수 있습니다.
+
 ## 7. 개인정보와 로그 마스킹
 
 구조화 로그에는 `eventId`와 `traceId`를 남기되, `accountId`와 `deviceId`는 원문 전체를 기록하지 않습니다.
