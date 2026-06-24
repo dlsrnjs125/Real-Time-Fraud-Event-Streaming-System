@@ -1193,3 +1193,49 @@ Phase 13 k6 script는 API latency와 request failure를 직접 측정할 수 있
 ### 남은 한계
 
 API p95가 안정적이어도 Consumer backlog가 쌓일 수 있습니다. 이후 Phase에서는 Consumer Lag과 detection latency를 dashboard evidence로 연결해야 합니다.
+
+## Phase 14. JWT/OAuth2 대신 X-Admin-Token을 선택한 이유
+
+### 문제 상황
+
+DLT 조회/재처리/폐기 API는 운영자 기능인데, Phase 13까지는 local/dev API가 공개 endpoint처럼 보일 수 있었습니다.
+
+### 판단
+
+Phase 14의 목표는 완전한 IAM 구현이 아니라 운영자 API 보호와 감사 가능성의 최소 구현입니다. 따라서 Spring Security OAuth2/JWT/RBAC까지 확장하지 않고 `X-Admin-Token` 기반 filter를 추가했습니다.
+
+### 트레이드오프
+
+`X-Admin-Token`은 production-grade 인증/인가가 아닙니다. 운영 환경에서는 JWT/OAuth2, ADMIN role, RBAC, IP allowlist, token rotation, gateway rate limit이 필요합니다.
+
+## Phase 14. audit log 저장 실패 시 운영자 액션을 실패시킨 이유
+
+### 문제 상황
+
+DLT 재처리/폐기 API에서 실제 상태 변경은 성공했지만 audit log 저장이 실패할 수 있습니다.
+
+### 판단
+
+운영자 액션은 사후 추적 가능성이 중요하므로 상태 변경과 audit 저장을 같은 transaction 경계에 둡니다. audit log 저장에 실패하면 재처리/폐기 액션도 실패시키는 편이 감사 관점에서 안전하다고 판단했습니다.
+
+### 트레이드오프
+
+audit 저장소 장애가 운영자 액션을 막을 수 있습니다. 대신 "누가 어떤 조치를 했는지 설명할 수 없는 상태 변경"을 방지할 수 있습니다.
+
+## Phase 14. admin token을 audit log에 저장하지 않은 이유
+
+Admin token은 인증 수단이지 감사 metadata가 아닙니다. token을 audit log에 저장하면 DB 조회 권한만으로 운영자 API 호출 권한이 유출될 수 있습니다.
+
+Phase 14 audit log에는 actor, action, target id, eventId, traceId, result, reason, 최소 metadata만 저장합니다. DLT payload 전체, request body 전체, accountId, deviceId, token 값은 저장하지 않습니다.
+
+## Phase 14. max attempts를 자동 discard로 연결하지 않은 이유
+
+`reprocess_attempts >= maxAttempts`이면 재처리는 막지만 status를 자동으로 `DISCARDED`로 바꾸지 않습니다.
+
+자동 discard는 운영자가 실패 원인을 확인하기 전에 복구 후보를 종료 상태로 바꿀 수 있습니다. Phase 14에서는 반복 재처리를 막는 것과 명시적 폐기 결정을 분리했습니다. 운영자는 원인 확인 후 discard API로 폐기 사유를 남겨야 합니다.
+
+## Phase 14. rate limit을 이번 Phase에서 제외한 이유
+
+이번 Phase의 abuse prevention은 admin token, 단건 수동 조작, request validation, max attempts에 집중했습니다.
+
+in-memory rate limiter는 local single instance에서만 의미가 있고, app-api가 scale out되면 우회될 수 있습니다. 운영 환경에서는 Gateway/Nginx/API Gateway rate limit, IP allowlist, 관리자 승인 workflow가 더 적절하므로 후속 운영 자동화 Phase로 남겼습니다.

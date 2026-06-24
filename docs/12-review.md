@@ -502,3 +502,37 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 
 - GitHub UI의 hidden/bidirectional Unicode 경고가 한국어 Markdown 파일에서 계속 표시될 수 있으므로, PR 본문에도 검사 결과를 함께 남깁니다.
 - DLT metric/alert, Grafana dashboard capture, k6 부하 수치는 후속 Phase에서 별도 evidence로 기록합니다.
+
+## Phase 14 Review
+
+### 잘한 점
+
+- `/api/v1/admin/**`에 `X-Admin-Token` 기반 local/dev 최소 보호를 추가해 운영자 API가 완전히 공개된 상태로 보이지 않게 했습니다.
+- 일반 transaction ingest API는 admin token 없이 동작하도록 filter 범위를 admin path로 제한했습니다.
+- DLT reprocess/discard 성공과 실패를 `admin_audit_logs`에 저장해 운영자 조치 추적 근거를 만들었습니다.
+- audit metadata에서 admin token, DLT payload 전체, accountId, deviceId를 제외했습니다.
+- max reprocess attempts를 설정화하고, 초과 시 Kafka publish가 호출되지 않도록 테스트했습니다.
+- 상태 전이 실패와 publish 실패 모두 FAILED audit log를 남기도록 보강했습니다.
+- README는 최소 요약만 수정하고 상세 판단은 docs/blog로 분리했습니다.
+
+### 의도적으로 제외한 것
+
+- JWT/OAuth2/RBAC는 production-grade 인증/인가 범위이므로 후속 Phase로 남겼습니다.
+- audit log 조회/필터링 API는 저장 구현보다 범위가 커지므로 이번 Phase에서는 제외했습니다.
+- Gateway/Nginx/API Gateway rate limit, IP allowlist, 관리자 승인 workflow는 운영 자동화 follow-up으로 분리했습니다.
+- 인증 실패를 DB audit log에 저장하지 않았습니다. 반복 공격 상황에서 DB write 폭증을 피하기 위해 structured log 기준으로 남겼습니다.
+
+### 남은 한계
+
+- `X-Admin-Token`은 local/dev guardrail이며 운영 인증/인가로 일반화하면 안 됩니다.
+- audit log는 저장되지만 조회 API와 보존 기간 정책은 없습니다.
+- Kafka publish와 DB 상태 변경의 완전한 atomic transaction은 여전히 outbox/reconciliation 후보입니다.
+- app-api scale-out 환경에서 rate limit과 token rotation은 별도 계층에서 다뤄야 합니다.
+
+### 다음 단계 보완
+
+- JWT/OAuth2/RBAC 기반 Admin role과 권한 분리
+- audit log 조회/필터링 API와 접근 권한
+- Gateway/Nginx/API Gateway rate limit과 IP allowlist
+- DLT batch reprocess, cooldown, 관리자 승인 workflow
+- DLT pending/reprocess/discard metric과 alert rule

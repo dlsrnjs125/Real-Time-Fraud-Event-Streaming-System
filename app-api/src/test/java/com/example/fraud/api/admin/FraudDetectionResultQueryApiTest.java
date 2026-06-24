@@ -17,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class FraudDetectionResultQueryApiTest {
 
+    private static final String ADMIN_TOKEN = "test-admin-token";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -39,7 +41,8 @@ class FraudDetectionResultQueryApiTest {
                 "BLOCK"
         );
 
-        mockMvc.perform(get("/api/v1/admin/events/{eventId}/fraud-result", "evt-fraud-query-001"))
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/fraud-result", "evt-fraud-query-001")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eventId").value("evt-fraud-query-001"))
                 .andExpect(jsonPath("$.traceId").value("trace-fraud-query-001"))
@@ -57,7 +60,8 @@ class FraudDetectionResultQueryApiTest {
 
     @Test
     void missingFraudDetectionResultReturnsNotFound() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/events/{eventId}/fraud-result", "evt-missing-fraud-result"))
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/fraud-result", "evt-missing-fraud-result")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("FRAUD_RESULT_NOT_FOUND"));
     }

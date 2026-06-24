@@ -31,3 +31,11 @@ management:
     health:
       probes:
         enabled: true
+
+security:
+  admin:
+    token: ${ADMIN_API_TOKEN:local-admin-token}
+
+dlt:
+  reprocess:
+    max-attempts: ${DLT_REPROCESS_MAX_ATTEMPTS:3}

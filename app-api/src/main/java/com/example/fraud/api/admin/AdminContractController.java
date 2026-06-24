@@ -24,6 +24,7 @@ import com.example.fraud.api.support.logging.TraceIdResolver;
 import com.example.fraud.common.event.FraudRuleCode;
 import com.example.fraud.common.event.RiskLevel;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 
 @Tag(name = "Admin APIs", description = "Admin query APIs for local development and verification")
+@SecurityRequirement(name = "adminToken")
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminContractController {
@@ -152,7 +154,12 @@ public class AdminContractController {
             @Valid @RequestBody(required = false) DlqReprocessRequest request,
             HttpServletRequest servletRequest
     ) {
-        return deadLetterEventAdminService.reprocess(dlqId, TraceIdResolver.resolve(servletRequest));
+        return deadLetterEventAdminService.reprocess(
+                dlqId,
+                request == null ? null : request.operatorId(),
+                request == null ? null : request.reason(),
+                TraceIdResolver.resolve(servletRequest)
+        );
     }
 
     @Operation(summary = "Discard DLT event", description = "Marks a dead letter event as discarded with an operator reason.")
@@ -162,7 +169,12 @@ public class AdminContractController {
             @Valid @RequestBody DlqDiscardRequest request,
             HttpServletRequest servletRequest
     ) {
-        return deadLetterEventAdminService.discard(dlqId, request.reason(), TraceIdResolver.resolve(servletRequest));
+        return deadLetterEventAdminService.discard(
+                dlqId,
+                request.operatorId(),
+                request.reason(),
+                TraceIdResolver.resolve(servletRequest)
+        );
     }
 
     @Operation(summary = "Get event processing log", description = "Looks up Consumer processing logs by eventId.")

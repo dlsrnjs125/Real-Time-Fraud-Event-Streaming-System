@@ -126,6 +126,6 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 ## 현재 구현 범위
 
-현재는 Phase 13까지 완료된 상태입니다. Phase 13에서는 k6 기반 smoke/normal/peak/duplicate/Redis down 시나리오를 정리하고, duplicate replay DB count 검증과 Redis degraded metric 증가 검증을 통해 부하/장애 evidence를 보강했습니다.
+현재는 Phase 14까지 완료된 상태입니다. Phase 14에서는 Admin API 최소 보호, DLT 재처리/폐기 audit log, max reprocess attempts 정책을 추가해 운영 조작의 보안성과 감사 가능성을 강화했습니다.
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.

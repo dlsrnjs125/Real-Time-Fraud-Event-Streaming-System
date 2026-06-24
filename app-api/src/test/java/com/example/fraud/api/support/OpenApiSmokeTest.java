@@ -24,7 +24,8 @@ class OpenApiSmokeTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.info.title").value("Real-Time Fraud Event Streaming System API"))
-                .andExpect(jsonPath("$.info.description", containsString("Phase 5 API documentation")))
+                .andExpect(jsonPath("$.info.description", containsString("Phase 14 API documentation")))
+                .andExpect(jsonPath("$.components.securitySchemes.adminToken.name").value("X-Admin-Token"))
                 .andExpect(jsonPath("$.paths['/api/v1/transactions/events'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/admin/events/{eventId}/fraud-result'].get").exists());
     }

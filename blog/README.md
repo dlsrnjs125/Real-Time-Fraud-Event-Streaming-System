@@ -25,6 +25,7 @@
 14. [실시간 이상거래 탐지 시스템 최종 운영 준비도 점검](14-final-readiness-review.md)
 15. [k6 부하 테스트로 이상거래 탐지 시스템의 한계를 측정하기](15-load-test-evidence-and-performance-review.md)
 16. [Phase 13 부하/장애 테스트 evidence 정리](16-load-test-evidence-and-performance-review.md)
+17. [운영자 API 보호와 Audit Log로 재처리 기능을 안전하게 만들기](17-operational-security-and-audit-log.md)
 
 ## 글 구조
 

@@ -980,13 +980,16 @@ scripts/failure_drills/check_event_consistency.sh evt-phase8-redis-down-123
 - Kafka + Redis + PostgreSQL full E2E 부하 검증은 후속 Phase에서 수행합니다.
 - Grafana dashboard와 alert rule은 후속 Observability Phase에서 구성합니다.
 
-## 19. Phase 9 DLT 운영 절차
+## 19. Phase 14 DLT 운영 절차
 
 ### DLT 이벤트 조회
 
 ```bash
-curl "http://localhost:8080/api/v1/admin/dlt-events?status=PENDING&page=0&size=20"
-curl "http://localhost:8080/api/v1/admin/dlt-events/{id}"
+curl -H "X-Admin-Token: local-admin-token" \
+  "http://localhost:8080/api/v1/admin/dlt-events?status=PENDING&page=0&size=20"
+
+curl -H "X-Admin-Token: local-admin-token" \
+  "http://localhost:8080/api/v1/admin/dlt-events/{id}"
 ```
 
 확인 항목:
@@ -1002,7 +1005,10 @@ curl "http://localhost:8080/api/v1/admin/dlt-events/{id}"
 ### DLT 재처리
 
 ```bash
-curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/reprocess"
+curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/reprocess" \
+  -H "X-Admin-Token: local-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"operatorId":"local-admin","reason":"manual replay after failure review"}'
 ```
 
 기대 결과:
@@ -1011,12 +1017,17 @@ curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/reprocess"
 - API 응답 status가 `REPROCESSED`이면 원본 payload가 `transaction-events`로 재발행된 상태입니다.
 - Kafka publish 실패 시 status는 `REPROCESS_FAILED`로 남고 API는 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
 - Consumer가 다시 처리할 때 원본 `eventId`가 유지됩니다.
+- `reprocessAttempts`가 `DLT_REPROCESS_MAX_ATTEMPTS` 이상이면 `409 MAX_REPROCESS_ATTEMPTS_EXCEEDED`가 반환되고 Kafka publish는 호출되지 않습니다.
+- 성공/실패 audit log가 `admin_audit_logs`에 저장됩니다.
 
 재처리 후 확인:
 
 ```bash
-curl "http://localhost:8080/api/v1/admin/events/{eventId}/fraud-result"
-curl "http://localhost:8080/api/v1/admin/events/{eventId}/processing-log"
+curl -H "X-Admin-Token: local-admin-token" \
+  "http://localhost:8080/api/v1/admin/events/{eventId}/fraud-result"
+
+curl -H "X-Admin-Token: local-admin-token" \
+  "http://localhost:8080/api/v1/admin/events/{eventId}/processing-log"
 ```
 
 `fraud_detection_results.event_id` unique constraint 때문에 같은 eventId의 FraudResult는 중복 생성되지 않아야 합니다.
@@ -1025,6 +1036,7 @@ curl "http://localhost:8080/api/v1/admin/events/{eventId}/processing-log"
 
 ```bash
 curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/discard" \
+  -H "X-Admin-Token: local-admin-token" \
   -H "Content-Type: application/json" \
   -d '{"operatorId":"local-admin","reason":"invalid payload cannot be reprocessed"}'
 ```
@@ -1034,19 +1046,57 @@ curl -X POST "http://localhost:8080/api/v1/admin/dlt-events/{id}/discard" \
 - `PENDING` 또는 `REPROCESS_FAILED`만 폐기됩니다.
 - `discardReason`과 `discardedAt`이 저장됩니다.
 - `REPROCESSED` 또는 `DISCARDED` 상태에서 재처리/폐기를 다시 요청하면 `409 DLT_STATE_CONFLICT`가 반환됩니다.
+- 성공/실패 audit log가 `admin_audit_logs`에 저장됩니다.
+
+### 401 Unauthorized 확인
+
+Admin API가 `401 UNAUTHORIZED_ADMIN_API`를 반환하면 다음을 확인합니다.
+
+1. 요청에 `X-Admin-Token` header가 있는지 확인합니다.
+2. local 기본값은 `local-admin-token`입니다.
+3. 환경 변수 `ADMIN_API_TOKEN`을 설정했다면 같은 값으로 요청했는지 확인합니다.
+4. token 값은 log나 audit table에 출력하지 않습니다.
+
+### Max Attempts 초과 대응
+
+`409 MAX_REPROCESS_ATTEMPTS_EXCEEDED`가 반환되면 자동으로 `DISCARDED`로 바꾸지 않습니다.
+
+확인:
+
+```sql
+select id, event_id, status, reprocess_attempts, last_reprocessed_at
+from dead_letter_events
+where id = :dlq_id;
+```
+
+대응:
+
+- 원인을 다시 확인합니다.
+- 더 이상 재처리하면 안 되는 이벤트는 discard API로 명시적으로 폐기합니다.
+- 반복 실패가 많다면 Consumer log, Kafka publish 상태, downstream 오류를 먼저 확인합니다.
+
+### Audit 확인 SQL
+
+```sql
+select actor, action, target_type, target_id, result, created_at
+from admin_audit_logs
+order by created_at desc
+limit 10;
+```
 
 ### 잘못된 재처리 시 확인 항목
 
 1. DLT row의 `status`, `reprocessAttempts`, `lastReprocessedAt`
-2. app-api 로그의 Kafka publish 실패 여부
-3. app-consumer 로그의 `traceId`, `eventId`, topic/partition/offset
-4. fraud result row count가 eventId 기준 1건인지 여부
-5. processing log에 재처리 offset이 새로 기록되었는지 여부
+2. `admin_audit_logs`에 성공/실패 기록이 남았는지 여부
+3. app-api 로그의 Kafka publish 실패 여부
+4. app-consumer 로그의 `traceId`, `eventId`, topic/partition/offset
+5. fraud result row count가 eventId 기준 1건인지 여부
+6. processing log에 재처리 offset이 새로 기록되었는지 여부
 
 ### 남은 한계
 
-- Phase 9 admin API는 local/development-only입니다.
-- batch reprocess, rate limit, operator audit log는 후속 Phase에서 보강합니다.
+- Phase 14 admin token은 local/development-only 최소 보호입니다.
+- JWT/OAuth2/RBAC, audit log 조회 API, gateway-level rate limit은 후속 Phase에서 보강합니다.
 - Kafka publish와 DB 상태 변경의 완전한 atomic transaction은 이번 Phase에서 구현하지 않았습니다.
 
 ## 20. Phase 11 Final Readiness Review
