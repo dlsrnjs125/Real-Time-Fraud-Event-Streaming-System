@@ -28,6 +28,7 @@
 - Redis down load cleanup은 `redis-cli ping` readiness 확인과 degraded metric before/after 출력까지 포함합니다.
 - Duplicate Replay는 409 응답을 단순 실패로 해석하지 않고 PostgreSQL unique constraint와 fraud result count를 최종 기준으로 두었습니다.
 - Duplicate Replay 후 `scripts/load_tests/check_duplicate_result_count.sh`로 fraud result count를 확인할 수 있게 했습니다.
+- `make k6-smoke`가 전용 `load-test/k6/scenarios/smoke.js`를 실행하고, smoke 결과 문서도 같은 script 기준으로 기록되는지 재확인했습니다.
 - load test raw result는 git에 커밋하지 않고, 요약과 해석만 `docs/22-load-test-results.md`에 기록하도록 분리했습니다.
 
 ### 의도적으로 제외한 것
