@@ -16,8 +16,8 @@
 | Phase 9 | Done | DLT 저장, 조회, 재처리, 폐기 흐름 구현 완료 | transaction-events-dlt, dead_letter_events, admin DLT API, 상태 전이 테스트 | 운영 관측 고도화와 부하/장애 검증 |
 | Phase 10 | Done | 최종 운영 검증 기준과 Phase 10 readiness 문서화 완료 | docs/19, troubleshooting 보강, blog 초안, README 링크 | Final readiness review |
 | Phase 11 | Done | Final Readiness Review and Portfolio Documentation | readiness checklist, evidence index, troubleshooting index, final review blog | Observability hardening |
-| Phase 12 | Not Started | Observability Hardening | Prometheus metric, Grafana dashboard, alert rule | k6 load/failure measurement |
-| Phase 13 | Not Started | Load and Failure Test | k6 normal/peak/hot partition/Redis down/Consumer restart | result docs |
+| Phase 12 | Done | Load Test Evidence and Performance Review | k6 normal/peak/duplicate/Redis down scenarios, result template | measured local results |
+| Phase 13 | Not Started | Observability Hardening | Prometheus metric, Grafana dashboard, alert rule | k6 load/failure measurement |
 | Phase 14+ | Not Started | Operational Security and Automation | admin auth, audit log, DLQ rate limit, CI/E2E drill | production hardening |
 
 Status 기준:
@@ -796,11 +796,44 @@ Phase 1~10까지 구현한 기능, 운영 검증, 장애 대응, metric, DLT 재
 - k6 기반 본격 부하 테스트와 Grafana dashboard 캡처는 후속 evidence phase 후보입니다.
 - DLT pending/reprocess failed/discard metric과 alert rule은 후속 Observability Hardening에서 보강합니다.
 
-## Phase 12. Observability Hardening
+## Phase 12. Load Test Evidence and Performance Review
 
 ### 목표
 
-Phase 10~11에서 정리한 운영 완료 기준을 Prometheus metric, Grafana dashboard, alert rule로 연결합니다.
+k6 기반 정상/피크/중복/Redis down 부하 시나리오를 통해 API 응답성과 장애 시 degraded mode를 측정할 수 있는 evidence 체계를 정리합니다.
+
+### 구현
+
+- normal-load k6 scenario 추가
+- peak-load k6 scenario 추가
+- duplicate-replay k6 scenario 추가
+- redis-down-load k6 scenario 추가
+- Makefile k6 target 추가
+- Redis down load 안전 실행 script 추가
+- load test result template 추가
+- docs/blog에 Phase 12 결과 해석 기준 추가
+
+### 검증
+
+- `make ci-check` PASS
+- `make scripts-check` PASS
+- `make k6-smoke` PASS
+- hidden unicode check PASS
+- app-api/app-consumer health after smoke PASS
+- consumer Prometheus fraud metric sample 확인
+
+### 한계
+
+- 실제 p50/p95/p99와 병목 후보는 로컬 Docker Compose 환경에서 실행한 뒤 `docs/22-load-test-results.md`에 기록합니다.
+- Consumer Lag metric과 Grafana dashboard는 후속 Observability Hardening Phase에서 보강합니다.
+- CI 자동 부하 테스트는 후속 운영 자동화 Phase 후보입니다.
+- 로컬 환경 기준 결과이므로 절대 성능 수치로 일반화하지 않습니다.
+
+## Phase 13. Observability Hardening
+
+### 목표
+
+Phase 10~12에서 정리한 운영 완료 기준과 load test evidence를 Prometheus metric, Grafana dashboard, alert rule로 연결합니다.
 
 ### 범위
 
@@ -817,33 +850,6 @@ Phase 10~11에서 정리한 운영 완료 기준을 Prometheus metric, Grafana d
 - API latency, Consumer Lag, detection latency, DLQ count, duplicate skip count, Redis degraded count를 dashboard에서 확인할 수 있음
 - DLT 재처리 이후 상태 판단에 필요한 metric과 PostgreSQL 조회 기준이 문서에 연결됨
 - alert rule은 threshold 근거와 known limitation을 함께 기록함
-
-## Phase 13. Load and Failure Test
-
-### 목표
-
-정상 부하, 피크 부하, Consumer 장애, Redis 장애, hot partition, invalid schemaVersion을 재현하고 측정 결과를 남깁니다.
-
-### 범위
-
-- k6 normal load
-- k6 peak load
-- hot partition
-- Redis down
-- Consumer down/restart
-- invalid schemaVersion
-- future eventTime validation
-
-### 완료 기준
-
-- p50/p95/p99 API latency 기록
-- Consumer Lag 최대값 기록
-- Lag 회복 시간 기록
-- fraud detection latency 기록
-- DLQ count 기록
-- Redis degraded count 기록
-- duplicate result count 기록
-- 테스트 조건, VU, duration, event count, local environment notes 기록
 
 ## Phase 14+. Operational Security and Automation
 

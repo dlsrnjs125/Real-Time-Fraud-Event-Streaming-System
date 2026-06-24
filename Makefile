@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-redis-down final-check
 
 help:
 	@echo "Available targets:"
@@ -23,6 +23,11 @@ help:
 	@echo "  make scripts-check  - Validate shell scripts"
 	@echo "  make topics         - Create Kafka topics"
 	@echo "  make smoke          - Run local smoke test"
+	@echo "  make k6-smoke       - Run short k6 smoke scenario"
+	@echo "  make k6-normal      - Run normal load k6 scenario"
+	@echo "  make k6-peak        - Run peak load k6 scenario"
+	@echo "  make k6-duplicate   - Run duplicate replay k6 scenario"
+	@echo "  make k6-redis-down  - Run Redis down load k6 scenario"
 	@echo "  make final-check    - Run Phase validation checks"
 
 build:
@@ -94,11 +99,27 @@ scripts-check:
 	bash -n scripts/run-smoke-test.sh
 	bash -n scripts/wait-for-kafka.sh
 	bash -n scripts/failure_drills/*.sh
+	bash -n scripts/load_tests/*.sh
 
 topics:
 	./scripts/create-topics.sh
 
 smoke:
 	./scripts/run-smoke-test.sh
+
+k6-smoke:
+	k6 run load-test/k6/scenarios/smoke.js
+
+k6-normal:
+	k6 run load-test/k6/scenarios/normal-load.js
+
+k6-peak:
+	k6 run load-test/k6/scenarios/peak-load.js
+
+k6-duplicate:
+	k6 run load-test/k6/scenarios/duplicate-replay.js
+
+k6-redis-down:
+	bash scripts/load_tests/run_redis_down_load.sh
 
 final-check: build infra-config scripts-check

@@ -19,6 +19,44 @@
 - 설계 변경은 `docs/11-troubleshooting-log.md`에 누적합니다.
 - 구조화 로그에 계좌, 기기, IP 등 민감 필드 원문이 남지 않도록 확인합니다.
 
+## Phase 12 Review
+
+### 잘한 점
+
+- k6 scenario를 normal, peak, duplicate replay, Redis down load로 분리해 API 응답성과 consistency/degraded mode 검증을 같은 도구로 반복할 수 있게 했습니다.
+- Redis down load는 shell script에서 Redis stop/start를 담당하고 `trap`으로 복구를 시도해 테스트 실패 후 환경이 망가질 위험을 줄였습니다.
+- Redis down load cleanup은 `redis-cli ping` readiness 확인과 degraded metric before/after 출력까지 포함합니다.
+- Duplicate Replay는 409 응답을 단순 실패로 해석하지 않고 PostgreSQL unique constraint와 fraud result count를 최종 기준으로 두었습니다.
+- Duplicate Replay 후 `scripts/load_tests/check_duplicate_result_count.sh`로 fraud result count를 확인할 수 있게 했습니다.
+- `make k6-smoke`가 전용 `load-test/k6/scenarios/smoke.js`를 실행하고, smoke 결과 문서도 같은 script 기준으로 기록되는지 재확인했습니다.
+- load test raw result는 git에 커밋하지 않고, 요약과 해석만 `docs/22-load-test-results.md`에 기록하도록 분리했습니다.
+
+### 의도적으로 제외한 것
+
+- 무거운 k6 부하 테스트를 기본 CI gate에 넣지 않았습니다.
+- 측정하지 않은 p50/p95/p99 수치를 문서에 임의로 작성하지 않았습니다.
+- Consumer Lag dashboard와 Grafana screenshot은 후속 Observability Hardening 범위로 남겼습니다.
+- 운영 환경 URL 대상 부하 테스트는 명시적으로 제외했습니다.
+
+### 결과 해석
+
+Phase 12의 핵심은 "빠르다"는 결론이 아니라 어떤 부하에서 API latency, error rate, degraded metric, duplicate 방어 결과를 함께 봐야 하는지 기록하는 것입니다. 실제 수치는 로컬 Docker Compose 환경에서 실행한 뒤 `docs/22-load-test-results.md`에 남깁니다.
+
+### 병목 후보
+
+- API: validation, Kafka publish latency, DB receipt 저장
+- Kafka: broker resource, partition hot spot, publish timeout
+- Consumer: rule execution, manual ack 전 DB 저장 지연
+- Redis: sliding window command latency, unavailable fallback
+- PostgreSQL: unique constraint conflict, insert latency, connection pool
+
+### 다음 단계 보완
+
+- Consumer Lag metric 연결
+- Grafana dashboard와 alert rule 후보 정리
+- DB insert latency와 connection pool metric 보강
+- 반복 가능한 full load/failure evidence 캡처
+
 ## 3. 리뷰 질문
 
 1. `userId` partition key로 사용자별 순서가 충분히 보장되는가?

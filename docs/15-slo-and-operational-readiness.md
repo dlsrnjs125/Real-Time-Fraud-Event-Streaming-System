@@ -126,3 +126,18 @@ Prometheus/Grafana dashboard는 최소 4개 관점으로 나눕니다.
 ## 8. Known Limits
 
 초기 SLO는 로컬 개발과 부하 재현 기준입니다. 운영 환경의 실제 SLO는 트래픽 규모, partition 수, Consumer 수, DB/Redis 리소스, 네트워크 조건에 따라 다시 산정합니다.
+
+## Phase 12 Performance Target
+
+Phase 12는 목표와 실제 결과를 분리해서 기록합니다. 아래 Actual 값은 `docs/22-load-test-results.md`에 측정 evidence가 남기 전까지 `TBD`로 둡니다.
+
+| Metric | Target | Actual | Notes |
+| --- | ---: | ---: | --- |
+| Normal load p95 | < 500ms | TBD | Local Docker Compose |
+| Normal load error rate | < 1% | TBD | Local Docker Compose |
+| Peak load p95 | < 1000ms | TBD | Local Docker Compose |
+| Peak load error rate | < 5% | TBD | Local Docker Compose |
+| Duplicate replay consistency | fraud result count = 1 | TBD | PostgreSQL unique constraint 기준 |
+| Redis down processing | degraded result stored | TBD | Redis-dependent rules skipped |
+
+부하 테스트 결과는 로컬 장비, Docker resource limit, JVM warmup, Kafka partition 상태, Consumer 실행 여부에 영향을 받습니다. 따라서 결과는 병목 후보를 설명하기 위한 evidence로 사용하고 절대 성능 수치로 일반화하지 않습니다.

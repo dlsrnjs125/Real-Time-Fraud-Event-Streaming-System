@@ -224,6 +224,86 @@ API 접수 기록과 Kafka 발행 원자성이 필요한 요구가 생기면 현
 
 ---
 
+## Phase 12. Duplicate Replay와 k6 failure 기준
+
+### 문제 상황
+
+Duplicate replay 시나리오는 의도적으로 같은 `eventId`를 반복 발행합니다. 이때 API가 duplicate를 `409 CONFLICT`로 반환하면 k6 기본 지표에서는 실패 요청처럼 보일 수 있습니다.
+
+### 판단
+
+Duplicate replay에서는 2xx만 성공으로 보지 않고, 프로젝트 정책상 허용되는 duplicate response를 별도 check로 처리합니다. 최종 판단 기준은 `fraud_detection_results.event_id` unique constraint와 fraud result count 1건 유지 여부입니다.
+
+### 트레이드오프
+
+`http_req_failed` 지표만 보면 실패율이 높아 보일 수 있습니다. 따라서 duplicate scenario는 consistency 결과와 함께 해석합니다.
+
+---
+
+## Phase 12. Redis Down Load 후 Redis 복구 누락 위험
+
+### 문제 상황
+
+Redis down load는 의도적으로 Redis container를 중지한 상태에서 이벤트를 유입합니다. 테스트가 중간에 실패하면 Redis가 중지된 채로 남아 이후 테스트 결과를 왜곡할 수 있습니다.
+
+### 변경한 설계
+
+`scripts/load_tests/run_redis_down_load.sh`는 `trap cleanup EXIT`로 종료 시 Redis start를 시도합니다. Runbook에는 테스트 후 `docker compose -f infra/docker-compose.yml ps redis` 확인을 추가했습니다.
+
+### 남은 한계
+
+Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis` 자체가 실패하는 경우에는 수동 복구가 필요합니다.
+
+---
+
+## Phase 12. 로컬 부하 테스트 결과 해석 한계
+
+### 문제 상황
+
+로컬 Docker Compose 기반 k6 결과는 노트북 CPU, 메모리, Docker resource limit, JVM warmup, Kafka/DB/Redis container 상태에 크게 영향을 받습니다.
+
+### 판단
+
+Phase 12 결과는 절대 성능 수치가 아니라 병목 후보와 관측 절차를 설명하는 evidence로 사용합니다. 측정하지 않은 수치는 `TBD`로 두고 임의로 작성하지 않습니다.
+
+### 남은 한계
+
+운영 환경의 성능 기준은 별도 hardware, partition 수, Consumer 수, DB/Redis resource 기준에서 다시 산정해야 합니다.
+
+---
+
+## Phase 12. k6 threshold를 공격적으로 잡지 않은 이유
+
+### 문제 상황
+
+초기부터 매우 낮은 p95/p99 threshold를 적용하면 애플리케이션 병목보다 로컬 환경 흔들림 때문에 테스트가 불안정해질 수 있습니다.
+
+### 판단
+
+Normal load는 p95 500ms, p99 1000ms를 초기 목표로 두고, Peak load는 p95 1000ms, p99 2000ms를 기준으로 둡니다. 실패 시 threshold 자체를 숨기지 않고 원인과 병목 후보를 `docs/22-load-test-results.md`에 기록합니다.
+
+### 다시 설계한다면
+
+실제 측정 결과가 충분히 쌓인 뒤 scenario별 threshold를 재조정합니다.
+
+---
+
+## Phase 12. Consumer Lag metric 부재로 인한 한계
+
+### 문제 상황
+
+Phase 12 k6 script는 API latency와 request failure를 직접 측정할 수 있지만, Consumer Lag metric은 아직 dashboard/alert로 연결되지 않았습니다.
+
+### 판단
+
+현재는 Kafka UI, processing log, fraud result 조회, Redis degraded metric을 함께 사용해 비동기 처리 영향을 해석합니다. Consumer Lag metric과 Grafana dashboard는 후속 Observability Hardening 범위로 둡니다.
+
+### 남은 한계
+
+Consumer Lag 회복 시간과 partition별 hot spot은 별도 metric 연결 후 더 정확하게 측정해야 합니다.
+
+---
+
 ## Phase 1. Gradle repository 정책 충돌
 
 ### 초기 설계

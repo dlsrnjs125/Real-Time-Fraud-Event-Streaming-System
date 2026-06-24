@@ -120,10 +120,11 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [20. Final Readiness Checklist](docs/19-final-readiness-checklist.md)
 - [21. Evidence Index](docs/20-evidence-index.md)
 - [22. Troubleshooting Index](docs/21-troubleshooting-index.md)
+- [23. Load Test Results](docs/22-load-test-results.md)
 - [Blog Drafts](blog/README.md)
 
 ## 현재 구현 범위
 
-현재는 Phase 11까지 완료된 상태입니다. Phase 11에서는 Phase 1~10의 구현, 장애 drill, metric, DLT 재처리 흐름을 최종 운영 준비도 관점으로 정리하고, evidence index와 readiness checklist를 추가했습니다.
+현재는 Phase 12까지 완료된 상태입니다. Phase 12에서는 k6 기반 정상/피크/중복/Redis down 부하 시나리오를 추가하고, 성능 결과와 병목 후보를 docs/blog에 기록할 수 있도록 evidence template을 정리했습니다.
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
