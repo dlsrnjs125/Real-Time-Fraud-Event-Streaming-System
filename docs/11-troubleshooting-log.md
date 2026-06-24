@@ -1123,3 +1123,73 @@ make final-check
 ### Lesson
 
 DLT 재처리는 메시지를 다시 넣는 기능만으로 끝나지 않습니다. 재처리 후 중복 탐지 결과가 생기지 않았는지, DLQ 상태가 종료 상태로 전이됐는지, Consumer Lag이 회복됐는지, processing log와 감사 근거가 남았는지까지 확인할 수 있어야 운영 기능이라고 볼 수 있습니다.
+
+## Phase 13. Duplicate Replay와 k6 failure 기준
+
+### 문제 상황
+
+Duplicate replay 시나리오는 의도적으로 같은 `eventId`를 반복 발행합니다. 이때 API가 duplicate를 `409 CONFLICT`로 반환하면 k6 기본 기준에서는 실패 요청처럼 보일 수 있습니다.
+
+### 판단
+
+Duplicate replay에서는 2xx만 성공으로 보지 않고, 프로젝트 정책상 허용되는 duplicate response를 별도 check로 처리합니다. 최종 판단은 `fraud_detection_results.event_id` unique constraint와 fraud result count 1건 유지 여부입니다.
+
+### 트레이드오프
+
+`http_req_failed` 지표만 보면 실패율이 높아 보일 수 있습니다. 따라서 duplicate scenario는 API response policy와 PostgreSQL consistency 결과를 함께 해석합니다.
+
+## Phase 13. Redis Down Load 후 Redis 복구 누락 위험
+
+### 문제 상황
+
+Redis down load는 테스트 중 Redis container를 중지합니다. k6 실행이 실패하거나 사용자가 중간에 중단하면 Redis가 내려간 상태로 남아 이후 테스트와 로컬 개발에 영향을 줄 수 있습니다.
+
+### 판단
+
+Redis stop/start는 k6 script가 아니라 `scripts/load_tests/run_redis_down_load.sh`에서 처리합니다. script는 `trap`으로 cleanup을 등록하고, Redis start 이후 `redis-cli ping` readiness를 확인합니다.
+
+### 트레이드오프
+
+script가 Redis 복구를 시도하더라도 Docker daemon 문제나 container 상태 이상은 자동 복구하지 못할 수 있습니다. 실행 후에는 반드시 `docker compose -f infra/docker-compose.yml ps redis`로 상태를 확인합니다.
+
+## Phase 13. 로컬 부하 테스트 결과 해석 한계
+
+### 문제 상황
+
+로컬 Docker Compose 기반 k6 결과는 노트북 CPU, 메모리, Docker resource limit, JVM warmup, Kafka/DB/Redis container 상태에 크게 영향을 받습니다.
+
+### 판단
+
+Phase 13 결과는 절대 성능 수치가 아니라 병목 후보와 관측 절차를 설명하는 evidence로 사용합니다. 측정하지 않은 수치는 `TBD`로 두고 임의로 작성하지 않습니다.
+
+### 트레이드오프
+
+로컬 결과는 재현이 쉽지만 운영 capacity를 대표하지 않습니다. 운영 SLO 산정은 별도 환경과 반복 측정이 필요합니다.
+
+## Phase 13. k6 threshold를 공격적으로 잡지 않은 이유
+
+### 문제 상황
+
+초기 k6 threshold를 너무 낮게 잡으면 로컬 장비 상태나 JVM warmup만으로 테스트가 실패해 실제 병목 분석보다 환경 노이즈가 커질 수 있습니다.
+
+### 판단
+
+Normal load는 낮은 error rate와 p95/p99 기준을 두고, Peak/Redis down은 장애 영향 관찰을 허용하는 범위로 threshold를 둡니다.
+
+### 트레이드오프
+
+threshold가 느슨하면 성능 회귀를 강하게 막지는 못합니다. 대신 Phase 13에서는 반복 가능한 evidence 기록과 병목 후보 식별을 우선합니다.
+
+## Phase 13. Consumer Lag metric 부재로 인한 한계
+
+### 문제 상황
+
+Phase 13 k6 script는 API latency와 request failure를 직접 측정할 수 있지만, Consumer Lag metric은 아직 dashboard/alert로 연결되지 않았습니다.
+
+### 판단
+
+현재는 Kafka UI, processing log, fraud result 조회, Redis degraded metric을 함께 사용해 비동기 처리 영향을 해석합니다. Consumer Lag metric과 Grafana dashboard는 후속 Observability hardening 범위로 둡니다.
+
+### 남은 한계
+
+API p95가 안정적이어도 Consumer backlog가 쌓일 수 있습니다. 이후 Phase에서는 Consumer Lag과 detection latency를 dashboard evidence로 연결해야 합니다.

@@ -157,6 +157,33 @@ Duplicate Replay는 API 409 응답이 의도된 결과일 수 있으므로 `http
 
 Metric tag에는 계속 `eventId`, `traceId`, `userId`, `accountId`를 넣지 않습니다. 부하 테스트는 많은 synthetic event를 만들기 때문에 high-cardinality tag가 붙으면 Prometheus 저장 비용과 query 성능 문제가 빠르게 커질 수 있습니다.
 
+## 6-2. Phase 13 Load and Failure Evidence 관측 기준
+
+Phase 13에서는 k6 결과와 Prometheus/Actuator metric을 같은 시간대의 evidence로 묶어서 해석합니다. API 요청이 2xx로 끝났더라도 Consumer가 backlog를 쌓거나 Redis degraded metric이 급증하면 정상 처리로만 해석하지 않습니다.
+
+기록할 k6 지표:
+
+- total requests
+- request rate
+- `http_req_failed`
+- `http_req_duration` p50/p95/p99
+- status code distribution
+
+Redis down load에서 확인할 metric:
+
+- `fraud_redis_window_record_latency_seconds_count`
+- `fraud_redis_window_record_latency_seconds_sum`
+- `fraud_redis_window_record_latency_seconds_max`
+- `fraud_redis_window_degraded_total`
+- `fraud_rule_skipped_total`
+- `fraud_detection_degraded_total`
+
+Duplicate Replay는 consistency evidence와 함께 해석합니다. API가 `409 CONFLICT`를 반환해도 같은 `eventId`에 대한 `fraud_detection_results` count가 1건이면 의도한 중복 방어로 볼 수 있습니다.
+
+Consumer Lag metric은 아직 후속 Observability hardening 후보입니다. Phase 13에서는 Kafka UI, processing log, fraud result 조회, Redis degraded metric을 함께 사용해 비동기 처리 영향을 보조적으로 판단합니다.
+
+Metric tag에는 계속 `eventId`, `traceId`, `userId`, `accountId`, `deviceId`를 넣지 않습니다. 부하 테스트는 synthetic event를 대량 생성하므로 high-cardinality tag 정책을 어기면 Prometheus 저장 비용과 query 성능 문제가 빠르게 커집니다.
+
 ## 7. 개인정보와 로그 마스킹
 
 구조화 로그에는 `eventId`와 `traceId`를 남기되, `accountId`와 `deviceId`는 원문 전체를 기록하지 않습니다.

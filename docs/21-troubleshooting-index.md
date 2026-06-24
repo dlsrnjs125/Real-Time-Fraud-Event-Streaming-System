@@ -42,3 +42,6 @@
 - Load test result template: `docs/22-load-test-results.md`
 - Duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-12-duplicate-replay와-k6-failure-기준`
 - Redis down load recovery: `docs/18-runbook.md#1-2-phase-12-load-test-runbook`
+- Phase 13 load/failure evidence: `docs/23-load-test-results.md`
+- Phase 13 runbook: `docs/18-runbook.md#1-3-phase-13-load-test-runbook`
+- Phase 13 duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-13-duplicate-replay와-k6-failure-기준`
