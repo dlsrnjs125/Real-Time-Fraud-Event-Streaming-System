@@ -1,8 +1,8 @@
 import { check } from 'k6';
 
 export const apiBaseUrl = __ENV.API_BASE_URL || __ENV.BASE_URL || 'http://localhost:8080';
-export const eventPrefix = __ENV.EVENT_PREFIX || 'phase12';
-export const userPrefix = __ENV.USER_PREFIX || 'user-phase12';
+export const eventPrefix = __ENV.EVENT_PREFIX || 'phase13';
+export const userPrefix = __ENV.USER_PREFIX || 'user-phase13';
 
 export const jsonHeaders = {
   headers: { 'Content-Type': 'application/json' },

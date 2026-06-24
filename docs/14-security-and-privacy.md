@@ -201,3 +201,13 @@ Phase 12 k6 load test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`,
 `API_BASE_URL`은 로컬 app-api 기본값인 `http://localhost:8080`을 사용합니다. 운영 환경이나 외부 공유 환경 URL을 대상으로 k6 부하 테스트를 실행하지 않습니다.
 
 Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.
+
+## 17. Phase 13 Load and Failure Test 데이터 기준
+
+Phase 13 k6 load/failure test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`, `merchantId`만 사용합니다. 부하 테스트 payload에는 카드번호, 실명, 이메일, 전화번호 등 직접 식별 개인정보를 포함하지 않습니다.
+
+테스트 결과와 로그에도 실제 개인정보를 저장하지 않습니다. `load-test/k6/results/`에 생성되는 raw result 파일은 git에 커밋하지 않고, 문서에는 집계 결과와 병목 후보만 기록합니다.
+
+`API_BASE_URL`은 로컬 app-api 기본값인 `http://localhost:8080`을 사용합니다. 운영 환경이나 외부 공유 환경 URL을 대상으로 k6 부하 테스트를 실행하지 않습니다.
+
+Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.

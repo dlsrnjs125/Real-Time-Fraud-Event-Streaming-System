@@ -101,6 +101,77 @@ curl http://localhost:8081/actuator/health
 curl http://localhost:8081/actuator/prometheus | grep fraud
 ```
 
+## 1-3. Phase 13 Load Test Runbook
+
+Phase 13 load/failure test는 로컬 Docker Compose 환경에서만 실행합니다. `API_BASE_URL`을 운영 환경이나 외부 공유 환경 URL로 지정하지 않습니다.
+
+### Precondition
+
+```bash
+make infra-up
+make topics
+make api
+make consumer
+```
+
+`make api`와 `make consumer`는 각각 별도 터미널에서 실행합니다.
+
+### Smoke
+
+```bash
+make k6-smoke
+```
+
+### Normal Load
+
+```bash
+make k6-normal
+```
+
+### Peak Load
+
+```bash
+make k6-peak
+```
+
+### Duplicate Replay
+
+```bash
+make k6-duplicate
+scripts/load_tests/check_duplicate_result_count.sh phase13-duplicate-fixed-event-id
+```
+
+확인 항목:
+
+1. duplicate `eventId` 기록
+2. API response policy 확인
+3. `fraud_detection_results` count 1건 유지 여부 확인
+4. 409 응답을 단순 장애로 해석하지 않음
+
+### Redis Down Load
+
+```bash
+make k6-redis-down
+docker compose -f infra/docker-compose.yml ps redis
+```
+
+`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded, detection degraded, skipped rule metric before/after 값을 출력합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
+
+### Failure Check
+
+1. app-api health
+2. app-consumer health
+3. Kafka topic status
+4. Redis container status
+5. PostgreSQL connection
+6. Prometheus metric endpoint
+
+```bash
+curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
+curl http://localhost:8081/actuator/prometheus | grep fraud
+```
+
 ## 2. Consumer Lag 지속 증가
 
 장애 상황:
