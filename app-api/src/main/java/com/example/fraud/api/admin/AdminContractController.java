@@ -151,13 +151,13 @@ public class AdminContractController {
     @PostMapping({"/dlq-events/{dlqId}/reprocess", "/dlt-events/{dlqId}/reprocess"})
     public DlqReprocessResponse reprocessDlqEvent(
             @PathVariable long dlqId,
-            @Valid @RequestBody(required = false) DlqReprocessRequest request,
+            @Valid @RequestBody DlqReprocessRequest request,
             HttpServletRequest servletRequest
     ) {
         return deadLetterEventAdminService.reprocess(
                 dlqId,
-                request == null ? null : request.operatorId(),
-                request == null ? null : request.reason(),
+                request.operatorId(),
+                request.reason(),
                 TraceIdResolver.resolve(servletRequest)
         );
     }

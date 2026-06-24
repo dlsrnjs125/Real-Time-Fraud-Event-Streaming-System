@@ -99,6 +99,43 @@ class DeadLetterEventAdminApiTest {
     }
 
     @Test
+    void reprocessWithoutRequestBodyReturnsBadRequest() throws Exception {
+        insertDltEvent(11L, "evt-dlt-api-reprocess-validation-001", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 11L)
+                        .header("X-Admin-Token", ADMIN_TOKEN))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void reprocessWithoutOperatorIdReturnsBadRequest() throws Exception {
+        insertDltEvent(12L, "evt-dlt-api-reprocess-validation-002", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 12L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason":"manual replay after payload review"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"));
+    }
+
+    @Test
+    void reprocessWithoutReasonReturnsBadRequest() throws Exception {
+        insertDltEvent(13L, "evt-dlt-api-reprocess-validation-003", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 13L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"operator-001"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"));
+    }
+
+    @Test
     void publishFailureMarksReprocessFailed() throws Exception {
         insertDltEvent(4L, "evt-dlt-api-reprocess-fail-001", "PENDING");
         doThrow(new DeadLetterPublishFailedException(new RuntimeException("kafka unavailable")))
@@ -288,6 +325,14 @@ class DeadLetterEventAdminApiTest {
                 String.valueOf(dlqId)
         );
         assertThat(metadata).doesNotContain("payload_json", "accountId", "deviceId", "test-admin-token");
+
+        String requestId = jdbcTemplate.queryForObject(
+                "select request_id from admin_audit_logs where action = ? and target_id = ?",
+                String.class,
+                action,
+                String.valueOf(dlqId)
+        );
+        assertThat(requestId).isNull();
     }
 
     private String payloadJson(String eventId) {

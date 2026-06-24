@@ -37,7 +37,7 @@ public class AdminAuditLogService {
                 action,
                 TARGET_TYPE_DLT_EVENT,
                 String.valueOf(dlqId),
-                eventId,
+                null,
                 traceId,
                 result,
                 limit(reason, 500),

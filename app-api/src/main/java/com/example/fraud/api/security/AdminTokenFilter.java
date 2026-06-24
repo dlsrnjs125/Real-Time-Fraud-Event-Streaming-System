@@ -9,6 +9,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -37,14 +39,14 @@ public class AdminTokenFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        if (!request.getRequestURI().startsWith("/api/v1/admin/")) {
+        if (!isAdminPath(request.getRequestURI())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String expectedToken = properties.getToken();
         String providedToken = request.getHeader(ADMIN_TOKEN_HEADER);
-        if (expectedToken == null || expectedToken.isBlank() || !expectedToken.equals(providedToken)) {
+        if (expectedToken == null || expectedToken.isBlank() || !tokenMatches(expectedToken, providedToken)) {
             log.warn("Unauthorized admin API request path={} traceId={}",
                     request.getRequestURI(),
                     TraceIdResolver.resolve(request));
@@ -53,6 +55,20 @@ public class AdminTokenFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isAdminPath(String uri) {
+        return "/api/v1/admin".equals(uri) || uri.startsWith("/api/v1/admin/");
+    }
+
+    private boolean tokenMatches(String expectedToken, String providedToken) {
+        if (providedToken == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expectedToken.getBytes(StandardCharsets.UTF_8),
+                providedToken.getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     private void writeUnauthorized(HttpServletResponse response, HttpServletRequest request) throws IOException {

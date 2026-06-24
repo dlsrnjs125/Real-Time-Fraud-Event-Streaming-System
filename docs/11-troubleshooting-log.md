@@ -1228,6 +1228,18 @@ Admin token은 인증 수단이지 감사 metadata가 아닙니다. token을 aud
 
 Phase 14 audit log에는 actor, action, target id, eventId, traceId, result, reason, 최소 metadata만 저장합니다. DLT payload 전체, request body 전체, accountId, deviceId, token 값은 저장하지 않습니다.
 
+## Phase 14. operatorId를 self-claimed actor로 기록하는 한계
+
+Phase 14의 `operatorId`는 인증된 사용자 식별자가 아니라 local/dev 환경에서 감사 로그를 남기기 위한 self-claimed field입니다. `X-Admin-Token`을 아는 사용자는 body에 임의의 `operatorId`를 넣을 수 있습니다.
+
+이번 Phase에서는 이 한계를 문서화하고, 운영 환경에서는 JWT subject, SSO user id, RBAC principal을 audit actor로 사용하도록 후속 과제로 둡니다.
+
+## Phase 14. audit request_id를 비워두는 이유
+
+Phase 14에는 gateway 또는 공통 request-id 수집 체계가 아직 없습니다. 따라서 `admin_audit_logs.request_id`에 eventId를 대신 넣지 않고 null로 둡니다.
+
+eventId는 `metadata_json`에 저장합니다. 추후 gateway/request-id 표준화가 추가되면 `request_id`를 실제 HTTP request id 또는 command id로 채웁니다.
+
 ## Phase 14. max attempts를 자동 discard로 연결하지 않은 이유
 
 `reprocess_attempts >= maxAttempts`이면 재처리는 막지만 status를 자동으로 `DISCARDED`로 바꾸지 않습니다.

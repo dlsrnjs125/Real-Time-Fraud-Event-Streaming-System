@@ -27,6 +27,13 @@ class AdminApiSecurityTest {
     }
 
     @Test
+    void adminRootPathWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/admin"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED_ADMIN_API"));
+    }
+
+    @Test
     void adminApiWithInvalidTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/admin/dlq-events")
                         .header("X-Admin-Token", "wrong-token"))

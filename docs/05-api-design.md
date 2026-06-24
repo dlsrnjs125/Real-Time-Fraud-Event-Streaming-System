@@ -510,6 +510,10 @@ Error response:
 
 DLT reprocess/discard는 audit log를 남깁니다. Audit log에는 actor, action, target id, eventId, traceId, result, reason, 최소 metadata만 저장하고 admin token 또는 원본 payload 전체를 저장하지 않습니다.
 
+Phase 14의 `operatorId`는 인증된 principal이 아니라 local/dev 감사 기록을 위한 self-claimed field입니다. 운영 환경에서는 JWT subject, SSO user id, RBAC principal을 audit actor로 사용해야 합니다.
+
+Phase 14에서는 request-id 수집 체계가 아직 없으므로 `admin_audit_logs.request_id`는 비워두고, eventId는 `metadata_json`에 저장합니다. 추후 gateway/request-id 표준화 시 request id를 별도 저장합니다.
+
 DLT reprocess max attempts:
 
 - 설정: `dlt.reprocess.max-attempts` 또는 `DLT_REPROCESS_MAX_ATTEMPTS`
@@ -525,8 +529,9 @@ DLT discard request validation:
 
 Reprocess request validation:
 
-- `operatorId`: optional request body가 제공되면 필수, max 100
-- `reason`: optional request body가 제공되면 필수, max 500
+- request body: 필수
+- `operatorId`: 필수, max 100
+- `reason`: 필수, max 500
 
 ## 13. OpenAPI 문서화 기준
 

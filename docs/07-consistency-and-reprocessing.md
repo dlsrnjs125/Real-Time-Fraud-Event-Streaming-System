@@ -106,11 +106,14 @@ DLT reprocess/discard 성공과 실패는 `admin_audit_logs`에 저장합니다.
 - Kafka publish 실패 audit: `REPROCESS_FAILED` 상태와 실패 audit을 남긴 뒤 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
 - max attempts/state conflict audit: Kafka publish 전에 실패 audit을 남기고 `409`로 응답합니다.
 - Audit 저장 실패 시 운영자 액션도 실패시키는 정책을 선택합니다. 감사 관점에서는 "누가 어떤 조치를 했는지 설명할 수 없는 상태 변경"을 막는 편이 더 안전하기 때문입니다.
+- Phase 14에서는 request-id 수집 체계가 아직 없어 `admin_audit_logs.request_id`를 비워두고, eventId는 `metadata_json`에 저장합니다.
+- Phase 14의 actor는 request body의 self-claimed `operatorId`입니다. 운영 환경에서는 인증된 principal을 actor로 사용해야 합니다.
 
 Trade-off:
 
 - audit 저장소 장애가 DLT reprocess/discard를 막을 수 있습니다.
 - 대신 운영자 조치와 감사 기록의 불일치를 줄입니다.
+- Reprocess API에서 Kafka publish 성공 후 audit log 저장이 실패하면 DB 상태 변경은 rollback될 수 있지만 Kafka publish는 되돌릴 수 없습니다. Phase 14에서는 이를 Kafka/DB atomicity 한계로 기록하고, 후속으로 outbox pattern 또는 reprocess command log 기반 publish를 검토합니다.
 
 ## 9. PostgreSQL과 Kafka Publish 사이의 한계
 

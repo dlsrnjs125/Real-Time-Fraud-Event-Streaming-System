@@ -134,15 +134,15 @@ Phase 9에서 Consumer 처리 실패 이벤트를 운영자가 조회/재처리/
 Phase 14에서 운영자 조치 감사 가능성을 위해 추가한 테이블입니다.
 
 - `id`: audit log ID
-- `actor`: 운영자 식별자. request body의 `operatorId`
+- `actor`: 운영자 식별자. Phase 14에서는 request body의 self-claimed `operatorId`
 - `action`: `DLT_REPROCESS`, `DLT_DISCARD`
 - `target_type`: 현재는 `DLT_EVENT`
 - `target_id`: DLT event id
-- `request_id`: 원본 eventId
+- `request_id`: Phase 14에서는 request-id 수집 체계가 없어 null. 추후 gateway/request-id 표준화 시 저장
 - `trace_id`: 요청 trace ID
 - `result`: `SUCCESS`, `FAILED`
 - `reason`: 운영자가 입력한 사유. 최대 500자 기준으로 저장
-- `metadata_json`: 상태, attempts, maxAttempts, 결과 사유 같은 최소 metadata
+- `metadata_json`: eventId, 상태, attempts, maxAttempts, 결과 사유 같은 최소 metadata
 - `created_at`: audit row 생성 시각
 
 인덱스:
