@@ -86,7 +86,7 @@ make k6-redis-down
 docker compose -f infra/docker-compose.yml ps redis
 ```
 
-`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded, detection degraded, skipped rule metric before/after 값을 출력합니다.
+`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded, detection degraded, skipped rule metric 증가를 검증합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
 
 ### Failure Check
 
@@ -158,7 +158,7 @@ make k6-redis-down
 docker compose -f infra/docker-compose.yml ps redis
 ```
 
-`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded와 detection degraded metric 증가를 검증하고, skipped rule metric before/after 값을 출력합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
+`scripts/load_tests/run_redis_down_load.sh`는 `trap`으로 Redis start를 시도하고 `redis-cli ping` readiness를 확인합니다. app-consumer metric endpoint가 reachable이면 Redis degraded, detection degraded, skipped rule metric 증가를 검증합니다. 테스트 실패 후에도 반드시 Redis container 상태를 확인합니다.
 
 ### Failure Check
 

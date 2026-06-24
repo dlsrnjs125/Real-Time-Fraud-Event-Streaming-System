@@ -63,7 +63,7 @@ Phase 12의 핵심은 "빠르다"는 결론이 아니라 어떤 부하에서 API
 
 - Phase 13 결과 기록을 `docs/23-load-test-results.md`로 분리해 Phase 12 템플릿과 최신 측정 evidence를 혼동하지 않게 했습니다.
 - `make k6-smoke`가 3회 요청 전용 `smoke.js`를 실행하고, Normal/Peak/Duplicate/Redis down scenario와 역할이 분리되어 있는지 재확인했습니다.
-- Redis down load는 shell script에서 Redis stop/start를 담당하고, cleanup에서 `redis-cli ping` readiness와 Redis/detection degraded metric 증가를 검증하도록 유지했습니다.
+- Redis down load는 shell script에서 Redis stop/start를 담당하고, cleanup에서 `redis-cli ping` readiness와 Redis degraded, detection degraded, skipped rule metric 증가를 검증하도록 유지했습니다.
 - Duplicate Replay는 API 409 응답을 단순 실패로 해석하지 않고 PostgreSQL fraud result count를 최종 consistency 기준으로 두며, `make k6-duplicate-check`로 replay와 count 검증을 함께 실행할 수 있게 했습니다.
 - k6 payload는 synthetic identifier만 사용하고, raw result 파일은 git에 커밋하지 않는 기준을 보안 문서와 결과 문서에 연결했습니다.
 

@@ -139,5 +139,5 @@ Redis 장애 상태에서 degraded mode가 동작하는지 확인합니다.
 - Normal/Peak는 `http_req_failed`, p50/p95/p99, status code 분포를 함께 봅니다.
 - Duplicate Replay는 409 또는 duplicate response가 의도된 결과일 수 있으므로 k6 failure rate만으로 성공/실패를 판단하지 않습니다.
 - Duplicate Replay는 `make k6-duplicate-check`로 k6 replay와 `fraud_detection_results` count 검증을 함께 실행할 수 있습니다.
-- Redis Down Load는 Redis container가 반드시 복구되어야 하며, script가 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total` 증가를 검증하고 `fraud_rule_skipped_total` before/after 값을 출력합니다.
+- Redis Down Load는 Redis container가 반드시 복구되어야 하며, script가 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total`, `fraud_rule_skipped_total` 증가를 검증합니다.
 - Consumer Lag과 Grafana dashboard evidence는 후속 Observability hardening 범위로 둡니다.

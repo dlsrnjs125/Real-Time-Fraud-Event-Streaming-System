@@ -74,10 +74,11 @@ k6 run "${K6_SCRIPT}"
 
 AFTER_REDIS_DEGRADED="$(wait_for_metric_increase fraud_redis_window_degraded_total "${BEFORE_REDIS_DEGRADED}")"
 AFTER_DETECTION_DEGRADED="$(wait_for_metric_increase fraud_detection_degraded_total "${BEFORE_DETECTION_DEGRADED}")"
-AFTER_RULE_SKIPPED="$(metric_value fraud_rule_skipped_total)"
+AFTER_RULE_SKIPPED="$(wait_for_metric_increase fraud_rule_skipped_total "${BEFORE_RULE_SKIPPED}")"
 
 assert_metric_increased "fraud_redis_window_degraded_total" "${BEFORE_REDIS_DEGRADED}" "${AFTER_REDIS_DEGRADED}"
 assert_metric_increased "fraud_detection_degraded_total" "${BEFORE_DETECTION_DEGRADED}" "${AFTER_DETECTION_DEGRADED}"
+assert_metric_increased "fraud_rule_skipped_total" "${BEFORE_RULE_SKIPPED}" "${AFTER_RULE_SKIPPED}"
 
 echo "fraud_redis_window_degraded_total before=${BEFORE_REDIS_DEGRADED}, after=${AFTER_REDIS_DEGRADED}"
 echo "fraud_detection_degraded_total before=${BEFORE_DETECTION_DEGRADED}, after=${AFTER_DETECTION_DEGRADED}"
