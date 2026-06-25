@@ -57,9 +57,11 @@ scripts/
   data/
     README.md
     check-data-policy.sh
+    download_paysim_dataset.py
+    prepare_paysim_dataset.py
 ```
 
-후속 Phase에서 `prepare_paysim_dataset.py`, `sample_paysim_dataset.py`, `replay_paysim_to_api.py`를 추가합니다. V2 Phase 1에서는 실제 데이터 처리 script를 구현하지 않습니다.
+후속 Phase에서 `sample_paysim_dataset.py`, `replay_paysim_to_api.py`를 추가합니다. V2 Phase 2에서는 dataset acquisition helper와 preprocessing normalization만 구현하며, sample generation과 replay는 아직 구현하지 않습니다.
 
 `.gitignore` policy:
 
@@ -95,43 +97,38 @@ make data-policy-check
 
 ## 5. Reproduction Flow
 
-1. Kaggle에서 PaySim CSV를 다운로드합니다.
-2. 파일을 아래 경로에 둡니다.
+1. Kaggle에서 PaySim CSV를 다운로드합니다. 로컬에서는 optional KaggleHub helper를 사용할 수 있습니다.
+
+```bash
+python3 scripts/data/download_paysim_dataset.py
+python3 scripts/data/download_paysim_dataset.py --force
+```
+
+helper는 KaggleHub cache에 `moonknightmarvel/paysim` dataset을 다운로드하고, cache 안의 CSV를 아래 경로로 복사합니다.
 
 ```text
 data/raw/PS_20174392719_1491204439457_log.csv
 ```
 
-3. 전처리 script를 실행합니다.
+Kaggle token, API token, access token은 `.env`, docs, logs, validation report에 남기지 않습니다. CI에서는 download helper를 실행하지 않습니다.
+
+2. 전처리 script를 실행합니다.
 
 ```bash
-python scripts/data/prepare_paysim_dataset.py \
-  --input data/raw/PS_20174392719_1491204439457_log.csv \
-  --events-output data/processed/paysim-events.jsonl \
-  --labels-output data/processed/paysim-labels.jsonl \
-  --rejected-output data/processed/paysim-rejected.jsonl \
-  --report-output data/processed/paysim-validation-report.json
+python3 scripts/data/prepare_paysim_dataset.py --force
 ```
 
-4. 작은 sample을 생성합니다.
+로컬 smoke 검증은 일부 row만 처리합니다.
 
 ```bash
-python scripts/data/sample_paysim_dataset.py \
-  --events-input data/processed/paysim-events.jsonl \
-  --labels-input data/processed/paysim-labels.jsonl \
-  --events-output data/samples/paysim-events-sample.jsonl \
-  --labels-output data/samples/paysim-labels-sample.jsonl \
-  --limit 1000
+python3 scripts/data/prepare_paysim_dataset.py --limit 1000 --force
 ```
 
-5. Replay script로 app-api에 이벤트를 주입합니다.
+3. 후속 V2 Phase 3에서 작은 sample을 생성합니다.
 
-```bash
-python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-events.jsonl \
-  --api-base-url http://localhost:8080 \
-  --limit 10000
-```
+4. 후속 V2 Phase 5에서 Replay script로 app-api에 이벤트를 주입합니다.
+
+raw dataset acquisition과 preprocessing은 분리합니다. download helper는 raw CSV를 local에 준비하는 도구이고, preprocessing script는 raw CSV의 SHA-256을 계산해 validation report에 기록합니다.
 
 ## 6. Security and Privacy Notes
 
@@ -188,3 +185,14 @@ destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
 - README와 blog index에 V2 Phase 1 링크 추가
 
 V2 Phase 1은 data guardrail 구현 범위입니다. PaySim normalization, sample generation, replay, Java Rule Engine V2 구현은 후속 Phase에서 진행합니다.
+
+## 9. V2 Phase 2 Acquisition and Preprocessing
+
+V2 Phase 2에서 추가한 구현:
+
+- `scripts/data/download_paysim_dataset.py`
+- `scripts/data/prepare_paysim_dataset.py`
+- `scripts/data/test_prepare_paysim_dataset.py`
+- Makefile target: `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`
+
+CI에서는 KaggleHub download와 full preprocessing을 실행하지 않습니다. CI는 작은 fixture 기반 unittest와 data policy check만 실행합니다.

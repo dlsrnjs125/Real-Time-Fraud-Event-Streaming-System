@@ -83,6 +83,7 @@ make infra-up
 make api
 make consumer
 make data-policy-check
+make test-data-scripts
 make final-check
 ```
 
@@ -141,4 +142,12 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 후속 V2 기획은 Kaggle PaySim synthetic 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 관리 흐름으로 확장하는 방향으로 문서화되어 있습니다. V2 문서는 설계 기준이며, 실제 구현 완료 상태를 의미하지 않습니다.
 
-V2 Phase 1에서는 PaySim 원본 CSV와 processed 전체 결과가 repository에 커밋되지 않도록 `data/` 디렉터리, `.gitignore`, `make data-policy-check` guardrail을 추가했습니다. 상세 기준은 [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md)와 [PaySim Data Scripts](scripts/data/README.md)를 확인합니다.
+V2 Phase 1에서는 PaySim 원본 CSV와 processed 전체 결과가 repository에 커밋되지 않도록 `data/` 디렉터리, `.gitignore`, `make data-policy-check` guardrail을 추가했습니다. V2 Phase 2에서는 optional KaggleHub download helper와 PaySim preprocessing normalization script를 추가했습니다. 상세 기준은 [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md), [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md), [PaySim Data Scripts](scripts/data/README.md)를 확인합니다.
+
+V2 PaySim data workflow:
+
+```bash
+make download-paysim
+make prepare-paysim-smoke
+make test-data-scripts
+```

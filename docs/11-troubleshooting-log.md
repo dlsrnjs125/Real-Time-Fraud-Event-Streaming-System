@@ -1323,3 +1323,91 @@ sample은 작은 검증용 산출물이지만 확장자만 보면 원본 CSV와 
 ### 남은 한계
 
 Phase 1의 shell check는 sample 내부에 raw identifier가 섞였는지 완전하게 검출하지 못합니다. Phase 3~4에서 sample generation과 identifier hashing 검증을 추가해야 합니다.
+
+## V2 Phase 2. KaggleHub cache path와 repository raw path 분리
+
+### 문제
+
+KaggleHub는 dataset을 repository 내부가 아니라 사용자 cache 경로에 다운로드합니다. 이 경로를 그대로 전처리 입력으로 사용하면 재현 명령과 data policy 기준이 흐려질 수 있습니다.
+
+### 원인
+
+KaggleHub의 `dataset_download`는 cache directory를 반환하며, 파일명이나 하위 경로는 dataset packaging에 따라 달라질 수 있습니다.
+
+### 대응
+
+`download_paysim_dataset.py`는 cache 내부에서 CSV를 찾은 뒤 `data/raw/PS_20174392719_1491204439457_log.csv`로 복사합니다. target file이 이미 있으면 기본적으로 덮어쓰지 않고, `--force`가 있을 때만 overwrite합니다.
+
+### 검증
+
+download helper는 CI에서 실행하지 않습니다. 대신 path 선택, overwrite 정책, source file 후보 처리 기준을 문서화하고, raw target은 `.gitignore`와 `make data-policy-check`로 보호합니다.
+
+### 남은 한계
+
+Kaggle 인증과 dataset 접근 가능 여부는 로컬 환경에 의존합니다. token이나 access credential은 repository, docs, logs에 남기지 않아야 합니다.
+
+## V2 Phase 2. 대용량 CSV를 pandas full load로 처리할 때의 메모리 위험
+
+### 문제
+
+PaySim CSV는 수백 MB 규모이므로 pandas로 전체 파일을 한 번에 로딩하면 로컬 메모리 사용량이 커지고 CI나 노트북 환경에서 불안정해질 수 있습니다.
+
+### 원인
+
+전처리의 목표는 row 단위 normalization인데, full DataFrame 로딩은 필요한 작업보다 훨씬 큰 메모리 footprint를 만들 수 있습니다.
+
+### 대응
+
+`prepare_paysim_dataset.py`는 Python stdlib `csv.DictReader`를 사용해 한 row씩 읽고, events/labels/rejected JSONL에 바로 기록합니다.
+
+### 검증
+
+작은 fixture 기반 unittest로 streaming conversion contract를 검증했습니다. full Kaggle CSV는 CI에서 처리하지 않습니다.
+
+### 남은 한계
+
+실제 493MB급 CSV 처리 시간과 local disk I/O 특성은 Phase 2 CI에서 측정하지 않습니다. 필요하면 local evidence로 별도 기록합니다.
+
+## V2 Phase 2. runtime event에 label이 섞일 위험
+
+### 문제
+
+`isFraud`나 `isFlaggedFraud`가 runtime event에 들어가면 online replay와 offline evaluation의 경계가 깨집니다.
+
+### 원인
+
+PaySim raw CSV에는 feature와 label이 같은 row에 들어 있으므로 단순 row dump 방식으로 JSONL을 만들면 Consumer가 정답 label을 볼 수 있습니다.
+
+### 대응
+
+전처리 script는 `paysim-events.jsonl`과 `paysim-labels.jsonl`을 분리합니다. runtime event에는 label, source flag, raw identifier, `receivedAt`을 쓰지 않습니다.
+
+### 검증
+
+`scripts/data/test_prepare_paysim_dataset.py`에서 runtime event에 `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`, `receivedAt`이 없는지 확인합니다.
+
+### 남은 한계
+
+후속 replay script도 label sidecar를 payload로 합치지 않도록 Phase 5에서 별도 검증해야 합니다.
+
+## V2 Phase 2. rejected row에 raw identifier를 남길 위험
+
+### 문제
+
+변환 실패 row를 디버깅하려고 raw row 전체를 rejected output에 남기면 `nameOrig`, `nameDest`가 저장될 수 있습니다.
+
+### 원인
+
+전처리 오류 분석에는 원본 row 정보가 유용하지만, Phase 1의 raw data guardrail 취지와 충돌합니다.
+
+### 대응
+
+`paysim-rejected.jsonl`에는 `rowNumber`, `reason`, `rawType`, `message`만 기록합니다. raw row 전체와 raw account-like identifier는 기록하지 않습니다.
+
+### 검증
+
+invalid amount fixture test에서 rejected record에 raw identifier가 포함되지 않는 것을 확인했습니다.
+
+### 남은 한계
+
+더 정교한 rejected reason taxonomy와 reject ratio 정책은 Phase 3에서 강화합니다.
