@@ -17,6 +17,8 @@ import java.time.OffsetDateTime;
 @AutoConfigureMockMvc
 class ProcessingLogQueryApiTest {
 
+    private static final String ADMIN_TOKEN = "test-admin-token";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -65,7 +67,8 @@ class ProcessingLogQueryApiTest {
                 processedAt
         );
 
-        mockMvc.perform(get("/api/v1/admin/events/{eventId}/processing-log", "evt-processing-query-001"))
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/processing-log", "evt-processing-query-001")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eventId").value("evt-processing-query-001"))
                 .andExpect(jsonPath("$.logs[0].eventId").value("evt-processing-query-001"))
@@ -80,7 +83,8 @@ class ProcessingLogQueryApiTest {
 
     @Test
     void missingEventIdReturnsEmptyLogs() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/events/{eventId}/processing-log", "evt-missing-processing-log"))
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/processing-log", "evt-missing-processing-log")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eventId").value("evt-missing-processing-log"))
                 .andExpect(jsonPath("$.logs").isArray())

@@ -202,6 +202,55 @@ Phase 12 k6 load test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`,
 
 Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.
 
+## 18. Phase 14 Admin API Protection
+
+Phase 14에서는 `/api/v1/admin/**` API에 `X-Admin-Token` 기반 최소 보호를 추가했습니다. 이는 local/dev 환경에서 운영자 API가 완전히 공개되는 것을 막기 위한 장치이며, production-grade 인증/인가는 아닙니다.
+
+기준:
+
+- Admin API 요청은 `X-Admin-Token` header가 필요합니다.
+- token 값은 `security.admin.token` 설정 또는 `ADMIN_API_TOKEN` 환경 변수로 주입합니다.
+- local 기본값은 개발 편의를 위한 `local-admin-token`이며 운영 환경에서는 기본값 사용을 금지합니다.
+- 기본값 `local-admin-token`이 활성화되면 app-api startup warning log를 남깁니다.
+- token이 없거나 틀리면 `401 UNAUTHORIZED_ADMIN_API`로 응답합니다.
+- 일반 transaction ingest API는 admin token 없이 동작합니다.
+- admin token은 log, metric tag, audit payload에 저장하지 않습니다.
+
+운영 환경에서는 JWT/OAuth2, ADMIN role, RBAC, IP allowlist, audit log 조회 권한, gateway/Nginx/API Gateway rate limit을 추가해야 합니다.
+
+## 19. Phase 14 Audit Log 기준
+
+Phase 14에서는 DLT reprocess/discard 성공과 실패를 `admin_audit_logs`에 저장합니다.
+
+저장하는 정보:
+
+- actor: request body의 `operatorId`. Phase 14에서는 인증된 principal이 아니라 local/dev audit 기록을 위한 self-claimed field입니다.
+- action: `DLT_REPROCESS`, `DLT_DISCARD`
+- target: DLT event id
+- request_id: Phase 14에서는 request-id 수집 체계가 없어 비워둡니다.
+- trace_id
+- result: `SUCCESS`, `FAILED`
+- reason: 운영자가 입력한 사유
+- metadata_json: eventId, 상태, attempts, maxAttempts, 결과 사유 같은 최소 정보
+
+저장하지 않는 정보:
+
+- `X-Admin-Token`
+- 원본 request body 전체
+- DLT `payload_json` 전체
+- accountId, deviceId 같은 민감 식별자
+- stacktrace 전체
+
+인증 실패는 DB audit log에 저장하지 않고 structured log로만 남깁니다. 인증 실패마다 DB write를 수행하면 brute-force 상황에서 DB 부하가 커질 수 있기 때문입니다.
+
+운영 환경에서는 audit actor를 request body 값이 아니라 JWT subject, SSO user id, RBAC principal처럼 인증된 사용자 식별자에서 가져와야 합니다. Gateway 또는 공통 filter에서 request id 표준이 생기면 `request_id`를 별도 저장하고, eventId는 계속 metadata로 유지합니다.
+
+## 20. Rate Limit과 Abuse Prevention 한계
+
+Phase 14의 abuse prevention은 단건 수동 조작 원칙, admin token 필수화, discard/reprocess reason validation, max reprocess attempts 정책에 한정합니다.
+
+별도 in-memory rate limiter는 local single instance에서만 의미가 있고, production에서는 Gateway/Nginx/API Gateway rate limit과 관리자 승인 workflow가 더 적절합니다. 따라서 Phase 14에서는 rate limit을 문서화된 후속 과제로 남깁니다.
+
 ## 17. Phase 13 Load and Failure Test 데이터 기준
 
 Phase 13 k6 load/failure test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`, `merchantId`만 사용합니다. 부하 테스트 payload에는 카드번호, 실명, 이메일, 전화번호 등 직접 식별 개인정보를 포함하지 않습니다.

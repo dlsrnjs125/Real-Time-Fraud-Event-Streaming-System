@@ -1,14 +1,19 @@
 package com.example.fraud.api.admin.dlt;
 
+import com.example.fraud.api.admin.audit.AdminAction;
+import com.example.fraud.api.admin.audit.AdminAuditLogService;
+import com.example.fraud.api.admin.audit.AdminAuditResult;
 import com.example.fraud.api.admin.dto.DlqDiscardResponse;
 import com.example.fraud.api.admin.dto.DlqEventSummaryResponse;
 import com.example.fraud.api.admin.dto.DlqReprocessResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
+import com.example.fraud.api.support.exception.ApiException;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -19,17 +24,23 @@ public class DeadLetterEventAdminService {
 
     private final DeadLetterEventRepository repository;
     private final DeadLetterReprocessPublisher publisher;
+    private final AdminAuditLogService auditLogService;
+    private final DltReprocessProperties reprocessProperties;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
     public DeadLetterEventAdminService(
             DeadLetterEventRepository repository,
             DeadLetterReprocessPublisher publisher,
+            AdminAuditLogService auditLogService,
+            DltReprocessProperties reprocessProperties,
             ObjectMapper objectMapper,
             Clock clock
     ) {
         this.repository = repository;
         this.publisher = publisher;
+        this.auditLogService = auditLogService;
+        this.reprocessProperties = reprocessProperties;
         this.objectMapper = objectMapper;
         this.clock = clock;
     }
@@ -53,18 +64,30 @@ public class DeadLetterEventAdminService {
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
     }
 
-    @Transactional(noRollbackFor = DeadLetterPublishFailedException.class)
-    public DlqReprocessResponse reprocess(long id, String traceId) {
+    @Transactional(noRollbackFor = ApiException.class)
+    public DlqReprocessResponse reprocess(long id, String actor, String reason, String traceId) {
         DeadLetterEventEntity event = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
         OffsetDateTime now = OffsetDateTime.now(clock);
-        event.startReprocessing(now);
-        TransactionEventMessage payload = readPayload(event);
         try {
+            if (event.getReprocessAttempts() >= reprocessProperties.getMaxAttempts()) {
+                throw new DeadLetterMaxAttemptsExceededException(
+                        event.getId(),
+                        event.getReprocessAttempts(),
+                        reprocessProperties.getMaxAttempts()
+                );
+            }
+            event.startReprocessing(now);
+            TransactionEventMessage payload = readPayload(event);
             publisher.publish(payload);
             event.markReprocessed(now);
+            recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "reprocessed");
         } catch (DeadLetterPublishFailedException exception) {
             event.markReprocessFailed(now);
+            recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, "publish_failed");
+            throw exception;
+        } catch (ApiException exception) {
+            recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, exception.errorCode().name());
             throw exception;
         }
         return new DlqReprocessResponse(
@@ -75,12 +98,68 @@ public class DeadLetterEventAdminService {
         );
     }
 
-    @Transactional
-    public DlqDiscardResponse discard(long id, String reason, String traceId) {
+    @Transactional(noRollbackFor = ApiException.class)
+    public DlqDiscardResponse discard(long id, String actor, String reason, String traceId) {
         DeadLetterEventEntity event = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new DeadLetterEventNotFoundException(id));
-        event.discard(reason, OffsetDateTime.now(clock));
+        try {
+            event.discard(reason, OffsetDateTime.now(clock));
+            recordDiscardAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "discarded");
+        } catch (ApiException exception) {
+            recordDiscardAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, exception.errorCode().name());
+            throw exception;
+        }
         return new DlqDiscardResponse(event.getId(), event.getStatus().name(), traceId);
+    }
+
+    private void recordReprocessAudit(
+            DeadLetterEventEntity event,
+            String actor,
+            String reason,
+            String traceId,
+            AdminAuditResult result,
+            String resultReason
+    ) {
+        auditLogService.recordDltAction(
+                actor,
+                AdminAction.DLT_REPROCESS,
+                event.getId(),
+                event.getEventId(),
+                traceId,
+                result,
+                reason,
+                Map.of(
+                        "eventId", event.getEventId(),
+                        "status", event.getStatus().name(),
+                        "reprocessAttempts", event.getReprocessAttempts(),
+                        "maxAttempts", reprocessProperties.getMaxAttempts(),
+                        "resultReason", resultReason
+                )
+        );
+    }
+
+    private void recordDiscardAudit(
+            DeadLetterEventEntity event,
+            String actor,
+            String reason,
+            String traceId,
+            AdminAuditResult result,
+            String resultReason
+    ) {
+        auditLogService.recordDltAction(
+                actor,
+                AdminAction.DLT_DISCARD,
+                event.getId(),
+                event.getEventId(),
+                traceId,
+                result,
+                reason,
+                Map.of(
+                        "eventId", event.getEventId(),
+                        "status", event.getStatus().name(),
+                        "resultReason", resultReason
+                )
+        );
     }
 
     private TransactionEventMessage readPayload(DeadLetterEventEntity event) {

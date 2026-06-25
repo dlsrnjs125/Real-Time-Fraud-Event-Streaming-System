@@ -127,18 +127,40 @@ Phase 9에서 Consumer 처리 실패 이벤트를 운영자가 조회/재처리/
 
 ### reprocessing_history
 
-별도 `reprocessing_history` 테이블은 현재 구현하지 않았습니다. Phase 9는 `dead_letter_events`의 상태, `reprocess_attempts`, `last_reprocessed_at`, `discard_reason`, `discarded_at`으로 단건 수동 재처리와 폐기 상태를 추적합니다.
+별도 `reprocessing_history` 테이블은 현재 구현하지 않았습니다. Phase 14부터 DLT reprocess/discard 운영자 조치는 `admin_audit_logs`에 저장합니다. `dead_letter_events`는 현재 상태와 attempts를, `admin_audit_logs`는 누가 어떤 조치를 요청했고 성공/실패했는지를 기록합니다.
 
-운영 확장 시에는 다음 필드를 가진 별도 audit history 테이블을 후속 후보로 둡니다.
+### admin_audit_logs
 
-- `id`: 재처리 이력 ID
-- `dlq_id`: DLQ 이벤트 ID
-- `operator_id`: 작업자 ID
-- `action`: `REPROCESS` 또는 `DISCARD`
-- `reason`: 재처리 또는 폐기 사유
-- `result`: 처리 결과
-- `reprocess_attempt_id`: 재처리 시도 ID
-- `created_at`: 이력 생성 시각
+Phase 14에서 운영자 조치 감사 가능성을 위해 추가한 테이블입니다.
+
+- `id`: audit log ID
+- `actor`: 운영자 식별자. Phase 14에서는 request body의 self-claimed `operatorId`
+- `action`: `DLT_REPROCESS`, `DLT_DISCARD`
+- `target_type`: 현재는 `DLT_EVENT`
+- `target_id`: DLT event id
+- `request_id`: Phase 14에서는 request-id 수집 체계가 없어 null. 추후 gateway/request-id 표준화 시 저장
+- `trace_id`: 요청 trace ID
+- `result`: `SUCCESS`, `FAILED`
+- `reason`: 운영자가 입력한 사유. 최대 500자 기준으로 저장
+- `metadata_json`: eventId, 상태, attempts, maxAttempts, 결과 사유 같은 최소 metadata
+- `created_at`: audit row 생성 시각
+
+인덱스:
+
+- `idx_admin_audit_actor_created_at`
+- `idx_admin_audit_action_created_at`
+- `idx_admin_audit_target`
+- `idx_admin_audit_trace_id`
+
+저장하지 않는 정보:
+
+- admin token
+- DLT `payload_json` 전체
+- request body 전체
+- accountId, deviceId 같은 민감 식별자
+- stacktrace 전체
+
+Phase 14에서는 audit log 저장까지만 구현하고, audit log 검색/필터링 API는 후속 운영 보안 Phase로 분리합니다.
 
 ## 3. 중복 방어 기준
 

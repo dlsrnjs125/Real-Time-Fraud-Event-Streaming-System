@@ -12,3 +12,11 @@ spring:
     open-in-view: false
   kafka:
     bootstrap-servers: localhost:9092
+
+security:
+  admin:
+    token: test-admin-token
+
+dlt:
+  reprocess:
+    max-attempts: 3

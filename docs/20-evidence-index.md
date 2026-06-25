@@ -19,6 +19,7 @@
 | Phase 11 | Final readiness review and documentation | docs link check, validation commands | 현재 PR에서 실행 결과 기록 |
 | Phase 12 | Observability hardening | Prometheus/Grafana provisioning, alert rule, actuator metric check | `docs/08-observability.md` |
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
+| Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
 
 ## CI / Build
 
