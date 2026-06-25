@@ -139,6 +139,8 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
 ```json
 {
   "scriptVersion": "v2-phase-2",
+  "datasetSlug": "ealaxi/paysim1",
+  "rawFileName": "PS_20174392719_1491204439457_log.csv",
   "inputPath": "data/raw/PS_20174392719_1491204439457_log.csv",
   "inputSha256": "TBD",
   "baseTime": "2026-01-01T00:00:00Z",
@@ -179,7 +181,7 @@ traceId = trace-paysim-{rowNumber zero padded}
 - replay를 반복해도 같은 row는 같은 `eventId`를 갖습니다.
 - Consumer idempotency와 duplicate replay 검증에 사용할 수 있습니다.
 - PaySim row order가 바뀌면 eventId가 바뀔 수 있으므로 전처리 script는 input order를 보존합니다.
-- `eventId`는 `inputSha256`과 `sourceRowNumber` 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
+- `eventId`는 `inputSha256`과 raw row number 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
 
 ## 6. Time Policy
 
@@ -284,7 +286,9 @@ Row-level reject:
 - `nameOrig` 또는 `nameDest` blank
 - `isFraud` 또는 `isFlaggedFraud`가 0/1이 아님
 
-Rejected row 비율 정책:
+Rejected row 비율 정책은 V2 Phase 3에서 구현합니다. Phase 2는 `row-level`과 `fail-fast` reject policy만 제공합니다.
+
+Phase 3 후보:
 
 - 기본 `--max-reject-ratio 0.01`
 - reject ratio가 max reject ratio를 초과하면 report와 rejected output은 생성하되 exit code 2로 종료합니다.
@@ -302,6 +306,7 @@ PaySim은 수백만 row 규모로 사용될 수 있으므로 전처리 script는
 - progress log는 N건마다 출력
 - 개발 중 일부 row만 처리할 수 있도록 `--limit` 옵션 제공
 - `nameOrig`, `nameDest`, label 값은 progress log에 출력하지 않음
+- `--limit`은 output row 수만 제한하며, input provenance를 위해 SHA-256은 전체 raw file 기준으로 계산
 
 CLI 예시:
 

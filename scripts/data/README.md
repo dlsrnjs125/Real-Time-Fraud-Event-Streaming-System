@@ -25,13 +25,31 @@ python3 scripts/data/download_paysim_dataset.py
 python3 scripts/data/download_paysim_dataset.py --force
 ```
 
-The helper uses `kagglehub` to download `moonknightmarvel/paysim` into the local KaggleHub cache and copies the CSV into `data/raw`. Install the optional dependency when needed:
+The helper uses `kagglehub` to download `ealaxi/paysim1` into the local KaggleHub cache and copies the expected CSV into `data/raw`. Install the optional dependency when needed:
 
 ```bash
 pip install kagglehub
 ```
 
 Do not commit Kaggle tokens, API tokens, `.env`, or raw CSV files.
+
+## Kaggle Authentication
+
+`download_paysim_dataset.py` is a local-only helper.
+
+Recommended options:
+
+- OAuth: `kaggle auth login`
+- API token: create a token from Kaggle account settings
+- Legacy credentials: store `kaggle.json` under `~/.kaggle/kaggle.json`
+
+Do not commit:
+
+- `kaggle.json`
+- `.env`
+- access tokens
+- `KAGGLE_API_TOKEN`
+- downloaded raw CSV files
 
 ## Data Directory Policy
 
@@ -56,9 +74,9 @@ PaySim is synthetic, but `nameOrig` and `nameDest` look like account identifiers
 The preprocessing script hashes identifiers before writing replayable events:
 
 ```text
-userId = U-{sha256(nameOrig + salt).substring(0, 16)}
-accountId = A-{sha256(nameOrig + salt).substring(0, 16)}
-destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
+userId = U-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+accountId = A-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 ```
 
 Do not commit a production salt or `.env` file.
@@ -95,6 +113,8 @@ Generated full outputs are written under `data/processed` and must not be commit
 The preprocessing script streams the CSV with Python `csv.DictReader`. It does not load the full file into memory.
 
 Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`. Labels are written only to the sidecar file and joined by `eventId`.
+
+`--limit` only limits output row processing. The script still computes SHA-256 for the full raw input file so the validation report keeps file-level provenance.
 
 Test the data scripts without the real Kaggle CSV:
 

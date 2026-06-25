@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import hmac
 import importlib.util
 import json
 import subprocess
@@ -69,22 +70,27 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         ]
         return subprocess.run(command, text=True, capture_output=True, check=False)
 
+    def base_row(self, **overrides):
+        row = {
+            "step": "1",
+            "type": "TRANSFER",
+            "amount": "9839.64",
+            "nameOrig": "C123",
+            "oldbalanceOrg": "170136.00",
+            "newbalanceOrig": "160296.36",
+            "nameDest": "M456",
+            "oldbalanceDest": "0.00",
+            "newbalanceDest": "9839.64",
+            "isFraud": "1",
+            "isFlaggedFraud": "0",
+        }
+        row.update(overrides)
+        return row
+
     def test_normal_rows_are_split_into_events_and_labels(self):
         result = self.run_prepare(
             [
-                {
-                    "step": "1",
-                    "type": "TRANSFER",
-                    "amount": "9839.64",
-                    "nameOrig": "C123",
-                    "oldbalanceOrg": "170136.00",
-                    "newbalanceOrig": "160296.36",
-                    "nameDest": "M456",
-                    "oldbalanceDest": "0.00",
-                    "newbalanceDest": "9839.64",
-                    "isFraud": "1",
-                    "isFlaggedFraud": "0",
-                },
+                self.base_row(),
                 {
                     "step": "2",
                     "type": "CASH_OUT",
@@ -138,19 +144,7 @@ class PreparePaySimDatasetTest(unittest.TestCase):
     def test_invalid_amount_is_rejected_with_safe_record(self):
         result = self.run_prepare(
             [
-                {
-                    "step": "1",
-                    "type": "TRANSFER",
-                    "amount": "-1.00",
-                    "nameOrig": "C123",
-                    "oldbalanceOrg": "10.00",
-                    "newbalanceOrig": "9.00",
-                    "nameDest": "M456",
-                    "oldbalanceDest": "0.00",
-                    "newbalanceDest": "1.00",
-                    "isFraud": "0",
-                    "isFlaggedFraud": "0",
-                }
+                self.base_row(amount="-1.00", isFraud="0")
             ]
         )
 
@@ -165,19 +159,7 @@ class PreparePaySimDatasetTest(unittest.TestCase):
     def test_fail_fast_policy_exits_on_invalid_row(self):
         result = self.run_prepare(
             [
-                {
-                    "step": "1",
-                    "type": "TRANSFER",
-                    "amount": "-1.00",
-                    "nameOrig": "C123",
-                    "oldbalanceOrg": "10.00",
-                    "newbalanceOrig": "9.00",
-                    "nameDest": "M456",
-                    "oldbalanceDest": "0.00",
-                    "newbalanceDest": "1.00",
-                    "isFraud": "0",
-                    "isFlaggedFraud": "0",
-                }
+                self.base_row(amount="-1.00", isFraud="0")
             ],
             "--reject-policy",
             "fail-fast",
@@ -189,22 +171,14 @@ class PreparePaySimDatasetTest(unittest.TestCase):
     def test_hash_ids_are_deterministic(self):
         raw = "C123"
         salt = "unit-test-salt"
-        expected = hashlib.sha256(f"{raw}{salt}".encode("utf-8")).hexdigest()[:16]
+        expected = hmac.new(
+            salt.encode("utf-8"),
+            raw.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()[:16]
         result = self.run_prepare(
             [
-                {
-                    "step": "1",
-                    "type": "PAYMENT",
-                    "amount": "10.00",
-                    "nameOrig": raw,
-                    "oldbalanceOrg": "20.00",
-                    "newbalanceOrig": "10.00",
-                    "nameDest": "M456",
-                    "oldbalanceDest": "0.00",
-                    "newbalanceDest": "10.00",
-                    "isFraud": "0",
-                    "isFlaggedFraud": "0",
-                }
+                self.base_row(type="PAYMENT", amount="10.00", nameOrig=raw, isFraud="0")
             ]
         )
 
@@ -212,6 +186,110 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         event = read_jsonl(self.output_dir / "paysim-events.jsonl")[0]
         self.assertEqual(f"U-{expected}", event["userId"])
         self.assertEqual(f"A-{expected}", event["accountId"])
+
+    def test_missing_required_column_fails(self):
+        with self.input.open("w", encoding="utf-8", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=[field for field in HEADER if field != "amount"])
+            writer.writeheader()
+            row = self.base_row()
+            del row["amount"]
+            writer.writerow(row)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--input",
+                str(self.input),
+                "--output-dir",
+                str(self.output_dir),
+                "--force",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("missing required columns: amount", result.stderr)
+
+    def test_invalid_label_type_and_blank_identifier_are_rejected(self):
+        result = self.run_prepare(
+            [
+                self.base_row(isFraud="2"),
+                self.base_row(type="UNKNOWN"),
+                self.base_row(nameOrig=""),
+                self.base_row(nameDest=" "),
+            ]
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        rejected = read_jsonl(self.output_dir / "paysim-rejected.jsonl")
+        self.assertEqual(
+            ["INVALID_LABEL", "INVALID_TYPE", "UNSUPPORTED_ROW", "UNSUPPORTED_ROW"],
+            [row["reason"] for row in rejected],
+        )
+
+    def test_non_finite_decimal_values_are_rejected(self):
+        result = self.run_prepare(
+            [
+                self.base_row(amount="NaN"),
+                self.base_row(oldbalanceOrg="Infinity"),
+            ]
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        rejected = read_jsonl(self.output_dir / "paysim-rejected.jsonl")
+        self.assertEqual(["INVALID_AMOUNT", "INVALID_BALANCE"], [row["reason"] for row in rejected])
+
+    def test_limit_zero_writes_empty_outputs_and_report(self):
+        result = self.run_prepare([self.base_row()], "--limit", "0")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], read_jsonl(self.output_dir / "paysim-events.jsonl"))
+        self.assertEqual([], read_jsonl(self.output_dir / "paysim-labels.jsonl"))
+        report = json.loads((self.output_dir / "paysim-validation-report.json").read_text())
+        self.assertEqual(0, report["totalRows"])
+        self.assertEqual(0, report["acceptedRows"])
+
+    def test_existing_output_without_force_fails(self):
+        first = self.run_prepare([self.base_row()])
+        self.assertEqual(0, first.returncode, first.stderr)
+
+        write_csv(self.input, [self.base_row()])
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--input",
+                str(self.input),
+                "--output-dir",
+                str(self.output_dir),
+                "--hash-salt",
+                "unit-test-salt",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("output file already exists", result.stderr)
+
+    def test_raw_identifier_never_appears_in_outputs(self):
+        result = self.run_prepare([self.base_row()])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        combined = ""
+        for name in (
+            "paysim-events.jsonl",
+            "paysim-labels.jsonl",
+            "paysim-rejected.jsonl",
+            "paysim-validation-report.json",
+        ):
+            combined += (self.output_dir / name).read_text(encoding="utf-8")
+        self.assertNotIn("C123", combined)
+        self.assertNotIn("M456", combined)
 
 
 if __name__ == "__main__":

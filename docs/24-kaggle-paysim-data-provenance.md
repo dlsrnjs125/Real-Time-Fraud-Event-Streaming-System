@@ -104,7 +104,7 @@ python3 scripts/data/download_paysim_dataset.py
 python3 scripts/data/download_paysim_dataset.py --force
 ```
 
-helper는 KaggleHub cache에 `moonknightmarvel/paysim` dataset을 다운로드하고, cache 안의 CSV를 아래 경로로 복사합니다.
+helper는 KaggleHub cache에 `ealaxi/paysim1` dataset을 다운로드하고, cache 안의 expected CSV를 아래 경로로 복사합니다.
 
 ```text
 data/raw/PS_20174392719_1491204439457_log.csv
@@ -128,7 +128,7 @@ python3 scripts/data/prepare_paysim_dataset.py --limit 1000 --force
 
 4. 후속 V2 Phase 5에서 Replay script로 app-api에 이벤트를 주입합니다.
 
-raw dataset acquisition과 preprocessing은 분리합니다. download helper는 raw CSV를 local에 준비하는 도구이고, preprocessing script는 raw CSV의 SHA-256을 계산해 validation report에 기록합니다.
+raw dataset acquisition과 preprocessing은 분리합니다. download helper는 raw CSV를 local에 준비하는 도구이고, preprocessing script는 raw CSV의 SHA-256과 `datasetSlug`를 validation report에 기록합니다.
 
 ## 6. Security and Privacy Notes
 
@@ -161,9 +161,9 @@ python scripts/data/prepare_paysim_dataset.py \
 Hashing 규칙:
 
 ```text
-userId = U-{sha256(nameOrig + salt).substring(0, 16)}
-accountId = A-{sha256(nameOrig + salt).substring(0, 16)}
-destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
+userId = U-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+accountId = A-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 ```
 
 기준:

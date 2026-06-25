@@ -548,7 +548,7 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - V2 시작 순서를 Rule Engine이 아니라 data provenance, raw protection, preprocessing, validation, sampling, hashing, replay pipeline으로 재정렬했습니다.
 - ActionDecision은 CRITICAL 이벤트의 복수 action을 지원하기 위해 `unique(event_id, action_type)` 기준으로 정리했습니다.
 - V2 runtime schema를 `TransactionBalanceFeatures` typed optional field로 확정하고 generic feature map을 제외했습니다.
-- preprocessing fail-fast/row-level reject, streaming CSV 처리, max reject ratio 기준을 문서화했습니다.
+- preprocessing fail-fast/row-level reject, streaming CSV 처리 기준을 문서화하고 max reject ratio는 Phase 3 후보로 분리했습니다.
 - 자동 ActionDecision 생성은 admin audit log가 아니라 `fraud_action_decisions` table과 metrics/evidence로 추적하도록 정리했습니다.
 - CRITICAL risk도 실제 계좌 정지로 자동 연결하지 않고 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG`, Fraud Case, Admin Review로 분리했습니다.
 - V2 구현 전 data mapping, Rule V2, Action Decision, Fraud Case, Evidence Plan을 독립 문서로 나눠 구현 순서를 명확히 했습니다.
@@ -681,3 +681,4 @@ PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
 - 실제 Kaggle dataset 접근과 token 설정은 local 환경에서만 확인합니다.
 - identifier hashing은 최소 구현이며 Phase 4에서 salt policy와 sample 검증을 강화합니다.
 - rejected row taxonomy와 reject ratio policy는 Phase 3에서 고도화합니다.
+- data script test는 missing column, invalid label/type, blank identifier, non-finite Decimal, existing output protection, raw identifier leakage까지 검증합니다.

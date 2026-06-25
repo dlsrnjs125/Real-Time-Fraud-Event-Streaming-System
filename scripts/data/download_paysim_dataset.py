@@ -6,12 +6,26 @@ from __future__ import annotations
 import argparse
 import shutil
 import sys
+import csv
 from pathlib import Path
 
 
-DEFAULT_DATASET = "moonknightmarvel/paysim"
+DEFAULT_DATASET = "ealaxi/paysim1"
 DEFAULT_FILE_NAME = "PS_20174392719_1491204439457_log.csv"
 DEFAULT_TARGET = Path("data/raw") / DEFAULT_FILE_NAME
+REQUIRED_COLUMNS = {
+    "step",
+    "type",
+    "amount",
+    "nameOrig",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "nameDest",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "isFraud",
+    "isFlaggedFraud",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,17 +61,26 @@ def find_csv(cache_path: Path, source_file: str | None) -> Path:
     default_candidates = list(cache_path.rglob(DEFAULT_FILE_NAME))
     if len(default_candidates) == 1:
         return default_candidates[0]
+    if len(default_candidates) > 1:
+        raise SystemExit(f"ERROR: multiple expected PaySim CSV files found: {DEFAULT_FILE_NAME}")
 
-    csv_candidates = list(cache_path.rglob("*.csv"))
-    if not csv_candidates:
-        raise SystemExit("ERROR: no CSV file found in kagglehub cache.")
-    if len(csv_candidates) > 1:
-        names = ", ".join(sorted(path.name for path in csv_candidates))
-        raise SystemExit(
-            "ERROR: multiple CSV files found. Re-run with --source-file. "
-            f"Candidates: {names}"
-        )
-    return csv_candidates[0]
+    raise SystemExit(
+        f"ERROR: expected PaySim CSV not found: {DEFAULT_FILE_NAME}. "
+        "Re-run with --source-file only after verifying the dataset contents."
+    )
+
+
+def validate_csv_header(path: Path) -> None:
+    with path.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        if reader.fieldnames is None:
+            raise SystemExit(f"ERROR: CSV header parse failed: {path.name}")
+        missing = sorted(REQUIRED_COLUMNS - set(reader.fieldnames))
+        if missing:
+            raise SystemExit(
+                "ERROR: selected CSV does not match PaySim required columns. "
+                f"Missing: {', '.join(missing)}"
+            )
 
 
 def main() -> int:
@@ -83,9 +106,11 @@ def main() -> int:
         return 1
 
     source = find_csv(cache_path, args.source_file)
+    validate_csv_header(source)
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
 
+    print(f"Dataset slug: {args.dataset}")
     print(f"Downloaded cache path: {cache_path}")
     print(f"Copied source file: {source.name}")
     print(f"Copied target path: {target}")

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import hmac
 import json
 import os
 import sys
@@ -20,6 +21,7 @@ SCRIPT_VERSION = "v2-phase-2"
 DEFAULT_INPUT = Path("data/raw/PS_20174392719_1491204439457_log.csv")
 DEFAULT_OUTPUT_DIR = Path("data/processed")
 DEFAULT_BASE_TIME = "2026-01-01T00:00:00Z"
+DEFAULT_DATASET_SLUG = "ealaxi/paysim1"
 DEFAULT_HASH_SALT_ENV = "PAYSIM_HASH_SALT"
 DEFAULT_LOCAL_SALT = "local-dev-paysim-salt"
 HASH_PREFIX_LENGTH = 16
@@ -68,6 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--base-time", default=DEFAULT_BASE_TIME)
+    parser.add_argument("--dataset-slug", default=DEFAULT_DATASET_SLUG)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--reject-policy", choices=("row-level", "fail-fast"), default="row-level")
     parser.add_argument("--hash-salt")
@@ -96,6 +99,8 @@ def decimal_from(row: dict[str, str], field: str, reason: str) -> Decimal:
         value = Decimal(row[field])
     except (InvalidOperation, KeyError) as exc:
         raise RowRejected(reason, f"{field} must be a decimal") from exc
+    if not value.is_finite():
+        raise RowRejected(reason, f"{field} must be a finite decimal")
     return value
 
 
@@ -122,8 +127,16 @@ def parse_label(row: dict[str, str], field: str) -> bool:
     raise RowRejected("INVALID_LABEL", f"{field} must be 0 or 1")
 
 
+def pseudonym_digest(raw: str, salt: str) -> str:
+    return hmac.new(
+        salt.encode("utf-8"),
+        raw.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()[:HASH_PREFIX_LENGTH]
+
+
 def hashed_id(prefix: str, raw: str, salt: str) -> str:
-    digest = hashlib.sha256(f"{raw}{salt}".encode("utf-8")).hexdigest()[:HASH_PREFIX_LENGTH]
+    digest = pseudonym_digest(raw, salt)
     return f"{prefix}-{digest}"
 
 
@@ -202,7 +215,7 @@ def normalize_row(
     sequence = f"{row_number:09d}"
     event_id = f"paysim-{sequence}"
     event_time = base_time + timedelta(hours=step)
-    origin_hash = hashlib.sha256(f"{name_orig}{salt}".encode("utf-8")).hexdigest()[:HASH_PREFIX_LENGTH]
+    origin_hash = pseudonym_digest(name_orig, salt)
 
     event = {
         "eventId": event_id,
@@ -299,6 +312,8 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
     finished_at = iso_z(datetime.now(timezone.utc))
     report = {
         "scriptVersion": SCRIPT_VERSION,
+        "datasetSlug": args.dataset_slug,
+        "rawFileName": args.input.name,
         "inputPath": str(args.input),
         "inputSha256": input_sha256,
         "baseTime": iso_z(base_time),
