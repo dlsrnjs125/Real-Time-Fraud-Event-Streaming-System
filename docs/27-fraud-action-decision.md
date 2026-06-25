@@ -154,14 +154,17 @@ CRITICAL 이벤트는 `BLOCK_TRANSACTION_CANDIDATE`와 `ACCOUNT_RISK_FLAG` actio
 
 Action decision 생성은 운영자 직접 조치가 아니라 Consumer processing 결과입니다.
 
-Audit 후보:
+V2 초기 구현에서는 Consumer가 자동 생성하는 ActionDecision을 `admin_audit_logs`에 모두 기록하지 않습니다.
 
-- `FRAUD_ACTION_DECISION_CREATED`
-- target type: `EVENT`
-- target id: `eventId`
-- metadata: risk level, action type, action status
+정책:
 
-운영자 review와 case resolution은 `admin_audit_logs`에 별도 action으로 남깁니다.
+- `fraud_action_decisions` table이 system decision record 역할을 합니다.
+- ActionDecision 생성 count와 분포는 metrics/log/evidence summary로 관측합니다.
+- 운영자가 fraud case를 resolve하거나 상태를 변경하는 경우에만 admin audit log를 남깁니다.
+
+후속 후보:
+
+- `FRAUD_ACTION_DECISION_CREATED`를 admin audit log가 아니라 domain event 또는 metric/log 후보로 둡니다.
 
 ## 9. Observability
 

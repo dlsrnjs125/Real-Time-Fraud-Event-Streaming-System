@@ -217,3 +217,41 @@ Phase 4의 `event_processing_logs`는 `event_id` unique constraint를 두지 않
 | `reprocessing_history` | 후속 구현 시 감사 목적 보존 | 운영자 조치 이력 추적 |
 
 보존 기간은 로컬 검증 기준입니다. 운영 환경에서는 법적 보존 기준, 개인정보 최소 보관 원칙, 저장 비용을 함께 고려해 조정합니다.
+
+## 7. V2 PaySim Data Model Planning
+
+V2 PaySim 구현 전 설계 기준입니다. 아직 DB migration이나 Java schema가 구현된 상태는 아닙니다.
+
+### Runtime event feature
+
+V2 runtime event는 정답 label을 포함하지 않고, Rule V2에 필요한 balance feature만 typed optional field로 전달합니다.
+
+결정:
+
+- `TransactionBalanceFeatures` typed optional field를 추가합니다.
+- generic `Map<String, Object> features`는 사용하지 않습니다.
+- `isFraud`, `sourceFlaggedFraud`, `label`은 runtime event나 Kafka message에 포함하지 않습니다.
+- PaySim label은 `paysim-labels.jsonl` sidecar에만 저장합니다.
+
+후보 field:
+
+```text
+oldBalanceOrig
+newBalanceOrig
+oldBalanceDest
+newBalanceDest
+sourceStep
+```
+
+### V2 proposed tables
+
+`fraud_action_decisions`:
+
+- `unique(event_id, action_type)` 기준으로 중복 action을 방어합니다.
+- CRITICAL event는 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG` action row를 동시에 가질 수 있습니다.
+
+`fraud_cases`:
+
+- `event_id` unique 기준으로 case 중복 생성을 방어합니다.
+- HIGH/CRITICAL 중심으로 case를 생성합니다.
+- `ACCOUNT_RISK_FLAG`는 case table에 중복 저장하지 않고 action decision row로 유지합니다.

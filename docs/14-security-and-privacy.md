@@ -279,3 +279,4 @@ destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
 - sample data에는 raw `nameOrig`, `nameDest`를 포함하지 않습니다.
 - salt는 운영 환경에서 secret으로 관리해야 합니다.
 - PaySim label은 sidecar 파일에만 저장하고, Rule Engine 입력이나 Kafka replay payload로 사용하지 않습니다.
+- V2 runtime event에는 `TransactionBalanceFeatures`만 포함하고, `isFraud`, `sourceFlaggedFraud`, `label`은 포함하지 않습니다.

@@ -262,3 +262,46 @@ ML 기반 탐지는 다음 방식 중 하나로 확장합니다.
 - hybrid scoring: Rule score와 ML score를 함께 사용
 
 초기 Rule Engine은 `matchedRuleCodes`, `skippedRuleCodes`, `riskScore`를 남기므로 향후 ML score를 추가하더라도 운영자가 판단 근거를 비교할 수 있습니다.
+
+## 10. V2 PaySim Rule Strategy Planning
+
+V2에서는 PaySim synthetic dataset을 사용하지만 AI/ML 모델은 구현하지 않습니다. Rule 기반 탐지를 유지하고, PaySim의 거래 유형과 잔액 변화 feature를 활용합니다.
+
+### Runtime feature contract
+
+Rule V2는 `TransactionBalanceFeatures` typed optional field를 입력으로 사용합니다.
+
+필드:
+
+- `oldBalanceOrig`
+- `newBalanceOrig`
+- `oldBalanceDest`
+- `newBalanceDest`
+- `sourceStep`
+
+금지:
+
+- `isFraud`를 Rule 입력으로 사용하지 않습니다.
+- `sourceFlaggedFraud`를 Rule 입력으로 사용하지 않습니다.
+- PaySim label을 Kafka runtime payload에 포함하지 않습니다.
+
+### Initial V2 rules
+
+초기 V2 구현 rule:
+
+- `BALANCE_DRAIN`
+- `ZERO_BALANCE_AFTER_TRANSFER`
+- `TRANSFER_CASHOUT_PATTERN`
+
+후속 후보:
+
+- `DESTINATION_BALANCE_ANOMALY`
+- `NEW_DESTINATION`
+- `FAILED_THEN_SUCCESS`
+- `AMOUNT_Z_SCORE`
+
+### Evaluation policy
+
+Offline evaluation과 online replay evaluation은 같은 Java Rule Engine과 같은 `ruleVersion`을 사용해야 합니다. Python으로 rule logic을 별도 재구현하지 않습니다.
+
+PaySim label 기반 precision/recall/f1은 production ML model 성능이 아니라 Rule coverage 분석 지표입니다.

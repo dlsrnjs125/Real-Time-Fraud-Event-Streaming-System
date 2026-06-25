@@ -44,7 +44,7 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
   "traceId": "trace-paysim-000000001",
   "schemaVersion": "v2-paysim",
   "source": "PAYSIM",
-  "features": {
+  "balanceFeatures": {
     "oldBalanceOrig": 170136.0,
     "newBalanceOrig": 160296.36,
     "oldBalanceDest": 0.0,
@@ -77,16 +77,16 @@ PaySim label은 runtime event와 물리적으로 분리합니다.
 
 | PaySim column | V2 normalized field | Notes |
 |---|---|---|
-| `step` | `eventTime`, `features.step` | 기준 시작 시각 + step hour |
+| `step` | `eventTime`, `balanceFeatures.sourceStep` | 기준 시작 시각 + step hour |
 | `type` | `eventType` | 기존 enum과 호환 필요 |
 | `amount` | `amount` | `BigDecimal`로 처리 |
 | `nameOrig` | `userId` | user-based Kafka key 유지 |
 | `nameOrig` | `accountId` | `ACC-` prefix 적용 가능 |
 | `nameDest` | `destinationAccountId` | V2 field 확장 후보 |
-| `oldbalanceOrg` | `features.oldBalanceOrig` | balance drain rule 입력 |
-| `newbalanceOrig` | `features.newBalanceOrig` | zero balance rule 입력 |
-| `oldbalanceDest` | `features.oldBalanceDest` | destination anomaly rule 입력 |
-| `newbalanceDest` | `features.newBalanceDest` | destination anomaly rule 입력 |
+| `oldbalanceOrg` | `balanceFeatures.oldBalanceOrig` | balance drain rule 입력 |
+| `newbalanceOrig` | `balanceFeatures.newBalanceOrig` | zero balance rule 입력 |
+| `oldbalanceDest` | `balanceFeatures.oldBalanceDest` | destination anomaly rule 입력 |
+| `newbalanceDest` | `balanceFeatures.newBalanceDest` | destination anomaly rule 입력 |
 | `isFraud` | `paysim-labels.jsonl.isFraud` | 평가용 sidecar. runtime event에 포함 금지 |
 | `isFlaggedFraud` | `paysim-labels.jsonl.sourceFlaggedFraud` | 평가용 sidecar. runtime event에 포함 금지 |
 
@@ -198,17 +198,42 @@ eventTime = baseTime + step hours
 - Rule 결과와 PaySim label을 비교해 precision/recall 후보를 계산합니다.
 - missed fraud, false positive example을 문서화합니다.
 
-## 8. Schema Boundary
+## 8. Runtime Schema Decision
 
-V2 구현 시 선택지는 두 가지입니다.
+V2 초기 구현은 Rule V2가 balance 기반 feature를 안정적으로 읽을 수 있도록 typed optional field를 추가합니다.
 
-1. 기존 `TransactionEventMessage`에 V2 optional fields를 추가
-2. 별도 `PaySimTransactionEventMessage`를 만들고 app-api에서 공통 transaction event로 변환
+결정:
 
-권장:
+- `TransactionEventMessage`와 API request DTO에 `TransactionBalanceFeatures` optional field를 추가합니다.
+- generic `Map<String, Object> features`는 사용하지 않습니다.
+- `TransactionBalanceFeatures`에는 PaySim label이나 source flag를 포함하지 않습니다.
+- field 이름은 PaySim 전용이 아니라 balance 기반 rule 입력임을 드러내는 이름을 사용합니다.
 
-- app-common의 핵심 transaction schema는 과도하게 PaySim 전용으로 오염시키지 않습니다.
-- `features`처럼 V2 rule에 필요한 확장 필드는 명시적으로 문서화하고, API DTO와 consumer contract 변경 시 docs/05, docs/16을 함께 갱신합니다.
+후보 Java contract:
+
+```java
+public record TransactionBalanceFeatures(
+        BigDecimal oldBalanceOrig,
+        BigDecimal newBalanceOrig,
+        BigDecimal oldBalanceDest,
+        BigDecimal newBalanceDest,
+        Integer sourceStep
+) {
+}
+```
+
+이 결정의 이유:
+
+- Rule V2 구현 시 타입 안정성이 필요합니다.
+- `BigDecimal` 기반 금액/잔액 처리를 명확히 합니다.
+- Map 기반 형변환, 누락, 타입 오류를 줄입니다.
+- label sidecar와 runtime payload 분리를 강제하기 쉽습니다.
+
+구현 시 함께 갱신할 문서:
+
+- `docs/04-data-model.md`
+- `docs/05-api-design.md`
+- `docs/16-fraud-detection-strategy.md`
 
 ## 9. Validation Policy
 
@@ -224,7 +249,59 @@ V2 구현 시 선택지는 두 가지입니다.
 - `isFraud in 0, 1`
 - `isFlaggedFraud in 0, 1`
 
-잘못된 row는 skip하지 않고 rejected output 또는 error report에 기록합니다.
+## 9.1 Fail-fast and Row-level Reject Policy
+
+전처리 script는 실패 유형을 구분합니다.
+
+Fail-fast:
+
+- input file missing
+- required column missing
+- CSV header parse 실패
+- output directory not writable
+- `--hash-identifiers`가 true인데 salt가 없음
+
+Row-level reject:
+
+- `amount < 0`
+- `step < 0`
+- balance parse 실패
+- `nameOrig` 또는 `nameDest` blank
+- `isFraud` 또는 `isFlaggedFraud`가 0/1이 아님
+
+Rejected row 비율 정책:
+
+- 기본 `--max-reject-ratio 0.01`
+- reject ratio가 max reject ratio를 초과하면 report와 rejected output은 생성하되 exit code 2로 종료합니다.
+- 이 정책은 CI나 local 검증에서 데이터 품질 문제를 빠르게 드러내기 위한 것입니다.
+
+## 9.2 Large CSV Processing Policy
+
+PaySim은 수백만 row 규모로 사용될 수 있으므로 전처리 script는 streaming 처리를 기본으로 합니다.
+
+기준:
+
+- Python `csv.DictReader` 기반 streaming 처리
+- 한 row씩 validate -> normalize -> write
+- 전체 input을 memory에 올리지 않음
+- progress log는 N건마다 출력
+- 개발 중 일부 row만 처리할 수 있도록 `--limit` 옵션 제공
+
+CLI 예시:
+
+```bash
+python scripts/data/prepare_paysim_dataset.py \
+  --input data/raw/PS_20174392719_1491204439457_log.csv \
+  --events-output data/processed/paysim-events.jsonl \
+  --labels-output data/processed/paysim-labels.jsonl \
+  --rejected-output data/processed/paysim-rejected.jsonl \
+  --report-output data/processed/paysim-validation-report.json \
+  --base-time 2026-01-01T00:00:00Z \
+  --hash-identifiers \
+  --hash-salt-env PAYSIM_HASH_SALT \
+  --limit 100000 \
+  --max-reject-ratio 0.01
+```
 
 ## 10. Sampling Policy
 
@@ -270,8 +347,20 @@ python scripts/data/replay_paysim_to_api.py \
 - 실패 응답 기록
 - replay summary 출력
 - eventId prefix 옵션
-- fraud-only replay 옵션
-- normal-only replay 옵션
+- 기본 replay는 `paysim-events.jsonl`만 읽고 label에 접근하지 않음
+- fraud-only/normal-only replay는 명시적으로 `--labels-input`을 전달한 경우에만 허용
+- filtered replay에서도 API/Kafka payload에는 label을 포함하지 않음
+
+fraud-only replay 예시:
+
+```bash
+python scripts/data/replay_paysim_to_api.py \
+  --input data/processed/paysim-events.jsonl \
+  --labels-input data/processed/paysim-labels.jsonl \
+  --filter fraud-only \
+  --api-base-url http://localhost:8080 \
+  --limit 1000
+```
 
 Replay summary:
 

@@ -61,3 +61,22 @@ Charts는 집계값만 사용합니다.
 - action decision distribution chart 작성
 - confusion matrix chart 또는 table 작성
 - chart 생성 명령과 입력 source 문서화
+
+## 7. Proposed Command
+
+후속 구현에서 chart 생성 명령은 다음처럼 둡니다.
+
+```bash
+python scripts/evidence/generate_v2_charts.py \
+  --evidence-input data/processed/v2-evidence-summary.json \
+  --output-dir docs/images
+```
+
+Makefile target 후보:
+
+```makefile
+v2-charts:
+	python scripts/evidence/generate_v2_charts.py \
+		--evidence-input data/processed/v2-evidence-summary.json \
+		--output-dir docs/images
+```

@@ -55,6 +55,7 @@ V2 evidence는 두 종류로 분리합니다.
 
 - Rule coverage를 빠르게 분석합니다.
 - Kafka replay 전체를 매번 돌리지 않고 rule logic과 PaySim label sidecar를 비교합니다.
+- online Consumer와 같은 Java Rule Engine을 사용해 rule drift를 줄입니다.
 
 입력:
 
@@ -67,6 +68,34 @@ V2 evidence는 두 종류로 분리합니다.
 - precision/recall/f1
 - missed fraud examples
 - false positive examples
+- ruleVersion과 rule config snapshot
+
+구현 기준:
+
+- `make evaluate-paysim-rules`는 app-consumer의 Java Rule Engine 또는 같은 Java module의 CLI/test fixture를 호출합니다.
+- Python으로 rule logic을 다시 구현하지 않습니다.
+- offline report에는 `ruleVersion`과 threshold/score snapshot을 저장합니다.
+
+Rule config snapshot 예시:
+
+```json
+{
+  "ruleVersion": "v2-rule-001",
+  "rules": {
+    "BALANCE_DRAIN": {
+      "threshold": "0.8",
+      "score": 40
+    },
+    "ZERO_BALANCE_AFTER_TRANSFER": {
+      "score": 35
+    },
+    "TRANSFER_CASHOUT_PATTERN": {
+      "minimumAmount": "TBD",
+      "score": 25
+    }
+  }
+}
+```
 
 ### Online Replay Evaluation
 
@@ -103,6 +132,7 @@ V2 evidence는 두 종류로 분리합니다.
 | sample row count | TBD | committed sample only |
 | input sha256 | TBD | validation report |
 | script version | TBD | validation report |
+| rule version | TBD | offline evaluation report |
 
 ### Replay Summary
 
@@ -185,6 +215,7 @@ make sample-paysim
 make replay-paysim-sample
 make evaluate-paysim-rules
 make v2-evidence-summary
+make v2-charts
 ```
 
 Minimum verification:
