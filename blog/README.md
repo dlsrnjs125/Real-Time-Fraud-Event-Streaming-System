@@ -26,6 +26,7 @@
 15. [k6 부하 테스트로 이상거래 탐지 시스템의 한계를 측정하기](15-load-test-evidence-and-performance-review.md)
 16. [Phase 13 부하/장애 테스트 evidence 정리](16-load-test-evidence-and-performance-review.md)
 17. [운영자 API 보호와 Audit Log로 재처리 기능을 안전하게 만들기](17-operational-security-and-audit-log.md)
+18. [V2 PaySim 데이터 출처와 원본 데이터 보호 기준 세우기](18-v2-paysim-data-provenance-and-raw-data-protection.md)
 
 ## 글 구조
 

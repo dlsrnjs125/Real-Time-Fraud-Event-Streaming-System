@@ -37,7 +37,9 @@ PaySim은 실제 모바일 머니 서비스 로그 샘플을 기반으로 생성
 
 Repository에는 작은 sample JSONL만 제한적으로 둘 수 있습니다.
 
-## 4. Proposed Directory Layout
+## 4. Directory Layout and Git Guardrail
+
+V2 Phase 1에서 repository-level data guardrail을 추가했습니다.
 
 ```text
 data/
@@ -54,22 +56,42 @@ data/
 scripts/
   data/
     README.md
-    prepare_paysim_dataset.py
-    sample_paysim_dataset.py
-    replay_paysim_to_api.py
+    check-data-policy.sh
 ```
 
-Proposed `.gitignore` policy:
+후속 Phase에서 `prepare_paysim_dataset.py`, `sample_paysim_dataset.py`, `replay_paysim_to_api.py`를 추가합니다. V2 Phase 1에서는 실제 데이터 처리 script를 구현하지 않습니다.
+
+`.gitignore` policy:
 
 ```gitignore
 data/raw/*
 data/processed/*
+data/samples/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
 !data/samples/*.jsonl
 !data/samples/*.csv
 ```
+
+정책:
+
+- `data/raw`: Kaggle 원본 CSV 위치. `.gitkeep` 외 커밋 금지.
+- `data/processed`: 전처리 전체 산출물 위치. `.gitkeep` 외 커밋 금지.
+- `data/samples`: 후속 Phase에서 작은 sample만 제한적으로 커밋 가능.
+- sample은 100~1,000건 이하, raw identifier 미포함, `.jsonl` 또는 `.csv`, 1MB 이하를 기준으로 둡니다.
+
+`scripts/data/check-data-policy.sh`는 tracked 또는 staged 상태의 `data/` 파일을 검사합니다.
+
+```bash
+make data-policy-check
+```
+
+한계:
+
+- Git ignore와 policy check는 이미 commit된 민감 데이터의 masking을 보장하지 않습니다.
+- sample 안의 raw identifier 유무는 Phase 1 script가 완벽히 판별하지 못합니다.
+- 후속 Phase 2~4에서 preprocessing, hashing, sample validation을 구현해야 합니다.
 
 ## 5. Reproduction Flow
 
@@ -157,11 +179,12 @@ destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
 
 ## 8. V2 Phase 1 Completion Criteria
 
-- PaySim provenance 문서 작성
-- raw/processed data 미커밋 정책 문서화
+- `data/raw/.gitkeep`, `data/processed/.gitkeep`, `data/samples/.gitkeep` 추가
+- raw/processed data 미커밋 `.gitignore` 정책 적용
 - sample data commit 허용 범위 문서화
-- identifier hashing 정책 문서화
-- PaySim CSV to normalized JSONL mapping 문서화
-- replay 전제 조건과 재현 명령 문서화
+- `scripts/data/README.md` 작성
+- `scripts/data/check-data-policy.sh` 추가
+- `make data-policy-check` 제공
+- README와 blog index에 V2 Phase 1 링크 추가
 
-구현은 후속 V2 Phase 1에서 진행합니다. 이 문서는 기획/설계 기준입니다.
+V2 Phase 1은 data guardrail 구현 범위입니다. PaySim normalization, sample generation, replay, Java Rule Engine V2 구현은 후속 Phase에서 진행합니다.
