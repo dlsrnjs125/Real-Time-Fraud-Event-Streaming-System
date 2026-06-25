@@ -19,7 +19,8 @@
 | Phase 12 | Done | Load Test Evidence and Performance Review | k6 normal/peak/duplicate/Redis down scenarios, result template | measured local results |
 | Phase 13 | Done | Load and Failure Test Evidence | Phase 13 result template, runbook, review, security note | follow-up metric/dashboard evidence |
 | Phase 14 | Done | Operational Security and Automation | admin token protection, audit log, max reprocess attempts | JWT/RBAC, audit query API, gateway rate limit |
-| V2 Planning | In Progress | PaySim preprocessing-first fraud workflow design | data provenance, raw protection, preprocessing, validation, sampling, replay, Rule V2, action/case 설계 문서 | V2 Phase 1 구현 |
+| V2 Planning | Done | PaySim preprocessing-first fraud workflow design 문서화 완료 | data provenance, preprocessing, validation, sampling, replay, Rule V2, action/case 설계 문서 | V2 Phase 1 data guardrail 구현 |
+| V2 Phase 1 | Done | PaySim raw/processed data guardrail 구현 완료 | `data/.gitkeep`, `.gitignore`, data policy check, `scripts/data` README, docs/blog | V2 Phase 2 preprocessing script |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -1011,6 +1012,9 @@ V2는 Rule Engine부터 시작하지 않습니다. Kaggle 데이터를 직접 �
 - `git check-ignore -v data/raw/PS_20174392719_1491204439457_log.csv`: ignored by `.gitignore`
 - `git check-ignore -v data/processed/paysim-events.jsonl`: ignored by `.gitignore`
 - temporary `data/samples/paysim-events-sample.jsonl` check: allowed by sample allowlist, then removed
+- negative test, forced `data/raw/PS_20174392719_1491204439457_log.csv` add: blocked by `make data-policy-check`
+- negative test, forced `data/processed/paysim-events.jsonl` add: blocked by `make data-policy-check`
+- negative test, staged sample over 1MB then truncated working tree: blocked by staged blob size check
 
 남은 한계:
 

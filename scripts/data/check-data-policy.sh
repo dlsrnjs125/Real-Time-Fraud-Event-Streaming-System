@@ -27,11 +27,7 @@ is_allowed_sample() {
 check_sample_size() {
   file="$1"
 
-  if [ ! -f "$file" ]; then
-    return 0
-  fi
-
-  size=$(wc -c < "$file" | tr -d ' ')
+  size=$(git cat-file -s ":$file" 2>/dev/null || wc -c < "$file" | tr -d ' ')
   if [ "$size" -gt "$MAX_SAMPLE_BYTES" ]; then
     fail "sample file is larger than 1MB: $file"
   fi

@@ -609,7 +609,14 @@ git check-ignore -v data/raw/PS_20174392719_1491204439457_log.csv
 git check-ignore -v data/processed/paysim-events.jsonl
 ```
 
+Negative guardrail 검증:
+
+- forced add한 `data/raw/PS_20174392719_1491204439457_log.csv`는 `FAIL: raw data file must not be committed`로 차단되어야 합니다.
+- forced add한 `data/processed/paysim-events.jsonl`는 `FAIL: processed data file must not be committed`로 차단되어야 합니다.
+- staged sample이 1MB를 초과한 뒤 working tree만 작게 바뀐 경우에도 staged blob size 기준으로 `FAIL: sample file is larger than 1MB`가 발생해야 합니다.
+
 ### 남은 한계
 
 - shell 기반 data policy check는 sample 내부의 raw identifier를 완전히 검출하지 못합니다.
 - 1MB sample size 기준은 초기 guardrail이며, Phase 3 sample 생성 정책에서 다시 조정할 수 있습니다.
+- CSV sample 허용은 Phase 1에서 문서와 크기 기준으로만 제한합니다. Phase 3 sample generation 단계에서 raw `nameOrig`/`nameDest` column 제거와 hashed identifier 사용을 자동 검증해야 합니다.
