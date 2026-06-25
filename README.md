@@ -82,6 +82,7 @@ make test
 make infra-up
 make api
 make consumer
+make data-policy-check
 make final-check
 ```
 
@@ -129,6 +130,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [29. Fraud Case Management](docs/28-fraud-case-management.md)
 - [30. V2 Result Evidence Plan](docs/29-v2-result-evidence.md)
 - [31. V2 Visualization Plan](docs/30-v2-visualization.md)
+- [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Drafts](blog/README.md)
 
 ## 현재 구현 범위
@@ -138,3 +140,5 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
 
 후속 V2 기획은 Kaggle PaySim synthetic 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 관리 흐름으로 확장하는 방향으로 문서화되어 있습니다. V2 문서는 설계 기준이며, 실제 구현 완료 상태를 의미하지 않습니다.
+
+V2 Phase 1에서는 PaySim 원본 CSV와 processed 전체 결과가 repository에 커밋되지 않도록 `data/` 디렉터리, `.gitignore`, `make data-policy-check` guardrail을 추가했습니다. 상세 기준은 [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md)와 [PaySim Data Scripts](scripts/data/README.md)를 확인합니다.

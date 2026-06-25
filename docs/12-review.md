@@ -568,3 +568,48 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - Identifier hashing salt는 local 예시만 문서화되어 있으며, 운영 환경에서는 secret 관리가 필요합니다.
 - Offline evaluation과 online replay evaluation이 같은 rule version을 쓰는지 구현 단계에서 고정해야 합니다.
 - `TransactionBalanceFeatures`를 app-common에 둘 때 PaySim label/source flag가 섞이지 않도록 schema review가 필요합니다.
+
+## V2 Phase 1 Review
+
+### 잘한 점
+
+- PaySim raw CSV와 processed full output이 repository에 들어가지 않도록 `data/` 디렉터리와 `.gitignore` allowlist를 추가했습니다.
+- `scripts/data/check-data-policy.sh`와 `make data-policy-check`를 추가해 tracked/staged data 파일을 검증할 수 있게 했습니다.
+- `make final-check`에 data policy check를 연결해 최종 검증에서 data guardrail이 빠지지 않도록 했습니다.
+- README는 링크와 명령만 최소 추가하고, 상세 기준은 `docs/24-kaggle-paysim-data-provenance.md`와 `scripts/data/README.md`로 분리했습니다.
+- Phase 1 범위를 data guardrail로 제한하고 preprocessing/replay/rule 구현은 추가하지 않았습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] `.gitignore`가 `data/raw/*`와 `data/processed/*`를 실제로 막는가
+- [ ] `data/raw/.gitkeep`, `data/processed/.gitkeep`, `data/samples/.gitkeep`만 기본 커밋되는가
+- [ ] `data/samples` 허용 범위가 과도하지 않은가
+- [ ] sample 정책에 raw identifier 미포함과 row/size 제한이 문서화되어 있는가
+- [ ] preprocessing, replay, Rule V2 구현이 Phase 1 범위를 넘어서 들어가지 않았는가
+- [ ] README가 상세 문서처럼 길어지지 않았는가
+
+### 의도적으로 제외한 것
+
+- PaySim preprocessing script 구현
+- sample generation script 구현
+- replay script 구현
+- Java Rule Engine V2, API DTO, Kafka schema, DB migration 변경
+- Fraud Action Decision과 Fraud Case 구현
+
+### 검증 기록
+
+```bash
+bash -n scripts/data/check-data-policy.sh
+make scripts-check
+make data-policy-check
+./gradlew test
+docker compose -f infra/docker-compose.yml config --quiet
+make final-check
+git check-ignore -v data/raw/PS_20174392719_1491204439457_log.csv
+git check-ignore -v data/processed/paysim-events.jsonl
+```
+
+### 남은 한계
+
+- shell 기반 data policy check는 sample 내부의 raw identifier를 완전히 검출하지 못합니다.
+- 1MB sample size 기준은 초기 guardrail이며, Phase 3 sample 생성 정책에서 다시 조정할 수 있습니다.

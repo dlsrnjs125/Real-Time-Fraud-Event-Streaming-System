@@ -6,6 +6,8 @@
 
 V2의 핵심은 PaySim 데이터를 단순히 보관하는 것이 아니라, Kafka event로 replay 가능한 입력으로 바꾸는 것입니다.
 
+V2 Phase 1에서는 이 mapping을 구현하지 않습니다. 이번 Phase의 범위는 raw/processed/sample data guardrail, `.gitignore`, data policy check, 문서 정리입니다. 아래 output contract는 V2 Phase 2 이후 전처리 script 구현 기준으로 유지합니다.
+
 ## 2. PaySim Input Columns
 
 PaySim CSV는 일반적으로 다음 컬럼을 포함합니다.

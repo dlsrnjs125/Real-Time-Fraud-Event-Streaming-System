@@ -20,3 +20,13 @@ node_modules/
 
 load-test/k6/results/*
 !load-test/k6/results/.gitkeep
+
+# V2 PaySim data guardrails
+data/raw/*
+data/processed/*
+data/samples/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/samples/.gitkeep
+!data/samples/*.jsonl
+!data/samples/*.csv
