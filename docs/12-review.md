@@ -602,6 +602,7 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 bash -n scripts/data/check-data-policy.sh
 make scripts-check
 make data-policy-check
+make ci-check
 ./gradlew test
 docker compose -f infra/docker-compose.yml config --quiet
 make final-check
@@ -609,11 +610,18 @@ git check-ignore -v data/raw/PS_20174392719_1491204439457_log.csv
 git check-ignore -v data/processed/paysim-events.jsonl
 ```
 
-Negative guardrail 검증:
+Negative guardrail 검증 결과:
 
-- forced add한 `data/raw/PS_20174392719_1491204439457_log.csv`는 `FAIL: raw data file must not be committed`로 차단되어야 합니다.
-- forced add한 `data/processed/paysim-events.jsonl`는 `FAIL: processed data file must not be committed`로 차단되어야 합니다.
-- staged sample이 1MB를 초과한 뒤 working tree만 작게 바뀐 경우에도 staged blob size 기준으로 `FAIL: sample file is larger than 1MB`가 발생해야 합니다.
+- `git add -f data/raw/PS_20174392719_1491204439457_log.csv && make data-policy-check`
+  - Result: FAIL
+  - Message: `FAIL: raw data file must not be committed`
+- `git add -f data/processed/paysim-events.jsonl && make data-policy-check`
+  - Result: FAIL
+  - Message: `FAIL: processed data file must not be committed`
+- staged sample이 1MB를 초과한 뒤 working tree만 작게 변경된 상태에서 `make data-policy-check`
+  - Result: FAIL
+  - 기준: staged blob size
+  - Message: `FAIL: sample file is larger than 1MB`
 
 ### 남은 한계
 

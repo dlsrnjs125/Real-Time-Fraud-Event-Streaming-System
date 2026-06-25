@@ -70,6 +70,7 @@ failure-drill:
 ci-check:
 	./gradlew test
 	./gradlew assemble
+	$(MAKE) data-policy-check
 
 clean:
 	./gradlew clean
