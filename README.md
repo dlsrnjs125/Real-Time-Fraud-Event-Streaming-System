@@ -128,6 +128,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [28. Fraud Action Decision](docs/27-fraud-action-decision.md)
 - [29. Fraud Case Management](docs/28-fraud-case-management.md)
 - [30. V2 Result Evidence Plan](docs/29-v2-result-evidence.md)
+- [31. V2 Visualization Plan](docs/30-v2-visualization.md)
 - [Blog Drafts](blog/README.md)
 
 ## 현재 구현 범위

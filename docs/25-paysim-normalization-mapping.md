@@ -33,9 +33,9 @@ Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를
 ```json
 {
   "eventId": "paysim-000000001",
-  "userId": "C1231006815",
-  "accountId": "ACC-C1231006815",
-  "destinationAccountId": "M1979787155",
+  "userId": "U-9f1a3c21e2b0",
+  "accountId": "A-9f1a3c21e2b0",
+  "destinationAccountId": "D-12ab8821cdae",
   "eventType": "PAYMENT",
   "amount": 9839.64,
   "currency": "PAYSIM",
@@ -75,6 +75,55 @@ Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를
 | `newbalanceDest` | `features.newBalanceDest` | destination anomaly rule 입력 |
 | `isFraud` | `isFraud`, `label` | 평가용 정답. 탐지 rule 입력으로 직접 사용 금지 |
 | `isFlaggedFraud` | `sourceFlaggedFraud` | PaySim source flag. 참고용 |
+
+## 4.1 Output Files
+
+V2 preprocessing script는 정상 결과만 만들지 않습니다. rejected row와 validation report를 함께 만들어야 전처리 결과를 신뢰할 수 있습니다.
+
+```text
+data/processed/paysim-normalized.jsonl
+data/processed/paysim-rejected.jsonl
+data/processed/paysim-validation-report.json
+```
+
+`paysim-normalized.jsonl`:
+
+- replay 가능한 normalized event
+- raw `nameOrig`, `nameDest` 미포함
+- hash identifier 사용
+
+`paysim-rejected.jsonl`:
+
+```json
+{
+  "rowNumber": 12345,
+  "reason": "INVALID_AMOUNT",
+  "raw": {
+    "type": "TRANSFER",
+    "amount": "-100"
+  }
+}
+```
+
+`paysim-validation-report.json`:
+
+```json
+{
+  "inputRows": "TBD",
+  "normalizedRows": "TBD",
+  "rejectedRows": "TBD",
+  "fraudRows": "TBD",
+  "normalRows": "TBD",
+  "fraudRatio": "TBD",
+  "typeDistribution": {
+    "PAYMENT": "TBD",
+    "TRANSFER": "TBD",
+    "CASH_OUT": "TBD",
+    "CASH_IN": "TBD",
+    "DEBIT": "TBD"
+  }
+}
+```
 
 ## 5. EventId and TraceId Policy
 
@@ -135,11 +184,72 @@ V2 구현 시 선택지는 두 가지입니다.
 전처리 단계에서 확인할 항목:
 
 - required column 존재
-- amount >= 0
-- step >= 0
-- type이 허용 목록에 포함
-- nameOrig/nameDest blank 아님
-- balance field가 number로 parse 가능
-- isFraud/isFlaggedFraud가 0 또는 1
+- `amount >= 0`
+- `step >= 0`
+- `type in PAYMENT, TRANSFER, CASH_OUT, CASH_IN, DEBIT`
+- `nameOrig` not blank
+- `nameDest` not blank
+- balance fields parseable
+- `isFraud in 0, 1`
+- `isFlaggedFraud in 0, 1`
 
 잘못된 row는 skip하지 않고 rejected output 또는 error report에 기록합니다.
+
+## 10. Sampling Policy
+
+추가 script 후보:
+
+```text
+scripts/data/sample_paysim_dataset.py
+```
+
+출력:
+
+```text
+data/samples/paysim-normalized-sample.jsonl
+data/samples/paysim-fraud-sample.jsonl
+```
+
+정책:
+
+- sample은 100~1,000건 이하로 제한합니다.
+- sample에는 raw identifier를 포함하지 않습니다.
+- hash identifier만 포함합니다.
+- label 분포를 README 또는 validation report에 명시합니다.
+- sample은 테스트/문서용이며 성능 수치 근거로 사용하지 않습니다.
+
+## 11. Replay Pipeline Contract
+
+Replay script 후보:
+
+```bash
+python scripts/data/replay_paysim_to_api.py \
+  --input data/processed/paysim-normalized.jsonl \
+  --api-base-url http://localhost:8080 \
+  --limit 1000 \
+  --rate-per-second 50
+```
+
+기능 요구사항:
+
+- JSONL 한 줄씩 읽기
+- app-api `POST /api/v1/transactions/events` 호출
+- rate limit 옵션
+- 실패 응답 기록
+- replay summary 출력
+- eventId prefix 옵션
+- fraud-only replay 옵션
+- normal-only replay 옵션
+
+Replay summary:
+
+```json
+{
+  "inputRows": 1000,
+  "sent": 1000,
+  "success": 998,
+  "failed": 2,
+  "durationSeconds": 20.1,
+  "ratePerSecond": 49.7
+}
+```

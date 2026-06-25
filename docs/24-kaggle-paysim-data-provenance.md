@@ -46,11 +46,13 @@ data/
   processed/
     .gitkeep
   samples/
+    .gitkeep
     paysim-normalized-sample.jsonl
     paysim-fraud-sample.jsonl
 
 scripts/
   data/
+    README.md
     prepare_paysim_dataset.py
     sample_paysim_dataset.py
     replay_paysim_to_api.py
@@ -63,7 +65,9 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/samples/.gitkeep
 !data/samples/*.jsonl
+!data/samples/*.csv
 ```
 
 ## 5. Reproduction Flow
@@ -111,14 +115,46 @@ V2 문서와 구현에서는 다음 표현을 유지합니다.
 
 - PaySim을 실제 고객 개인정보 dataset이라고 설명하지 않습니다.
 - Kaggle 원본 CSV를 repository에 커밋하지 않습니다.
+- `data/processed`의 normalized 전체 결과를 repository에 커밋하지 않습니다.
 - raw payload나 전체 account-like identifier를 운영 log, metric tag, audit metadata에 남기지 않습니다.
 
-## 7. V2 Phase 1 Completion Criteria
+## 7. Identifier Hashing Policy
+
+PaySim은 synthetic dataset이지만 `nameOrig`, `nameDest`는 계좌형 식별자처럼 보입니다. V2에서는 raw identifier를 API, log, sample, result에 노출하지 않는 방향을 기본으로 둡니다.
+
+전처리 script 옵션 후보:
+
+```bash
+python scripts/data/prepare_paysim_dataset.py \
+  --input data/raw/PS_20174392719_1491204439457_log.csv \
+  --output data/processed/paysim-normalized.jsonl \
+  --hash-identifiers \
+  --hash-salt local-dev-salt
+```
+
+Hashing 규칙:
+
+```text
+userId = U-{sha256(nameOrig + salt).substring(0, 16)}
+accountId = A-{sha256(nameOrig + salt).substring(0, 16)}
+destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
+```
+
+기준:
+
+- 동일 원본 identifier는 동일 hash로 변환합니다.
+- 사용자별 Redis Sliding Window 계산이 가능해야 합니다.
+- sample data에는 raw `nameOrig`, `nameDest`를 포함하지 않습니다.
+- salt는 운영 환경에서 secret으로 관리해야 합니다.
+- local 문서 예시는 `local-dev-salt`를 사용할 수 있지만 운영용 값으로 간주하지 않습니다.
+
+## 8. V2 Phase 1 Completion Criteria
 
 - PaySim provenance 문서 작성
 - raw/processed data 미커밋 정책 문서화
+- sample data commit 허용 범위 문서화
+- identifier hashing 정책 문서화
 - PaySim CSV to normalized JSONL mapping 문서화
-- sample data 허용 범위 정의
 - replay 전제 조건과 재현 명령 문서화
 
 구현은 후속 V2 Phase 1에서 진행합니다. 이 문서는 기획/설계 기준입니다.

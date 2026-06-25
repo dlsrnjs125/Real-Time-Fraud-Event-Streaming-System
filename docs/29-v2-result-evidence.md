@@ -74,13 +74,42 @@ flowchart LR
 | missed labeled fraud | TBD | label-based evaluation |
 | false positive candidates | TBD | review examples |
 
+### Rule Label Confusion Matrix
+
+Positive prediction 기준:
+
+```text
+riskLevel in (HIGH, CRITICAL)
+```
+
+Actual positive 기준:
+
+```text
+isFraud == true
+```
+
+|  | Predicted Fraud | Predicted Normal |
+|---|---:|---:|
+| Actual Fraud | TP | FN |
+| Actual Normal | FP | TN |
+
+| Metric | Formula | Value |
+|---|---|---:|
+| precision | `TP / (TP + FP)` | TBD |
+| recall | `TP / (TP + FN)` | TBD |
+| f1 | `2 * precision * recall / (precision + recall)` | TBD |
+
+주의:
+
+V2의 precision/recall은 production ML model 성능이 아니라, PaySim synthetic label에 대한 Rule coverage 분석 지표입니다.
+
 ### Action Summary
 
 | Action Type | Count | Notes |
 |---|---:|---|
 | NO_ACTION | TBD | LOW |
-| CREATE_REVIEW_CASE | TBD | MEDIUM |
-| HOLD_TRANSACTION | TBD | HIGH |
+| REVIEW_CANDIDATE | TBD | MEDIUM |
+| HOLD_TRANSACTION_CANDIDATE | TBD | HIGH |
 | BLOCK_TRANSACTION_CANDIDATE | TBD | CRITICAL |
 | ACCOUNT_RISK_FLAG | TBD | CRITICAL |
 
@@ -136,6 +165,7 @@ V2:
 - risk level distribution
 - action decision count by action type/status
 - fraud case count by status
+- confusion matrix image/table
 
 Metric tags must not include `eventId`, `userId`, `accountId`, `destinationAccountId`, or raw PaySim identifiers.
 
@@ -157,7 +187,18 @@ Disallowed claims:
 - PaySim represents real customer data.
 - The project performs real account blocking.
 
-## 7. Final V2 Questions
+## 7. Visualization Artifacts
+
+후속 V2 evidence 작업에서 생성할 후보:
+
+```text
+docs/images/v2-risk-level-distribution.png
+docs/images/v2-rule-match-distribution.png
+docs/images/v2-action-decision-distribution.png
+docs/images/v2-rule-label-confusion-matrix.png
+```
+
+## 8. Final V2 Questions
 
 V2 completion should answer:
 
@@ -167,7 +208,7 @@ V2 completion should answer:
 4. 탐지 후 어떤 action decision과 fraud case가 만들어졌나요?
 5. 개인정보와 보안은 어떻게 처리했나요?
 
-## 8. Follow-up
+## 9. Follow-up
 
 V2 이후 후보:
 

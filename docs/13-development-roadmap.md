@@ -19,7 +19,7 @@
 | Phase 12 | Done | Load Test Evidence and Performance Review | k6 normal/peak/duplicate/Redis down scenarios, result template | measured local results |
 | Phase 13 | Done | Load and Failure Test Evidence | Phase 13 result template, runbook, review, security note | follow-up metric/dashboard evidence |
 | Phase 14 | Done | Operational Security and Automation | admin token protection, audit log, max reprocess attempts | JWT/RBAC, audit query API, gateway rate limit |
-| V2 Planning | In Progress | PaySim-based fraud workflow design | PaySim provenance, normalization, Rule V2, action decision, fraud case 설계 문서 | V2 Phase 1 구현 |
+| V2 Planning | In Progress | PaySim preprocessing-first fraud workflow design | data provenance, raw protection, preprocessing, validation, sampling, replay, Rule V2, action/case 설계 문서 | V2 Phase 1 구현 |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -950,8 +950,13 @@ Kaggle PaySim synthetic 금융 거래 데이터를 재현 가능한 방식으로
 ### 설계 범위
 
 - PaySim data provenance와 raw data 미커밋 정책
+- raw/processed/sample data 보호 정책
 - PaySim CSV to normalized JSONL mapping
+- validation report, rejected row, sampling 정책
+- identifier hashing과 raw identifier 비노출 정책
+- replay pipeline 설계
 - PaySim balance/type feature 기반 Rule Engine V2 전략
+- PaySim label 기반 Rule coverage 평가
 - Fraud Action Decision 정책
 - Fraud Case 생성/조회/처리 정책
 - V2 결과 evidence와 시각화 계획
@@ -964,15 +969,64 @@ Kaggle PaySim synthetic 금융 거래 데이터를 재현 가능한 방식으로
 - `docs/27-fraud-action-decision.md`
 - `docs/28-fraud-case-management.md`
 - `docs/29-v2-result-evidence.md`
+- `docs/30-v2-visualization.md`
 
 ### V2 구현 단계 제안
 
-| V2 Phase | 목표 | 주요 산출물 |
+V2는 Rule Engine부터 시작하지 않습니다. Kaggle 데이터를 직접 사용할 예정이므로 첫 중심은 데이터 전처리 파이프라인입니다.
+
+| V2 Phase | 목표 | 구현 범위 | 완료 기준 |
+|---:|---|---|---|
+| V2 Phase 1 | Data Provenance and Raw Data Protection | `data/raw`, `data/processed`, `data/samples`, `scripts/data/README.md`, `.gitignore` data policy | raw CSV와 processed 대용량 결과가 commit되지 않고, provenance 문서와 README 링크가 정리됨 |
+| V2 Phase 2 | PaySim Preprocessing and Normalization | `prepare_paysim_dataset.py`, PaySim CSV to normalized JSONL mapping | `paysim-normalized.jsonl`, `paysim-rejected.jsonl`, `paysim-validation-report.json` 출력 설계 구현 |
+| V2 Phase 3 | Data Validation, Rejected Rows, Sampling | validation rules, rejected row schema, `sample_paysim_dataset.py` | validation report와 100~1,000건 sample 생성, sample label 분포 문서화 |
+| V2 Phase 4 | Identifier Hashing and Data Privacy | `--hash-identifiers`, `--hash-salt`, user/account/destination hash policy | raw `nameOrig`, `nameDest`가 API/log/sample/result에 노출되지 않음 |
+| V2 Phase 5 | PaySim Replay Pipeline | `replay_paysim_to_api.py`, `replay_paysim_sample.sh`, Makefile target | rate-limited replay summary 생성, API/Kafka 유입 확인 |
+| V2 Phase 6 | Rule Engine V2 for PaySim Patterns | `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` | Rule unit test와 score/risk mapping 통과 |
+| V2 Phase 7 | PaySim Label-based Rule Evaluation | confusion matrix, precision/recall/f1 coverage report | label은 평가에만 사용하고, Rule coverage table과 missed/false positive 예시 문서화 |
+| V2 Phase 8 | Fraud Action Decision Engine | `fraud_action_decisions`, action policy, admin query API | riskLevel별 action decision 생성, eventId unique 방어 |
+| V2 Phase 9 | Fraud Case Management | `fraud_cases`, list/detail/resolve API, audit action 확장 | HIGH/CRITICAL case 생성, resolved 상태 충돌 방어, audit log 저장 |
+| V2 Phase 10 | Evidence and Visualization | result evidence doc, charts/tables, README/blog 정리 | risk/rule/action/case/confusion matrix evidence 작성 |
+
+### V2 다음 단계별 진행 순서
+
+| Step | Phase | 작업 |
 |---:|---|---|
-| V2 Phase 1 | PaySim Data Provenance and Normalization | data directory policy, prepare/sample/replay script 설계 구현 |
-| V2 Phase 2 | Rule Engine V2 for PaySim Fraud Patterns | balance drain, zero balance, transfer/cash-out rules |
-| V2 Phase 3 | Fraud Action Decision and Case Management | action decision table/API, fraud case table/API, audit 연동 |
-| V2 Phase 4 | V2 Evidence and Visualization | label comparison, replay evidence, action/case distribution |
+| Step 1 | V2 Phase 1 | data directory, gitignore, provenance docs |
+| Step 2 | V2 Phase 2 | PaySim normalization script |
+| Step 3 | V2 Phase 3 | validation report, rejected rows, sample generation |
+| Step 4 | V2 Phase 4 | identifier hashing |
+| Step 5 | V2 Phase 5 | replay pipeline |
+| Step 6 | V2 Phase 6 | Rule Engine V2 초기 rule 구현 |
+| Step 7 | V2 Phase 7 | Rule evaluation confusion matrix |
+| Step 8 | V2 Phase 8 | Action Decision Engine |
+| Step 9 | V2 Phase 9 | Fraud Case Management |
+| Step 10 | V2 Phase 10 | visualization/evidence, README, docs, blog 정리 |
+
+### V2 첫 구현 PR 권장 범위
+
+PR 제목 후보:
+
+```text
+docs: refine v2 paysim preprocessing plan
+```
+
+포함:
+
+- data preprocessing phase 세분화
+- raw/processed/sample data policy
+- validation report schema
+- rejected row schema
+- identifier hashing policy
+- PaySim label usage boundary
+- V2 phase roadmap 세분화
+
+아직 포함하지 않음:
+
+- Java Rule 구현
+- action decision table
+- fraud case API
+- replay script 구현
 
 ### 명시적 제외 범위
 

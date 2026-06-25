@@ -29,17 +29,24 @@ V1은 운영 안정성에 강했습니다.
 - balance drain, transfer/cash-out flow 같은 PaySim fraud pattern을 반영하지 않습니다.
 - 탐지 후 action workflow가 약합니다.
 
-## 3. V2 Rule Candidates
+## 3. V2 Initial Rule Scope
 
 | Rule code | Condition | Score | Notes |
 |---|---:|---:|---|
 | `BALANCE_DRAIN` | `amount / oldBalanceOrig >= 0.8` | 40 | 계좌 잔액 대부분이 빠져나감 |
 | `ZERO_BALANCE_AFTER_TRANSFER` | `oldBalanceOrig > 0 && newBalanceOrig == 0` | 35 | 거래 후 잔액 0 |
-| `TRANSFER_CASHOUT_PATTERN` | `type in (TRANSFER, CASH_OUT)` | 25 | PaySim fraud 흐름 반영 |
-| `DESTINATION_BALANCE_ANOMALY` | destination balance delta가 amount와 크게 불일치 | 20 | 수신 잔액 변화 이상 |
+| `TRANSFER_CASHOUT_PATTERN` | `type in (TRANSFER, CASH_OUT) && amount >= configured threshold` | 25 | PaySim fraud 흐름 반영 |
 | `HIGH_AMOUNT` | amount threshold 이상 | 30 | 기존 amount rule 유지 |
 | `RAPID_TRANSACTION_COUNT` | window count threshold 초과 | 30 | Redis Sliding Window |
 | `WINDOW_AMOUNT_SUM` | window amount sum threshold 초과 | 40 | Redis Sliding Window |
+
+초기 V2 구현 우선순위는 PaySim 특화 rule 3개입니다.
+
+1. `BALANCE_DRAIN`
+2. `ZERO_BALANCE_AFTER_TRANSFER`
+3. `TRANSFER_CASHOUT_PATTERN`
+
+`DESTINATION_BALANCE_ANOMALY`, `NEW_DESTINATION`, `FAILED_THEN_SUCCESS`, `AMOUNT_Z_SCORE`는 후속 후보로 둡니다.
 
 ## 4. Rule Details
 
@@ -76,6 +83,7 @@ type in (TRANSFER, CASH_OUT)
 
 ```text
 type in (TRANSFER, CASH_OUT)
+amount >= configured threshold
 ```
 
 의미:
@@ -83,7 +91,7 @@ type in (TRANSFER, CASH_OUT)
 - PaySim fraud behavior는 transfer와 cash-out 흐름을 중심으로 설명됩니다.
 - 단독으로는 강한 fraud signal이 아니므로 다른 rule과 합산해 risk score에 반영합니다.
 
-### DESTINATION_BALANCE_ANOMALY
+### DESTINATION_BALANCE_ANOMALY 후속 후보
 
 ```text
 expectedNewBalanceDest = oldBalanceDest + amount
@@ -97,7 +105,7 @@ abs(newBalanceDest - expectedNewBalanceDest) > tolerance
 주의:
 
 - PaySim에서 merchant destination은 balance가 0으로 유지되는 경우가 있으므로 type/destination prefix를 함께 고려해야 합니다.
-- false positive 가능성이 높아 낮은 점수로 시작합니다.
+- false positive 가능성이 높으므로 초기 구현에서는 제외하고, label coverage 분석 이후 도입 여부를 판단합니다.
 
 ## 5. Risk Level and Decision
 
@@ -105,7 +113,7 @@ abs(newBalanceDest - expectedNewBalanceDest) > tolerance
 |---:|---|---|
 | 0-29 | LOW | APPROVE |
 | 30-59 | MEDIUM | REVIEW |
-| 60-79 | HIGH | HOLD |
+| 60-79 | HIGH | HOLD_CANDIDATE |
 | 80-100 | CRITICAL | BLOCK_CANDIDATE |
 
 `CRITICAL`이어도 실제 계좌 정지나 금융 제재를 자동 실행하지 않습니다.
@@ -113,6 +121,33 @@ abs(newBalanceDest - expectedNewBalanceDest) > tolerance
 ## 6. Label-based Evaluation
 
 PaySim `isFraud` label은 평가에만 사용합니다.
+
+절대 금지:
+
+- Rule Engine이 `isFraud`를 입력으로 사용하지 않습니다.
+- Rule Engine이 `sourceFlaggedFraud`를 입력으로 사용하지 않습니다.
+
+평가 정의:
+
+```text
+positive prediction = riskLevel in (HIGH, CRITICAL)
+actual positive = isFraud == true
+```
+
+Confusion matrix:
+
+|  | Predicted Fraud | Predicted Normal |
+|---|---:|---:|
+| Actual Fraud | TP | FN |
+| Actual Normal | FP | TN |
+
+지표:
+
+```text
+precision = TP / (TP + FP)
+recall = TP / (TP + FN)
+f1 = 2 * precision * recall / (precision + recall)
+```
 
 평가 후보:
 
@@ -124,7 +159,7 @@ PaySim `isFraud` label은 평가에만 사용합니다.
 - false positive examples
 - rule match distribution
 
-초기 V2는 ML metric을 과도하게 주장하지 않습니다. Rule 기반 탐지의 해석 가능성과 Kafka 처리 evidence를 중심으로 기록합니다.
+V2의 precision/recall은 production ML model 성능이 아니라, PaySim synthetic label에 대한 Rule coverage 분석 지표입니다. Rule 기반 탐지의 해석 가능성과 Kafka 처리 evidence를 중심으로 기록합니다.
 
 ## 7. Redis Degraded Behavior
 

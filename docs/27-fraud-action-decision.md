@@ -31,8 +31,8 @@ V2에서 하지 않는 것:
 | Risk Level | Detection Decision | Action Type | Action Status | Notes |
 |---|---|---|---|---|
 | LOW | APPROVE | NO_ACTION | APPLIED | 정상 처리 |
-| MEDIUM | REVIEW | CREATE_REVIEW_CASE | PENDING | 운영자 검토 case 생성 |
-| HIGH | HOLD | HOLD_TRANSACTION | PENDING | 거래 보류 후보 |
+| MEDIUM | REVIEW | REVIEW_CANDIDATE | PENDING | 검토 후보. 초기 V2에서는 case 자동 생성 제외 |
+| HIGH | HOLD_CANDIDATE | HOLD_TRANSACTION_CANDIDATE | REQUIRES_MANUAL_REVIEW | 거래 보류 후보 |
 | CRITICAL | BLOCK_CANDIDATE | BLOCK_TRANSACTION_CANDIDATE | REQUIRES_MANUAL_APPROVAL | 자동 차단 아님 |
 | CRITICAL | BLOCK_CANDIDATE | ACCOUNT_RISK_FLAG | PENDING | 계정 위험 flag |
 
@@ -82,6 +82,23 @@ Constraints:
 - PostgreSQL `fraud_action_decisions.event_id` unique constraint
 - Consumer duplicate path에서 이미 action decision이 있으면 skip
 - DLT reprocessing 후에도 원본 `eventId` 유지
+
+## 6.1 Versioning Boundary
+
+V2에서는 `event_id` 기준 하나의 action decision만 생성합니다.
+
+제외 범위:
+
+- Rule version 변경 후 동일 event를 재평가해 다른 action을 생성하는 시나리오
+- action decision supersede history
+- decision approval workflow
+
+후속 구현 후보:
+
+- `rule_version`
+- `decision_version`
+- `superseded_at`
+- decision history table
 
 ## 7. API Proposal
 
