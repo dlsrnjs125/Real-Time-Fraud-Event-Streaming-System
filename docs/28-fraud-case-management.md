@@ -56,16 +56,6 @@ Header:
 X-Admin-Token: <token>
 ```
 
-### GET `/api/v1/admin/fraud-cases/{caseId}`
-
-단건 case 상세를 조회합니다.
-
-Header:
-
-```http
-X-Admin-Token: <token>
-```
-
 Query:
 
 ```text
@@ -89,6 +79,32 @@ Response:
   "page": 0,
   "size": 20,
   "totalElements": 1
+}
+```
+
+### GET `/api/v1/admin/fraud-cases/{caseId}`
+
+단건 case 상세를 조회합니다.
+
+Header:
+
+```http
+X-Admin-Token: <token>
+```
+
+Response:
+
+```json
+{
+  "caseId": 1,
+  "eventId": "paysim-000001",
+  "userId": "U-9f1a3c21e2b0",
+  "riskLevel": "CRITICAL",
+  "caseStatus": "OPEN",
+  "reviewReason": "Balance drain and block candidate action created",
+  "resolution": null,
+  "createdAt": "2026-01-01T01:00:03Z",
+  "updatedAt": "2026-01-01T01:00:03Z"
 }
 ```
 

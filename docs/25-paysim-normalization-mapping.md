@@ -24,9 +24,9 @@ PaySim CSV는 일반적으로 다음 컬럼을 포함합니다.
 | `isFraud` | PaySim fraud label |
 | `isFlaggedFraud` | PaySim source rule flag |
 
-## 3. Normalized Event Contract
+## 3. Runtime Event Contract
 
-Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를 함께 담습니다.
+Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정답 label은 포함하지 않습니다.
 
 예시:
 
@@ -44,9 +44,6 @@ Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를
   "traceId": "trace-paysim-000000001",
   "schemaVersion": "v2-paysim",
   "source": "PAYSIM",
-  "label": "NORMAL",
-  "isFraud": false,
-  "sourceFlaggedFraud": false,
   "features": {
     "oldBalanceOrig": 170136.0,
     "newBalanceOrig": 160296.36,
@@ -58,6 +55,23 @@ Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를
 ```
 
 `receivedAt`은 app-api가 이벤트를 접수할 때 생성하는 값이므로 normalized file 단계에서는 null이거나 생략 가능합니다.
+
+## 3.1 Evaluation Label Sidecar
+
+PaySim label은 runtime event와 물리적으로 분리합니다.
+
+`paysim-labels.jsonl` 예시:
+
+```json
+{
+  "eventId": "paysim-000000001",
+  "isFraud": false,
+  "sourceFlaggedFraud": false,
+  "sourceRowNumber": 1
+}
+```
+
+이 분리는 Consumer가 정답 label을 볼 수 있는 구조를 피하기 위한 설계입니다. Rule Engine과 action decision은 `paysim-events.jsonl`을 통해 들어온 runtime event만 사용합니다.
 
 ## 4. Mapping Table
 
@@ -73,24 +87,32 @@ Normalized JSONL은 현재 `TransactionEventMessage`와 V2 fraud rule feature를
 | `newbalanceOrig` | `features.newBalanceOrig` | zero balance rule 입력 |
 | `oldbalanceDest` | `features.oldBalanceDest` | destination anomaly rule 입력 |
 | `newbalanceDest` | `features.newBalanceDest` | destination anomaly rule 입력 |
-| `isFraud` | `isFraud`, `label` | 평가용 정답. 탐지 rule 입력으로 직접 사용 금지 |
-| `isFlaggedFraud` | `sourceFlaggedFraud` | PaySim source flag. 참고용 |
+| `isFraud` | `paysim-labels.jsonl.isFraud` | 평가용 sidecar. runtime event에 포함 금지 |
+| `isFlaggedFraud` | `paysim-labels.jsonl.sourceFlaggedFraud` | 평가용 sidecar. runtime event에 포함 금지 |
 
 ## 4.1 Output Files
 
 V2 preprocessing script는 정상 결과만 만들지 않습니다. rejected row와 validation report를 함께 만들어야 전처리 결과를 신뢰할 수 있습니다.
 
 ```text
-data/processed/paysim-normalized.jsonl
+data/processed/paysim-events.jsonl
+data/processed/paysim-labels.jsonl
 data/processed/paysim-rejected.jsonl
 data/processed/paysim-validation-report.json
 ```
 
-`paysim-normalized.jsonl`:
+`paysim-events.jsonl`:
 
 - replay 가능한 normalized event
+- `label`, `isFraud`, `sourceFlaggedFraud` 미포함
 - raw `nameOrig`, `nameDest` 미포함
 - hash identifier 사용
+
+`paysim-labels.jsonl`:
+
+- evaluation용 sidecar
+- `eventId`, `isFraud`, `sourceFlaggedFraud`, `sourceRowNumber`만 포함
+- app-api/Kafka replay 입력으로 사용하지 않음
 
 `paysim-rejected.jsonl`:
 
@@ -109,6 +131,12 @@ data/processed/paysim-validation-report.json
 
 ```json
 {
+  "datasetName": "PaySim",
+  "inputFile": "PS_20174392719_1491204439457_log.csv",
+  "inputSha256": "TBD",
+  "scriptVersion": "v2-preprocess-001",
+  "baseTime": "2026-01-01T00:00:00Z",
+  "hashIdentifiers": true,
   "inputRows": "TBD",
   "normalizedRows": "TBD",
   "rejectedRows": "TBD",
@@ -139,6 +167,7 @@ traceId = trace-paysim-{rowNumber zero padded}
 - replay를 반복해도 같은 row는 같은 `eventId`를 갖습니다.
 - Consumer idempotency와 duplicate replay 검증에 사용할 수 있습니다.
 - PaySim row order가 바뀌면 eventId가 바뀔 수 있으므로 전처리 script는 input order를 보존합니다.
+- `eventId`는 `inputSha256`과 `sourceRowNumber` 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
 
 ## 6. Time Policy
 
@@ -155,12 +184,14 @@ eventTime = baseTime + step hours
 
 ## 7. Label Usage Policy
 
-`isFraud`는 평가용 정답입니다.
+`isFraud`와 `sourceFlaggedFraud`는 `paysim-labels.jsonl`에만 저장하는 평가용 정답입니다.
 
 금지:
 
 - Rule Engine이 `isFraud`를 보고 risk score를 계산하지 않습니다.
+- Rule Engine이 `sourceFlaggedFraud`를 보고 risk score를 계산하지 않습니다.
 - 운영 decision이 label을 직접 참조하지 않습니다.
+- app-api/Kafka replay payload에 label을 포함하지 않습니다.
 
 허용:
 
@@ -206,7 +237,8 @@ scripts/data/sample_paysim_dataset.py
 출력:
 
 ```text
-data/samples/paysim-normalized-sample.jsonl
+data/samples/paysim-events-sample.jsonl
+data/samples/paysim-labels-sample.jsonl
 data/samples/paysim-fraud-sample.jsonl
 ```
 
@@ -224,7 +256,7 @@ Replay script 후보:
 
 ```bash
 python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-normalized.jsonl \
+  --input data/processed/paysim-events.jsonl \
   --api-base-url http://localhost:8080 \
   --limit 1000 \
   --rate-per-second 50
@@ -251,5 +283,17 @@ Replay summary:
   "failed": 2,
   "durationSeconds": 20.1,
   "ratePerSecond": 49.7
+}
+```
+
+Replay failure report 후보:
+
+```json
+{
+  "eventId": "paysim-000000123",
+  "status": 409,
+  "errorCode": "DUPLICATE_TRANSACTION_EVENT",
+  "message": "duplicate eventId",
+  "attemptedAt": "2026-01-01T01:03:00Z"
 }
 ```

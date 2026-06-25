@@ -21,6 +21,7 @@ V2는 PaySim synthetic 거래 replay 결과를 표와 이미지로 남겨야 합
 후속 구현에서 다음 source를 사용합니다.
 
 - `paysim-validation-report.json`
+- `paysim-labels.jsonl`
 - `fraud_detection_results`
 - `fraud_action_decisions`
 - `fraud_cases`

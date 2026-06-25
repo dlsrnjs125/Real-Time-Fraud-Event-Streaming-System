@@ -178,9 +178,15 @@ V2 구현 시 최소 테스트:
 - oldBalanceOrig 0일 때 skipped 또는 not matched
 - `ZERO_BALANCE_AFTER_TRANSFER` true/false
 - `TRANSFER_CASHOUT_PATTERN` type별 판정
-- `DESTINATION_BALANCE_ANOMALY` merchant/account destination edge case
 - score to risk level mapping
 - label은 rule input으로 사용하지 않음
+
+후속 Rule 테스트:
+
+- `DESTINATION_BALANCE_ANOMALY` merchant/account destination edge case
+- `NEW_DESTINATION`
+- `FAILED_THEN_SUCCESS`
+- `AMOUNT_Z_SCORE`
 
 ## 9. Documentation Updates Required During Implementation
 

@@ -20,7 +20,7 @@
 | Phase 12 | Observability hardening | Prometheus/Grafana provisioning, alert rule, actuator metric check | `docs/08-observability.md` |
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 | Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
-| V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
+| V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only, runtime event/label sidecar separation | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
 
 ## CI / Build
 

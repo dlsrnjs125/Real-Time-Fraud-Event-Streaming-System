@@ -47,7 +47,8 @@ data/
     .gitkeep
   samples/
     .gitkeep
-    paysim-normalized-sample.jsonl
+    paysim-events-sample.jsonl
+    paysim-labels-sample.jsonl
     paysim-fraud-sample.jsonl
 
 scripts/
@@ -84,15 +85,20 @@ data/raw/PS_20174392719_1491204439457_log.csv
 ```bash
 python scripts/data/prepare_paysim_dataset.py \
   --input data/raw/PS_20174392719_1491204439457_log.csv \
-  --output data/processed/paysim-normalized.jsonl
+  --events-output data/processed/paysim-events.jsonl \
+  --labels-output data/processed/paysim-labels.jsonl \
+  --rejected-output data/processed/paysim-rejected.jsonl \
+  --report-output data/processed/paysim-validation-report.json
 ```
 
 4. 작은 sample을 생성합니다.
 
 ```bash
 python scripts/data/sample_paysim_dataset.py \
-  --input data/processed/paysim-normalized.jsonl \
-  --output data/samples/paysim-normalized-sample.jsonl \
+  --events-input data/processed/paysim-events.jsonl \
+  --labels-input data/processed/paysim-labels.jsonl \
+  --events-output data/samples/paysim-events-sample.jsonl \
+  --labels-output data/samples/paysim-labels-sample.jsonl \
   --limit 1000
 ```
 
@@ -100,7 +106,7 @@ python scripts/data/sample_paysim_dataset.py \
 
 ```bash
 python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-normalized.jsonl \
+  --input data/processed/paysim-events.jsonl \
   --api-base-url http://localhost:8080 \
   --limit 10000
 ```
@@ -127,7 +133,8 @@ PaySim은 synthetic dataset이지만 `nameOrig`, `nameDest`는 계좌형 식별�
 ```bash
 python scripts/data/prepare_paysim_dataset.py \
   --input data/raw/PS_20174392719_1491204439457_log.csv \
-  --output data/processed/paysim-normalized.jsonl \
+  --events-output data/processed/paysim-events.jsonl \
+  --labels-output data/processed/paysim-labels.jsonl \
   --hash-identifiers \
   --hash-salt local-dev-salt
 ```

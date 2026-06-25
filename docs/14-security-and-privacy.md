@@ -202,6 +202,16 @@ Phase 12 k6 load test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`,
 
 Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.
 
+## 17. Phase 13 Load and Failure Test 데이터 기준
+
+Phase 13 k6 load/failure test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`, `merchantId`만 사용합니다. 부하 테스트 payload에는 카드번호, 실명, 이메일, 전화번호 등 직접 식별 개인정보를 포함하지 않습니다.
+
+테스트 결과와 로그에도 실제 개인정보를 저장하지 않습니다. `load-test/k6/results/`에 생성되는 raw result 파일은 git에 커밋하지 않고, 문서에는 집계 결과와 병목 후보만 기록합니다.
+
+`API_BASE_URL`은 로컬 app-api 기본값인 `http://localhost:8080`을 사용합니다. 운영 환경이나 외부 공유 환경 URL을 대상으로 k6 부하 테스트를 실행하지 않습니다.
+
+Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.
+
 ## 18. Phase 14 Admin API Protection
 
 Phase 14에서는 `/api/v1/admin/**` API에 `X-Admin-Token` 기반 최소 보호를 추가했습니다. 이는 local/dev 환경에서 운영자 API가 완전히 공개되는 것을 막기 위한 장치이며, production-grade 인증/인가는 아닙니다.
@@ -268,14 +278,4 @@ destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
 - 동일 원본 identifier는 동일 hash로 변환해 사용자별 Redis Sliding Window 계산을 유지합니다.
 - sample data에는 raw `nameOrig`, `nameDest`를 포함하지 않습니다.
 - salt는 운영 환경에서 secret으로 관리해야 합니다.
-- PaySim label은 평가용으로만 사용하고 Rule Engine 입력으로 사용하지 않습니다.
-
-## 17. Phase 13 Load and Failure Test 데이터 기준
-
-Phase 13 k6 load/failure test는 synthetic `eventId`, `userId`, `accountId`, `deviceId`, `merchantId`만 사용합니다. 부하 테스트 payload에는 카드번호, 실명, 이메일, 전화번호 등 직접 식별 개인정보를 포함하지 않습니다.
-
-테스트 결과와 로그에도 실제 개인정보를 저장하지 않습니다. `load-test/k6/results/`에 생성되는 raw result 파일은 git에 커밋하지 않고, 문서에는 집계 결과와 병목 후보만 기록합니다.
-
-`API_BASE_URL`은 로컬 app-api 기본값인 `http://localhost:8080`을 사용합니다. 운영 환경이나 외부 공유 환경 URL을 대상으로 k6 부하 테스트를 실행하지 않습니다.
-
-Redis down load 이후에는 Redis container 상태를 반드시 확인합니다. Redis 장애를 의도적으로 만드는 테스트는 로컬 Docker Compose 환경에서만 수행합니다.
+- PaySim label은 sidecar 파일에만 저장하고, Rule Engine 입력이나 Kafka replay payload로 사용하지 않습니다.

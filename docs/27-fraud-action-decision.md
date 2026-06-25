@@ -56,7 +56,7 @@ V2에서 하지 않는 것:
 | Column | Type | Notes |
 |---|---|---|
 | `id` | bigint | primary key |
-| `event_id` | varchar(100) | unique |
+| `event_id` | varchar(100) | event id |
 | `fraud_result_id` | bigint | fraud result reference |
 | `risk_level` | varchar(30) | LOW/MEDIUM/HIGH/CRITICAL |
 | `detection_decision` | varchar(50) | APPROVE/REVIEW/HOLD/BLOCK_CANDIDATE |
@@ -68,24 +68,24 @@ V2에서 하지 않는 것:
 
 Constraints:
 
-- `event_id` unique
+- `unique(event_id, action_type)`
 - `action_type` not null
 - `action_status` not null
 - valid enum check constraints
 
 ## 6. Idempotency
 
-같은 `eventId`는 중복 `fraud_action_decisions` row를 만들면 안 됩니다.
+같은 `eventId`와 `actionType` 조합은 중복 `fraud_action_decisions` row를 만들면 안 됩니다.
 
 기준:
 
-- PostgreSQL `fraud_action_decisions.event_id` unique constraint
-- Consumer duplicate path에서 이미 action decision이 있으면 skip
+- PostgreSQL `fraud_action_decisions(event_id, action_type)` unique constraint
+- Consumer duplicate path에서 이미 같은 action decision이 있으면 skip
 - DLT reprocessing 후에도 원본 `eventId` 유지
 
 ## 6.1 Versioning Boundary
 
-V2에서는 `event_id` 기준 하나의 action decision만 생성합니다.
+V2에서는 `event_id + action_type` 기준으로 action decision을 생성합니다. CRITICAL 이벤트는 `BLOCK_TRANSACTION_CANDIDATE`와 `ACCOUNT_RISK_FLAG`처럼 서로 다른 status를 가진 action row를 여러 개 가질 수 있습니다.
 
 제외 범위:
 
@@ -99,6 +99,21 @@ V2에서는 `event_id` 기준 하나의 action decision만 생성합니다.
 - `decision_version`
 - `superseded_at`
 - decision history table
+
+## 6.2 Consistency and Failure Policy
+
+Consumer는 V2 처리에서 `FraudResult`, `FraudActionDecision`, 필요한 `FraudCase` 생성을 하나의 DB transaction 안에서 처리하는 것을 기본 정책으로 둡니다.
+
+정책:
+
+- `FraudResult` 저장 성공 후 `ActionDecision` 생성이 실패하면 offset을 ack하지 않고 재소비를 유도합니다.
+- `ActionDecision` 생성 성공 후 필요한 `FraudCase` 생성이 실패해도 offset을 ack하지 않습니다.
+- PostgreSQL unique constraint는 replay와 중복 소비에서 최종 duplicate defense 역할을 합니다.
+
+중간 상태 보강:
+
+- 이미 `FraudResult`는 있지만 `ActionDecision`이 없는 duplicate replay path에서는 action decision/case backfill을 시도합니다.
+- 별도 `v2-action-backfill` script 또는 reconciliation job은 후속 후보로 둡니다.
 
 ## 7. API Proposal
 
@@ -116,12 +131,24 @@ Response:
 {
   "eventId": "paysim-000001",
   "riskLevel": "CRITICAL",
-  "detectionDecision": "BLOCK_CANDIDATE",
-  "actionType": "BLOCK_TRANSACTION_CANDIDATE",
-  "actionStatus": "REQUIRES_MANUAL_APPROVAL",
-  "reason": "Balance drain and transfer/cash-out pattern detected"
+  "actions": [
+    {
+      "detectionDecision": "BLOCK_CANDIDATE",
+      "actionType": "BLOCK_TRANSACTION_CANDIDATE",
+      "actionStatus": "REQUIRES_MANUAL_APPROVAL",
+      "reason": "Balance drain and transfer/cash-out pattern detected"
+    },
+    {
+      "detectionDecision": "BLOCK_CANDIDATE",
+      "actionType": "ACCOUNT_RISK_FLAG",
+      "actionStatus": "PENDING",
+      "reason": "Critical event requires account risk review"
+    }
+  ]
 }
 ```
+
+CRITICAL 이벤트는 `BLOCK_TRANSACTION_CANDIDATE`와 `ACCOUNT_RISK_FLAG` action row를 함께 반환할 수 있습니다.
 
 ## 8. Audit
 

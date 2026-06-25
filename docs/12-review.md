@@ -544,7 +544,9 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - V2 범위를 AI/ML 모델이 아니라 PaySim synthetic dataset 기반 Rule 탐지와 운영 action workflow로 제한했습니다.
 - PaySim raw CSV를 repository에 커밋하지 않고 provenance, 재현 절차, sample 허용 범위를 문서화했습니다.
 - PaySim `isFraud` label은 Rule 입력이 아니라 평가용 정답으로만 사용한다고 명시했습니다.
+- runtime event와 evaluation label sidecar를 분리해 Consumer가 정답 label을 볼 수 있는 구조를 피하도록 설계했습니다.
 - V2 시작 순서를 Rule Engine이 아니라 data provenance, raw protection, preprocessing, validation, sampling, hashing, replay pipeline으로 재정렬했습니다.
+- ActionDecision은 CRITICAL 이벤트의 복수 action을 지원하기 위해 `unique(event_id, action_type)` 기준으로 정리했습니다.
 - CRITICAL risk도 실제 계좌 정지로 자동 연결하지 않고 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG`, Fraud Case, Admin Review로 분리했습니다.
 - V2 구현 전 data mapping, Rule V2, Action Decision, Fraud Case, Evidence Plan을 독립 문서로 나눠 구현 순서를 명확히 했습니다.
 
@@ -561,3 +563,4 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - Kaggle dataset license와 사용 조건은 구현 전 다시 확인해야 합니다.
 - V2 evidence 수치는 아직 `TBD`이며, 구현 후 replay 결과로 채워야 합니다.
 - Identifier hashing salt는 local 예시만 문서화되어 있으며, 운영 환경에서는 secret 관리가 필요합니다.
+- Offline evaluation과 online replay evaluation이 같은 rule version을 쓰는지 구현 단계에서 고정해야 합니다.
