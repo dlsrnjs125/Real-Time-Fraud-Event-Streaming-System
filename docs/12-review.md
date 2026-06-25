@@ -536,3 +536,25 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - Gateway/Nginx/API Gateway rate limit과 IP allowlist
 - DLT batch reprocess, cooldown, 관리자 승인 workflow
 - DLT pending/reprocess/discard metric과 alert rule
+
+## V2 Planning Review
+
+### 잘한 점
+
+- V2 범위를 AI/ML 모델이 아니라 PaySim synthetic dataset 기반 Rule 탐지와 운영 action workflow로 제한했습니다.
+- PaySim raw CSV를 repository에 커밋하지 않고 provenance, 재현 절차, sample 허용 범위를 문서화했습니다.
+- PaySim `isFraud` label은 Rule 입력이 아니라 평가용 정답으로만 사용한다고 명시했습니다.
+- CRITICAL risk도 실제 계좌 정지로 자동 연결하지 않고 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG`, Fraud Case, Admin Review로 분리했습니다.
+- V2 구현 전 data mapping, Rule V2, Action Decision, Fraud Case, Evidence Plan을 독립 문서로 나눠 구현 순서를 명확히 했습니다.
+
+### 의도적으로 제외한 것
+
+- PaySim download/prepare/replay script 구현은 이번 문서화 작업에서 제외했습니다.
+- DB migration, API, Rule V2 code, k6 scenario 변경은 아직 구현하지 않았습니다.
+- JWT/OAuth2/RBAC, 실제 금융기관 API, production 제재 workflow는 V2 범위에서 제외했습니다.
+
+### 남은 한계
+
+- PaySim dataset column과 row count는 실제 다운로드 후 script 검증으로 확인해야 합니다.
+- Kaggle dataset license와 사용 조건은 구현 전 다시 확인해야 합니다.
+- V2 evidence 수치는 아직 `TBD`이며, 구현 후 replay 결과로 채워야 합니다.

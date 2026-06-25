@@ -19,6 +19,7 @@
 | Phase 12 | Done | Load Test Evidence and Performance Review | k6 normal/peak/duplicate/Redis down scenarios, result template | measured local results |
 | Phase 13 | Done | Load and Failure Test Evidence | Phase 13 result template, runbook, review, security note | follow-up metric/dashboard evidence |
 | Phase 14 | Done | Operational Security and Automation | admin token protection, audit log, max reprocess attempts | JWT/RBAC, audit query API, gateway rate limit |
+| V2 Planning | In Progress | PaySim-based fraud workflow design | PaySim provenance, normalization, Rule V2, action decision, fraud case 설계 문서 | V2 Phase 1 구현 |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -939,3 +940,49 @@ bash -n scripts/*.sh
 ```
 
 문서만 변경한 경우에는 markdown 구조와 링크, Phase 상태 정합성을 확인합니다.
+
+## V2 Planning. PaySim-based Fraud Workflow
+
+### 목표
+
+Kaggle PaySim synthetic 금융 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 운영 흐름으로 확장하는 후속 작업을 설계합니다.
+
+### 설계 범위
+
+- PaySim data provenance와 raw data 미커밋 정책
+- PaySim CSV to normalized JSONL mapping
+- PaySim balance/type feature 기반 Rule Engine V2 전략
+- Fraud Action Decision 정책
+- Fraud Case 생성/조회/처리 정책
+- V2 결과 evidence와 시각화 계획
+
+### 산출물
+
+- `docs/24-kaggle-paysim-data-provenance.md`
+- `docs/25-paysim-normalization-mapping.md`
+- `docs/26-fraud-rule-v2-strategy.md`
+- `docs/27-fraud-action-decision.md`
+- `docs/28-fraud-case-management.md`
+- `docs/29-v2-result-evidence.md`
+
+### V2 구현 단계 제안
+
+| V2 Phase | 목표 | 주요 산출물 |
+|---:|---|---|
+| V2 Phase 1 | PaySim Data Provenance and Normalization | data directory policy, prepare/sample/replay script 설계 구현 |
+| V2 Phase 2 | Rule Engine V2 for PaySim Fraud Patterns | balance drain, zero balance, transfer/cash-out rules |
+| V2 Phase 3 | Fraud Action Decision and Case Management | action decision table/API, fraud case table/API, audit 연동 |
+| V2 Phase 4 | V2 Evidence and Visualization | label comparison, replay evidence, action/case distribution |
+
+### 명시적 제외 범위
+
+- AI/ML 모델 학습과 serving
+- 실제 개인정보 포함 데이터 사용
+- 실제 계좌 정지 또는 금융 제재 실행
+- 외부 금융기관 API 연동
+- production-grade JWT/OAuth2/RBAC
+- 복잡한 feature store 또는 real-time ML inference
+
+### 현재 상태
+
+기획/설계 문서화 단계입니다. V2 기능 구현, data script, DB migration, API 추가, Rule V2 코드는 아직 구현하지 않았습니다.
