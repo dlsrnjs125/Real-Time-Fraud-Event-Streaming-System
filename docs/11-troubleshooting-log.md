@@ -1234,6 +1234,12 @@ Phase 14의 `operatorId`는 인증된 사용자 식별자가 아니라 local/dev
 
 이번 Phase에서는 이 한계를 문서화하고, 운영 환경에서는 JWT subject, SSO user id, RBAC principal을 audit actor로 사용하도록 후속 과제로 둡니다.
 
+## Phase 14. default local admin token warning을 남기는 이유
+
+`security.admin.token`은 local/dev 편의를 위해 `${ADMIN_API_TOKEN:local-admin-token}` 기본값을 둡니다. 하지만 운영 비슷한 환경에 기본 token이 그대로 배포되면 잘 알려진 token으로 Admin API가 보호되는 위험이 있습니다.
+
+Phase 14에서는 profile 분리나 fail-fast까지 확장하지 않고, 기본값이 활성화되면 startup warning log를 남깁니다. 운영 환경에서는 반드시 `ADMIN_API_TOKEN`을 별도로 주입하고, 후속 보안 Phase에서는 profile별 설정 분리 또는 non-local fail-fast를 검토합니다.
+
 ## Phase 14. audit request_id를 비워두는 이유
 
 Phase 14에는 gateway 또는 공통 request-id 수집 체계가 아직 없습니다. 따라서 `admin_audit_logs.request_id`에 eventId를 대신 넣지 않고 null로 둡니다.

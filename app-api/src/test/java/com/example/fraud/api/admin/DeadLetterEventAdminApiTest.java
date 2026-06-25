@@ -136,6 +136,34 @@ class DeadLetterEventAdminApiTest {
     }
 
     @Test
+    void reprocessWithTooLongOperatorIdReturnsBadRequest() throws Exception {
+        insertDltEvent(14L, "evt-dlt-api-reprocess-validation-004", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 14L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"%s","reason":"manual replay after payload review"}
+                                """.formatted("a".repeat(101))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"));
+    }
+
+    @Test
+    void reprocessWithTooLongReasonReturnsBadRequest() throws Exception {
+        insertDltEvent(15L, "evt-dlt-api-reprocess-validation-005", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 15L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"operator-001","reason":"%s"}
+                                """.formatted("a".repeat(501))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"));
+    }
+
+    @Test
     void publishFailureMarksReprocessFailed() throws Exception {
         insertDltEvent(4L, "evt-dlt-api-reprocess-fail-001", "PENDING");
         doThrow(new DeadLetterPublishFailedException(new RuntimeException("kafka unavailable")))
@@ -181,6 +209,20 @@ class DeadLetterEventAdminApiTest {
                 .andExpect(jsonPath("$.status").value("DISCARDED"));
 
         assertAudit("DLT_DISCARD", "SUCCESS", 5L, "operator-001");
+    }
+
+    @Test
+    void discardWithTooLongReasonReturnsBadRequest() throws Exception {
+        insertDltEvent(16L, "evt-dlt-api-discard-validation-001", "PENDING");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/discard", 16L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"operator-001","reason":"%s"}
+                                """.formatted("a".repeat(501))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSACTION_EVENT"));
     }
 
     @Test

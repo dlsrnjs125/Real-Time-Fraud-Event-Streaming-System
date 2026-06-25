@@ -211,6 +211,7 @@ Phase 14에서는 `/api/v1/admin/**` API에 `X-Admin-Token` 기반 최소 보호
 - Admin API 요청은 `X-Admin-Token` header가 필요합니다.
 - token 값은 `security.admin.token` 설정 또는 `ADMIN_API_TOKEN` 환경 변수로 주입합니다.
 - local 기본값은 개발 편의를 위한 `local-admin-token`이며 운영 환경에서는 기본값 사용을 금지합니다.
+- 기본값 `local-admin-token`이 활성화되면 app-api startup warning log를 남깁니다.
 - token이 없거나 틀리면 `401 UNAUTHORIZED_ADMIN_API`로 응답합니다.
 - 일반 transaction ingest API는 admin token 없이 동작합니다.
 - admin token은 log, metric tag, audit payload에 저장하지 않습니다.
