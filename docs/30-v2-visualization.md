@@ -64,7 +64,13 @@ Charts는 집계값만 사용합니다.
 
 ## 7. Proposed Command
 
-후속 구현에서 chart 생성 명령은 다음처럼 둡니다.
+후속 구현에서 evidence summary 생성과 chart 생성 명령은 다음처럼 둡니다.
+
+```bash
+python scripts/evidence/build_v2_evidence_summary.py \
+  --labels data/processed/paysim-labels.jsonl \
+  --output data/processed/v2-evidence-summary.json
+```
 
 ```bash
 python scripts/evidence/generate_v2_charts.py \
@@ -75,6 +81,11 @@ python scripts/evidence/generate_v2_charts.py \
 Makefile target 후보:
 
 ```makefile
+v2-evidence-summary:
+	python scripts/evidence/build_v2_evidence_summary.py \
+		--labels data/processed/paysim-labels.jsonl \
+		--output data/processed/v2-evidence-summary.json
+
 v2-charts:
 	python scripts/evidence/generate_v2_charts.py \
 		--evidence-input data/processed/v2-evidence-summary.json \

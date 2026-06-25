@@ -590,9 +590,19 @@ V2 replay payload는 runtime event만 포함합니다.
 
 미포함:
 
+- `receivedAt`
 - `isFraud`
 - `sourceFlaggedFraud`
 - `label`
+
+V2 replay request에서 `receivedAt`은 보내지 않습니다. app-api가 접수 시각을 생성하고, Kafka message에는 app-api가 생성한 `receivedAt`이 포함됩니다.
+
+PaySim runtime request는 현행 currency validation과 맞춰 `currency=KRW`를 사용합니다. PaySim 금액은 synthetic amount이므로 실제 원화 거래 의미를 주장하지 않으며, 데이터 출처는 `source=PAYSIM`으로 표현합니다.
+
+`TransactionEventType` enum은 V2 구현 시 PaySim type을 직접 표현할 수 있도록 확장합니다.
+
+- 기존: `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`
+- V2 추가 후보: `CASH_OUT`, `CASH_IN`, `DEBIT`
 
 `TransactionBalanceFeatures` 후보:
 

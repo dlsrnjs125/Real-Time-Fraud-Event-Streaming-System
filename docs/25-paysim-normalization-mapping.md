@@ -38,9 +38,8 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
   "destinationAccountId": "D-12ab8821cdae",
   "eventType": "PAYMENT",
   "amount": 9839.64,
-  "currency": "PAYSIM",
+  "currency": "KRW",
   "eventTime": "2026-01-01T01:00:00Z",
-  "receivedAt": null,
   "traceId": "trace-paysim-000000001",
   "schemaVersion": "v2-paysim",
   "source": "PAYSIM",
@@ -49,12 +48,14 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
     "newBalanceOrig": 160296.36,
     "oldBalanceDest": 0.0,
     "newBalanceDest": 0.0,
-    "step": 1
+    "sourceStep": 1
   }
 }
 ```
 
-`receivedAt`은 app-api가 이벤트를 접수할 때 생성하는 값이므로 normalized file 단계에서는 null이거나 생략 가능합니다.
+`receivedAt`은 app-api가 이벤트를 접수할 때 생성하는 값이므로 normalized runtime event에는 포함하지 않습니다. Kafka message에는 app-api가 생성한 `receivedAt`이 포함됩니다.
+
+`currency`는 현행 API validation과 맞추기 위해 `KRW`로 고정합니다. PaySim 금액은 synthetic amount이므로 실제 원화 거래 의미를 주장하지 않으며, 데이터 출처는 `source=PAYSIM`으로 표현합니다.
 
 ## 3.1 Evaluation Label Sidecar
 
@@ -112,6 +113,7 @@ data/processed/paysim-validation-report.json
 
 - evaluation용 sidecar
 - `eventId`, `isFraud`, `sourceFlaggedFraud`, `sourceRowNumber`만 포함
+- hash identifier도 evaluation join에 필요하지 않으므로 포함하지 않음
 - app-api/Kafka replay 입력으로 사용하지 않음
 
 `paysim-rejected.jsonl`:
@@ -134,6 +136,8 @@ data/processed/paysim-validation-report.json
   "datasetName": "PaySim",
   "inputFile": "PS_20174392719_1491204439457_log.csv",
   "inputSha256": "TBD",
+  "eventsOutputSha256": "TBD",
+  "labelsOutputSha256": "TBD",
   "scriptVersion": "v2-preprocess-001",
   "baseTime": "2026-01-01T00:00:00Z",
   "hashIdentifiers": true,
@@ -208,6 +212,9 @@ V2 초기 구현은 Rule V2가 balance 기반 feature를 안정적으로 읽을 
 - generic `Map<String, Object> features`는 사용하지 않습니다.
 - `TransactionBalanceFeatures`에는 PaySim label이나 source flag를 포함하지 않습니다.
 - field 이름은 PaySim 전용이 아니라 balance 기반 rule 입력임을 드러내는 이름을 사용합니다.
+- JSON field 이름은 `sourceStep`으로 통일합니다. `step`은 PaySim raw column 이름으로만 사용합니다.
+- `TransactionEventType` enum에는 PaySim type인 `CASH_OUT`, `CASH_IN`, `DEBIT`를 추가합니다. Rule V2에서 `CASH_OUT` 구분이 필요하므로 기존 type으로 강제 normalize하지 않습니다.
+- `currency`는 `KRW`를 사용하고 PaySim 출처는 `source=PAYSIM`으로 보존합니다.
 
 후보 Java contract:
 
@@ -371,7 +378,12 @@ Replay summary:
   "success": 998,
   "failed": 2,
   "durationSeconds": 20.1,
-  "ratePerSecond": 49.7
+  "ratePerSecond": 49.7,
+  "latencyMs": {
+    "p50": "TBD",
+    "p95": "TBD",
+    "p99": "TBD"
+  }
 }
 ```
 

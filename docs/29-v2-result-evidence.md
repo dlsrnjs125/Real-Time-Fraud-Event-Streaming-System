@@ -218,6 +218,8 @@ make v2-evidence-summary
 make v2-charts
 ```
 
+`make v2-evidence-summary`는 후속 구현에서 `scripts/evidence/build_v2_evidence_summary.py`를 호출해 `data/processed/v2-evidence-summary.json`을 생성합니다. `make v2-charts`는 이 summary JSON을 입력으로 사용합니다.
+
 Minimum verification:
 
 ```bash

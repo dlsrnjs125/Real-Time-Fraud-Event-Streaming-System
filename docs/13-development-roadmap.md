@@ -1049,14 +1049,19 @@ Data preprocessing:
 Runtime schema:
 
 - `TransactionBalanceFeatures` typed optional field 사용
+- balance feature JSON field는 `sourceStep`으로 통일
 - generic map feature 사용 안 함
 - label/isFraud/sourceFlaggedFraud는 runtime payload에 포함하지 않음
+- `receivedAt`은 replay payload에 포함하지 않고 app-api가 생성
+- `currency=KRW`, `source=PAYSIM` 사용
+- `TransactionEventType`에 `CASH_OUT`, `CASH_IN`, `DEBIT` 추가 검토
 - amount/balance는 `BigDecimal`로 처리
 
 Rule Engine:
 
 - V2 초기 Rule은 3개로 제한
 - `oldBalanceOrig <= 0`이면 `BALANCE_DRAIN` not matched 또는 skipped 처리
+- `newBalanceOrig == 0` 판단은 `BigDecimal.compareTo(BigDecimal.ZERO) == 0` 사용
 - score cap 100 적용
 - HIGH/CRITICAL 기준이 evaluation positive prediction임을 명시
 

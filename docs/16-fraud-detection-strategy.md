@@ -293,6 +293,27 @@ Rule V2는 `TransactionBalanceFeatures` typed optional field를 입력으로 사
 - `ZERO_BALANCE_AFTER_TRANSFER`
 - `TRANSFER_CASHOUT_PATTERN`
 
+구현 조건:
+
+`BALANCE_DRAIN`:
+
+- `oldBalanceOrig > 0`
+- `amount > 0`
+- `amount / oldBalanceOrig >= 0.8`
+- `BigDecimal.divide`는 scale과 rounding mode를 명시합니다.
+
+`ZERO_BALANCE_AFTER_TRANSFER`:
+
+- `eventType in (TRANSFER, CASH_OUT)`
+- `oldBalanceOrig > 0`
+- `newBalanceOrig.compareTo(BigDecimal.ZERO) == 0`
+
+`TRANSFER_CASHOUT_PATTERN`:
+
+- `eventType in (TRANSFER, CASH_OUT)`
+- `amount >= configured threshold`
+- 단독으로 CRITICAL이 되지 않도록 score는 25로 유지합니다.
+
 후속 후보:
 
 - `DESTINATION_BALANCE_ANOMALY`
