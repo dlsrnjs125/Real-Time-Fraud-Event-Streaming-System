@@ -536,3 +536,35 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - Gateway/Nginx/API Gateway rate limit과 IP allowlist
 - DLT batch reprocess, cooldown, 관리자 승인 workflow
 - DLT pending/reprocess/discard metric과 alert rule
+
+## V2 Planning Review
+
+### 잘한 점
+
+- V2 범위를 AI/ML 모델이 아니라 PaySim synthetic dataset 기반 Rule 탐지와 운영 action workflow로 제한했습니다.
+- PaySim raw CSV를 repository에 커밋하지 않고 provenance, 재현 절차, sample 허용 범위를 문서화했습니다.
+- PaySim `isFraud` label은 Rule 입력이 아니라 평가용 정답으로만 사용한다고 명시했습니다.
+- runtime event와 evaluation label sidecar를 분리해 Consumer가 정답 label을 볼 수 있는 구조를 피하도록 설계했습니다.
+- V2 시작 순서를 Rule Engine이 아니라 data provenance, raw protection, preprocessing, validation, sampling, hashing, replay pipeline으로 재정렬했습니다.
+- ActionDecision은 CRITICAL 이벤트의 복수 action을 지원하기 위해 `unique(event_id, action_type)` 기준으로 정리했습니다.
+- V2 runtime schema를 `TransactionBalanceFeatures` typed optional field로 확정하고 generic feature map을 제외했습니다.
+- preprocessing fail-fast/row-level reject, streaming CSV 처리, max reject ratio 기준을 문서화했습니다.
+- 자동 ActionDecision 생성은 admin audit log가 아니라 `fraud_action_decisions` table과 metrics/evidence로 추적하도록 정리했습니다.
+- CRITICAL risk도 실제 계좌 정지로 자동 연결하지 않고 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG`, Fraud Case, Admin Review로 분리했습니다.
+- V2 구현 전 data mapping, Rule V2, Action Decision, Fraud Case, Evidence Plan을 독립 문서로 나눠 구현 순서를 명확히 했습니다.
+
+### 의도적으로 제외한 것
+
+- PaySim download/prepare/replay script 구현은 이번 문서화 작업에서 제외했습니다.
+- DB migration, API, Rule V2 code, k6 scenario 변경은 아직 구현하지 않았습니다.
+- JWT/OAuth2/RBAC, 실제 금융기관 API, production 제재 workflow는 V2 범위에서 제외했습니다.
+- visualization image 생성은 실제 V2 replay/evaluation 결과가 나온 뒤 수행합니다.
+
+### 남은 한계
+
+- PaySim dataset column과 row count는 실제 다운로드 후 script 검증으로 확인해야 합니다.
+- Kaggle dataset license와 사용 조건은 구현 전 다시 확인해야 합니다.
+- V2 evidence 수치는 아직 `TBD`이며, 구현 후 replay 결과로 채워야 합니다.
+- Identifier hashing salt는 local 예시만 문서화되어 있으며, 운영 환경에서는 secret 관리가 필요합니다.
+- Offline evaluation과 online replay evaluation이 같은 rule version을 쓰는지 구현 단계에서 고정해야 합니다.
+- `TransactionBalanceFeatures`를 app-common에 둘 때 PaySim label/source flag가 섞이지 않도록 schema review가 필요합니다.

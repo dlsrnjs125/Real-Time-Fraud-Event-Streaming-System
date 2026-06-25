@@ -122,6 +122,13 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [22. Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [23. Load Test Results](docs/22-load-test-results.md)
 - [24. Phase 13 Load Test Results](docs/23-load-test-results.md)
+- [25. Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md)
+- [26. PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md)
+- [27. Fraud Rule V2 Strategy](docs/26-fraud-rule-v2-strategy.md)
+- [28. Fraud Action Decision](docs/27-fraud-action-decision.md)
+- [29. Fraud Case Management](docs/28-fraud-case-management.md)
+- [30. V2 Result Evidence Plan](docs/29-v2-result-evidence.md)
+- [31. V2 Visualization Plan](docs/30-v2-visualization.md)
 - [Blog Drafts](blog/README.md)
 
 ## 현재 구현 범위
@@ -129,3 +136,5 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 현재는 Phase 14까지 완료된 상태입니다. Phase 14에서는 Admin API 최소 보호, DLT 재처리/폐기 audit log, max reprocess attempts 정책을 추가해 운영 조작의 보안성과 감사 가능성을 강화했습니다.
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
+
+후속 V2 기획은 Kaggle PaySim synthetic 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 관리 흐름으로 확장하는 방향으로 문서화되어 있습니다. V2 문서는 설계 기준이며, 실제 구현 완료 상태를 의미하지 않습니다.

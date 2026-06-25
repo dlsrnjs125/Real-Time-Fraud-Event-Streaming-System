@@ -20,6 +20,7 @@
 | Phase 12 | Observability hardening | Prometheus/Grafana provisioning, alert rule, actuator metric check | `docs/08-observability.md` |
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 | Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
+| V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only, typed runtime feature and label sidecar separation | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
 
 ## CI / Build
 
@@ -77,3 +78,6 @@
 | Troubleshooting index | `docs/21-troubleshooting-index.md` | 긴 troubleshooting log의 빠른 탐색 |
 | Runbook | `docs/18-runbook.md` | 장애 대응 절차 |
 | Security/privacy | `docs/14-security-and-privacy.md` | 민감정보와 운영 보안 한계 |
+| V2 PaySim provenance | `docs/24-kaggle-paysim-data-provenance.md` | synthetic dataset 출처와 raw data 미커밋 정책 |
+| V2 result evidence plan | `docs/29-v2-result-evidence.md` | V2 구현 후 기록할 측정/평가 기준 |
+| V2 visualization plan | `docs/30-v2-visualization.md` | V2 구현 후 생성할 chart/table 기준 |
