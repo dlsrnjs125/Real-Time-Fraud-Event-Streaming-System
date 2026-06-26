@@ -4,6 +4,16 @@ This directory contains V2 PaySim data workflow helpers.
 
 V2 Phase 2 adds local dataset acquisition and preprocessing normalization. It does not implement sampling, replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
 
+This repository is primarily a Java/Spring Boot project. Python is used only for V2 PaySim data acquisition and preprocessing helpers. To avoid global `pip install` and local environment drift, data scripts run inside a repository-local virtual environment at `.venv-data`.
+
+Create or refresh the data Python environment with:
+
+```bash
+make data-env
+```
+
+The environment is generated from `scripts/data/requirements.txt`. Do not commit `.venv-data`.
+
 ## Dataset Location
 
 Download the Kaggle PaySim CSV manually or use the optional KaggleHub helper and place it here:
@@ -21,15 +31,11 @@ https://www.kaggle.com/datasets/ealaxi/paysim1
 Optional helper:
 
 ```bash
-python3 scripts/data/download_paysim_dataset.py
-python3 scripts/data/download_paysim_dataset.py --force
+make download-paysim
+DATA_VENV_DIR=.venv-data make download-paysim
 ```
 
-The helper uses `kagglehub` to download `ealaxi/paysim1` into the local KaggleHub cache and copies the expected CSV into `data/raw`. Install the optional dependency when needed:
-
-```bash
-pip install kagglehub
-```
+The helper uses `kagglehub` to download `ealaxi/paysim1` into the local KaggleHub cache and copies the expected CSV into `data/raw`. `make download-paysim` runs `make data-env` first, so developers do not install KaggleHub with global `pip`.
 
 Do not commit Kaggle tokens, API tokens, `.env`, or raw CSV files.
 
@@ -125,6 +131,8 @@ Test the data scripts without the real Kaggle CSV:
 ```bash
 make test-data-scripts
 ```
+
+`make prepare-paysim`, `make prepare-paysim-smoke`, and `make test-data-scripts` use `.venv-data/bin/python`. CI runs the fixture-based data script tests and data policy check, but does not download the Kaggle dataset or run full preprocessing.
 
 ## Policy Check
 

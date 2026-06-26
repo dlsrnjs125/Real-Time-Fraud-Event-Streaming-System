@@ -28,6 +28,7 @@
 17. [운영자 API 보호와 Audit Log로 재처리 기능을 안전하게 만들기](17-operational-security-and-audit-log.md)
 18. [V2 PaySim 데이터 출처와 원본 데이터 보호 기준 세우기](18-v2-paysim-data-provenance-and-raw-data-protection.md)
 19. [V2 PaySim CSV를 replay 가능한 runtime event로 정규화하기](19-v2-paysim-preprocessing-normalization.md)
+20. [V2 PaySim 데이터 Python Toolchain 분리하기](20-v2-data-python-toolchain-bootstrap.md)
 
 ## 글 구조
 

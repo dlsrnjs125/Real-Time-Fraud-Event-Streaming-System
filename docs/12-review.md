@@ -685,3 +685,53 @@ PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
 - Phase 2 preprocessing은 output file을 직접 쓰므로 fail-fast/interrupt 시 partial output이 남을 수 있습니다. Phase 5 replay 연결 전 atomic write와 final rename 방식을 검토합니다.
 - Phase 5 replay script에는 dataset/sample 충돌 방지를 위한 `--event-id-prefix` 옵션을 둡니다.
 - Phase 3 sample generation에서는 `default-local` salt 사용을 금지하고 환경변수 또는 CLI salt 명시를 요구합니다.
+
+## V2 Data Toolchain Review
+
+### 잘한 점
+
+- Java/Spring Boot runtime과 PaySim Python data helper 의존성을 분리했습니다.
+- global `pip install kagglehub` 안내를 제거하고 `.venv-data` 기반 bootstrap으로 정리했습니다.
+- `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`가 같은 venv Python을 사용하도록 Makefile을 통일했습니다.
+- CI에서는 Kaggle download와 full preprocessing을 실행하지 않고 fixture test와 data policy check만 실행하도록 유지했습니다.
+- `.venv-data/`를 Git ignore에 추가해 local dependency directory가 커밋되지 않도록 했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] global `pip install kagglehub` 안내가 제거되었는가
+- [ ] `make data-env`가 `.venv-data`를 생성하는가
+- [ ] `make download-paysim`이 `.venv-data/bin/python`을 사용하는가
+- [ ] `make test-data-scripts`가 venv Python으로 실행되는가
+- [ ] `.venv-data/`가 Git에 커밋되지 않는가
+- [ ] `data/raw/*.csv`가 커밋되지 않는가
+- [ ] `data/processed/*`가 커밋되지 않는가
+- [ ] CI에서 Kaggle download를 실행하지 않는가
+- [ ] CI에서 fixture 기반 data script test는 실행되는가
+- [ ] Kaggle credential이나 token이 로그/문서/Git에 남지 않는가
+
+### 검증 기록
+
+```bash
+bash -n scripts/data/bootstrap-data-env.sh
+make data-env
+make test-data-scripts
+make data-policy-check
+make ci-check
+make download-paysim
+make prepare-paysim-smoke
+```
+
+`make download-paysim` copied the expected PaySim CSV to ignored `data/raw/PS_20174392719_1491204439457_log.csv`. `make prepare-paysim-smoke` accepted 1,000 rows and wrote ignored `data/processed/*` outputs. These files were not added to Git.
+
+### 의도적으로 제외한 것
+
+- V2 Phase 3 validation script 구현
+- V2 Phase 3 sample generation script 구현
+- Java Rule Engine V2, Kafka replay, API/DB/Kafka schema 변경
+- CI에서 Kaggle dataset download 또는 full preprocessing 실행
+
+### 남은 한계
+
+- Kaggle 인증은 사용자 로컬 환경에서 별도로 준비해야 합니다.
+- `.venv-data`는 재현 가능한 helper 실행 환경일 뿐, Java application runtime dependency가 아닙니다.
+- KaggleHub API 변화가 생기면 `scripts/data/requirements.txt`의 version range를 조정해야 합니다.

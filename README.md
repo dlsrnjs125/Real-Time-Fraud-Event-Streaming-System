@@ -82,6 +82,7 @@ make test
 make infra-up
 make api
 make consumer
+make data-env
 make data-policy-check
 make test-data-scripts
 make final-check
@@ -147,7 +148,10 @@ V2 Phase 1에서는 PaySim 원본 CSV와 processed 전체 결과가 repository�
 V2 PaySim data workflow:
 
 ```bash
+make data-env
 make download-paysim
 make prepare-paysim-smoke
 make test-data-scripts
 ```
+
+Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.

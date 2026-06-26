@@ -100,8 +100,8 @@ make data-policy-check
 1. Kaggle에서 PaySim CSV를 다운로드합니다. 로컬에서는 optional KaggleHub helper를 사용할 수 있습니다.
 
 ```bash
-python3 scripts/data/download_paysim_dataset.py
-python3 scripts/data/download_paysim_dataset.py --force
+make data-env
+make download-paysim
 ```
 
 helper는 KaggleHub cache에 `ealaxi/paysim1` dataset을 다운로드하고, cache 안의 expected CSV를 아래 경로로 복사합니다.
@@ -112,16 +112,25 @@ data/raw/PS_20174392719_1491204439457_log.csv
 
 Kaggle token, API token, access token은 `.env`, docs, logs, validation report에 남기지 않습니다. CI에서는 download helper를 실행하지 않습니다.
 
+KaggleHub는 project-managed `.venv-data`에서 실행합니다. 이 repository의 주 toolchain은 Java/Spring Boot와 Gradle이고, Python은 PaySim data helper에만 사용합니다. 따라서 개발자가 global `pip install kagglehub`를 직접 실행하지 않고 `make data-env`로 격리된 환경을 준비합니다.
+
+이 분리의 이유:
+
+- Java application runtime과 Python data helper 의존성을 분리합니다.
+- 개발자별 Python interpreter와 package 상태 차이로 생기는 drift를 줄입니다.
+- CI와 로컬 명령어가 같은 Makefile target을 사용합니다.
+- Kaggle credential이나 token을 repository, `.venv-data`, docs, logs에 저장하지 않는 원칙을 유지합니다.
+
 2. 전처리 script를 실행합니다.
 
 ```bash
-python3 scripts/data/prepare_paysim_dataset.py --force
+make prepare-paysim
 ```
 
 로컬 smoke 검증은 일부 row만 처리합니다.
 
 ```bash
-python3 scripts/data/prepare_paysim_dataset.py --limit 1000 --force
+make prepare-paysim-smoke
 ```
 
 3. 후속 V2 Phase 3에서 작은 sample을 생성합니다.
@@ -193,6 +202,18 @@ V2 Phase 2에서 추가한 구현:
 - `scripts/data/download_paysim_dataset.py`
 - `scripts/data/prepare_paysim_dataset.py`
 - `scripts/data/test_prepare_paysim_dataset.py`
-- Makefile target: `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`
+- Makefile target: `data-env`, `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`
 
-CI에서는 KaggleHub download와 full preprocessing을 실행하지 않습니다. CI는 작은 fixture 기반 unittest와 data policy check만 실행합니다.
+CI에서는 KaggleHub download와 full preprocessing을 실행하지 않습니다. CI는 `.venv-data` 기반의 작은 fixture unittest와 data policy check만 실행합니다.
+
+## 10. V2 Data Python Toolchain
+
+V2 Data Python Toolchain 보강에서 추가한 구현:
+
+- `scripts/data/requirements.txt`
+- `scripts/data/bootstrap-data-env.sh`
+- `.venv-data/` gitignore
+- `make data-env`
+- venv 기반 `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`
+
+`scripts/data/requirements.txt`는 PaySim data helper에 필요한 Python dependency만 관리합니다. KaggleHub API 변화가 있으면 이 파일에서 version range를 조정하거나 더 좁게 고정합니다.
