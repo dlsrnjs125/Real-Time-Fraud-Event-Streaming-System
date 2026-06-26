@@ -274,7 +274,7 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
     type_counts = {event_type: 0 for event_type in sorted(VALID_TYPES)}
     started_at = iso_z(datetime.now(timezone.utc))
 
-    with args.input.open("r", encoding="utf-8", newline="") as input_file:
+    with args.input.open("r", encoding="utf-8-sig", newline="") as input_file:
         reader = csv.DictReader(input_file)
         validate_header(reader.fieldnames)
 

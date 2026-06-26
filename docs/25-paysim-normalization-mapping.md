@@ -183,6 +183,8 @@ traceId = trace-paysim-{rowNumber zero padded}
 - PaySim row order가 바뀌면 eventId가 바뀔 수 있으므로 전처리 script는 input order를 보존합니다.
 - `eventId`는 `inputSha256`과 raw row number 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
 
+후속 Phase 5 replay에서는 다른 dataset/sample을 같은 API/DB에 주입할 때 충돌을 피할 수 있도록 `--event-id-prefix` 옵션을 둡니다. 기본 preprocessing output은 idempotency 검증에 유용하도록 row number 기반 deterministic id를 유지합니다.
+
 ## 6. Time Policy
 
 PaySim `step`은 normalized eventTime으로 변환합니다.
@@ -379,17 +381,34 @@ python scripts/data/replay_paysim_to_api.py \
 - 기본 replay는 `paysim-events.jsonl`만 읽고 label에 접근하지 않음
 - fraud-only/normal-only replay는 명시적으로 `--labels-input`을 전달한 경우에만 허용
 - filtered replay에서도 API/Kafka payload에는 label을 포함하지 않음
+- 후속 Phase 5에서는 `--event-id-prefix`로 replay 시점 eventId prefix를 조정할 수 있게 함
 
 fraud-only replay 예시:
 
 ```bash
 python scripts/data/replay_paysim_to_api.py \
   --input data/processed/paysim-events.jsonl \
+  --event-id-prefix paysim-full-v1 \
   --labels-input data/processed/paysim-labels.jsonl \
   --filter fraud-only \
   --api-base-url http://localhost:8080 \
   --limit 1000
 ```
+
+## 12. Partial Output Safety
+
+V2 Phase 2 script는 output file을 직접 씁니다. `fail-fast` 중단이나 사용자 interrupt가 발생하면 partial output이 남을 수 있습니다. 현재는 `data/processed`가 Git ignore 대상이고 replay pipeline이 아직 없으므로 Phase 2 blocker로 보지 않습니다.
+
+후속 Phase 5에서 replay pipeline을 연결하기 전에는 다음 atomic write 방식을 검토합니다.
+
+```text
+paysim-events.jsonl.tmp
+paysim-labels.jsonl.tmp
+paysim-rejected.jsonl.tmp
+paysim-validation-report.json.tmp
+```
+
+정상 완료 시에만 final filename으로 rename해 partial output replay 위험을 줄입니다.
 
 Replay summary:
 

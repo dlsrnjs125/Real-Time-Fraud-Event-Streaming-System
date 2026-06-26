@@ -682,3 +682,6 @@ PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
 - identifier hashing은 최소 구현이며 Phase 4에서 salt policy와 sample 검증을 강화합니다.
 - rejected row taxonomy와 reject ratio policy는 Phase 3에서 고도화합니다.
 - data script test는 missing column, invalid label/type, blank identifier, non-finite Decimal, existing output protection, raw identifier leakage까지 검증합니다.
+- Phase 2 preprocessing은 output file을 직접 쓰므로 fail-fast/interrupt 시 partial output이 남을 수 있습니다. Phase 5 replay 연결 전 atomic write와 final rename 방식을 검토합니다.
+- Phase 5 replay script에는 dataset/sample 충돌 방지를 위한 `--event-id-prefix` 옵션을 둡니다.
+- Phase 3 sample generation에서는 `default-local` salt 사용을 금지하고 환경변수 또는 CLI salt 명시를 요구합니다.

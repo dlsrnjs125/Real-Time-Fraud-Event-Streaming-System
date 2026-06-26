@@ -116,6 +116,10 @@ Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`
 
 `--limit` only limits output row processing. The script still computes SHA-256 for the full raw input file so the validation report keeps file-level provenance.
 
+Phase 2 writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay processed output until Phase 5 adds replay-specific safety checks. Atomic temp-file writes are a Phase 5 follow-up.
+
+Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
+
 Test the data scripts without the real Kaggle CSV:
 
 ```bash

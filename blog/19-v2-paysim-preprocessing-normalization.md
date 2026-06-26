@@ -83,3 +83,5 @@ sample generation은 Phase 3에서 구현합니다.
 identifier hashing은 이번 Phase에서 최소 구현했지만, salt policy와 sample 검증은 Phase 4에서 강화합니다.
 
 API replay는 Phase 5, Rule Engine V2는 Phase 6에서 다룹니다.
+
+`fail-fast` 중단 시 partial processed output이 남을 수 있으므로, replay pipeline을 붙이기 전에 atomic temp-file write와 final rename을 검토합니다.

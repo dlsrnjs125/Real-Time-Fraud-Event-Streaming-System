@@ -71,7 +71,7 @@ def find_csv(cache_path: Path, source_file: str | None) -> Path:
 
 
 def validate_csv_header(path: Path) -> None:
-    with path.open("r", encoding="utf-8", newline="") as file:
+    with path.open("r", encoding="utf-8-sig", newline="") as file:
         reader = csv.DictReader(file)
         if reader.fieldnames is None:
             raise SystemExit(f"ERROR: CSV header parse failed: {path.name}")

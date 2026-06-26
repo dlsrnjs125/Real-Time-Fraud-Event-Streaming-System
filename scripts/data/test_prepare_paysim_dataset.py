@@ -213,6 +213,32 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("missing required columns: amount", result.stderr)
 
+    def test_utf8_bom_header_is_accepted(self):
+        write_csv(self.input, [self.base_row()])
+        original = self.input.read_bytes()
+        self.input.write_bytes(b"\xef\xbb\xbf" + original)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--input",
+                str(self.input),
+                "--output-dir",
+                str(self.output_dir),
+                "--hash-salt",
+                "unit-test-salt",
+                "--force",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        events = read_jsonl(self.output_dir / "paysim-events.jsonl")
+        self.assertEqual("paysim-000000001", events[0]["eventId"])
+
     def test_invalid_label_type_and_blank_identifier_are_rejected(self):
         result = self.run_prepare(
             [
