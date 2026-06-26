@@ -1411,3 +1411,135 @@ invalid amount fixture test에서 rejected record에 raw identifier가 포함되
 ### 남은 한계
 
 더 정교한 rejected reason taxonomy와 reject ratio 정책은 Phase 3에서 강화합니다.
+
+## V2 Data Toolchain. Java 프로젝트에서 global pip 설치를 요구하는 문제
+
+### 문제
+
+PaySim download helper를 실행하려면 KaggleHub가 필요하지만, README나 script가 `pip install kagglehub`를 직접 안내하면 개발자의 global Python 환경을 오염시킬 수 있습니다.
+
+### 원인
+
+이 repository의 주 toolchain은 Java/Spring Boot와 Gradle입니다. Python은 PaySim data helper에만 필요한 보조 도구인데, global pip 설치를 요구하면 프로젝트 경계가 흐려지고 개발자별 환경 차이가 커집니다.
+
+### 대응
+
+`scripts/data/requirements.txt`와 `scripts/data/bootstrap-data-env.sh`를 추가하고, `make data-env`가 repository-local `.venv-data`를 생성하도록 했습니다. data script 관련 Makefile target은 `.venv-data/bin/python`을 사용합니다.
+
+### 검증
+
+`bash -n scripts/data/bootstrap-data-env.sh`, `make data-env`, `make test-data-scripts`로 venv 생성과 KaggleHub import, fixture test 실행을 확인합니다.
+
+### 남은 한계
+
+Kaggle 인증 자체는 사용자 로컬 환경에 남아야 합니다. token 값은 `.venv-data`, Git, docs, logs에 저장하지 않습니다.
+
+## V2 Data Toolchain. Python interpreter와 package 상태 차이로 import 실패가 나는 문제
+
+### 문제
+
+개발자마다 `python3`가 가리키는 interpreter, pip site-package, 설치된 KaggleHub version이 달라 `download_paysim_dataset.py`의 import 결과가 달라질 수 있습니다.
+
+### 원인
+
+Makefile이 global `python3`를 직접 호출하면 Java 프로젝트의 Gradle workflow와 별개로 로컬 Python 상태에 의존합니다.
+
+### 대응
+
+`DATA_VENV_DIR ?= .venv-data`와 `DATA_PYTHON := $(DATA_VENV_DIR)/bin/python`을 Makefile에 추가했습니다. `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`는 모두 `data-env`에 의존합니다.
+
+### 검증
+
+`make data-python-check`는 실제 사용되는 Python executable과 KaggleHub import를 확인합니다. `make test-data-scripts`는 같은 venv Python으로 fixture 기반 unittest를 실행합니다.
+
+### 남은 한계
+
+Python version 자체는 로컬 `python3 -m venv` 가능 여부에 의존합니다. Python이 설치되어 있지 않으면 `PYTHON=/path/to/python3 make data-env`로 명시해야 합니다.
+
+## V2 Data Toolchain. CI에서 Kaggle download까지 실행하면 불안정해지는 문제
+
+### 문제
+
+CI에서 Kaggle dataset download나 full preprocessing을 실행하면 인증, 네트워크, 대용량 파일 크기 때문에 CI가 불안정해질 수 있습니다.
+
+### 원인
+
+PaySim raw CSV는 로컬 재현용 대용량 외부 데이터입니다. CI가 외부 dataset 접근과 credential 설정에 의존하면 test signal이 흐려집니다.
+
+### 대응
+
+CI path인 `make ci-check`는 venv 생성, fixture 기반 `make test-data-scripts`, `make data-policy-check`까지만 실행합니다. `make download-paysim`과 full `make prepare-paysim`은 명시적으로 로컬에서만 실행합니다.
+
+### 검증
+
+`make ci-check`가 Kaggle download 없이 통과하는지 확인합니다. raw CSV와 processed full output은 `make data-policy-check`와 `.gitignore`로 커밋을 방지합니다.
+
+### 남은 한계
+
+실제 Kaggle 접근 가능 여부와 full dataset preprocessing 시간은 CI에서 검증하지 않습니다. 필요하면 로컬 evidence로 별도 기록합니다.
+
+## V2 Data Toolchain. venv 디렉터리가 Git에 커밋될 수 있는 문제
+
+### 문제
+
+repository-local venv를 만들면 `.venv-data` 내부의 Python binary와 site-packages가 실수로 Git에 추가될 수 있습니다.
+
+### 원인
+
+venv는 프로젝트 하위 디렉터리에 생성되므로 `.gitignore`가 없으면 IDE나 수동 add 과정에서 추적될 수 있습니다.
+
+### 대응
+
+`.gitignore`에 `.venv/`, `venv/`, `.venv-data/`를 추가했습니다. raw CSV와 processed output guardrail은 그대로 유지했습니다.
+
+### 검증
+
+`git status --short`로 `.venv-data/`가 표시되지 않는지 확인하고, `make data-policy-check`로 data directory guardrail이 유지되는지 확인합니다.
+
+### 남은 한계
+
+이미 강제로 staged된 venv 파일은 수동으로 unstage해야 합니다. 커밋 전 `git status --short` 확인이 필요합니다.
+
+## V2 Data Toolchain. CI에서 Python version이 암묵적으로 선택되는 문제
+
+### 문제
+
+`make ci-check`는 `make test-data-scripts`를 통해 `.venv-data`를 생성하므로 CI에서 Python이 필수입니다. GitHub hosted runner에 Python이 기본 설치되어 있더라도 version이 명시되지 않으면 toolchain 재현성이 낮아집니다.
+
+### 원인
+
+기존 workflow는 Java 17만 `actions/setup-java`로 명시하고, Python은 runner 기본값에 의존했습니다.
+
+### 대응
+
+GitHub Actions에 `actions/setup-python@v5`를 추가하고 Python `3.11`을 명시했습니다. pip cache는 `bootstrap-data-env.sh`가 `.venv-data/.pip-cache`를 사용하므로 `actions/setup-python`의 built-in pip cache는 사용하지 않습니다.
+
+### 검증
+
+`make ci-check`는 Java test/assemble 이후 venv 기반 data script test와 data policy check를 실행합니다. CI workflow syntax는 GitHub Actions가 PR에서 검증합니다.
+
+### 남은 한계
+
+CI는 Kaggle download와 full preprocessing을 실행하지 않습니다. 해당 검증은 Kaggle 인증이 준비된 로컬에서 수행합니다.
+
+## V2 Data Toolchain. macOS system Python SSL과 urllib3 호환 경고
+
+### 문제
+
+macOS system Python으로 `.venv-data`를 만들었을 때 KaggleHub dependency가 `urllib3` v2를 설치하면 LibreSSL/OpenSSL 호환 경고가 출력될 수 있습니다.
+
+### 원인
+
+일부 macOS system Python은 SSL module이 LibreSSL 기반으로 빌드되어 있고, `urllib3` v2는 OpenSSL 1.1.1+ 환경을 기대합니다.
+
+### 대응
+
+`scripts/data/requirements.txt`에 `urllib3<2`를 임시로 고정했습니다. 이는 data helper bootstrap 로그를 안정화하기 위한 제한이며 Java runtime에는 영향을 주지 않습니다.
+
+### 검증
+
+`make data-env`와 `make test-data-scripts`가 경고 없이 통과하는지 확인합니다.
+
+### 남은 한계
+
+KaggleHub를 1.x 이상으로 올리거나 Python/OpenSSL runtime을 표준화할 때 이 제한을 재검토해야 합니다.

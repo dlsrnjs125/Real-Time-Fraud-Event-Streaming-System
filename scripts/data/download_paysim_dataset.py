@@ -42,7 +42,9 @@ def import_kagglehub():
         import kagglehub  # type: ignore
     except ImportError:
         print(
-            "ERROR: kagglehub is not installed. Install it with: pip install kagglehub",
+            "ERROR: kagglehub is not installed in the data Python environment.\n"
+            "Run: make data-env\n"
+            "Then retry: make download-paysim",
             file=sys.stderr,
         )
         raise SystemExit(1)

@@ -1,4 +1,7 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+
+DATA_VENV_DIR ?= .venv-data
+DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
 
 help:
 	@echo "Available targets:"
@@ -21,6 +24,7 @@ help:
 	@echo "  make infra-ps       - Show local infrastructure status"
 	@echo "  make infra-logs     - Show local infrastructure logs"
 	@echo "  make scripts-check  - Validate shell scripts"
+	@echo "  make data-env       - Create local Python env for PaySim data helpers"
 	@echo "  make data-policy-check - Validate V2 PaySim data commit policy"
 	@echo "  make download-paysim - Download PaySim raw CSV locally"
 	@echo "  make prepare-paysim - Normalize PaySim CSV into processed JSONL"
@@ -110,20 +114,27 @@ scripts-check:
 	bash -n scripts/load_tests/*.sh
 	bash -n scripts/data/*.sh
 
+data-env:
+	bash scripts/data/bootstrap-data-env.sh
+
+data-python-check: data-env
+	$(DATA_PYTHON) -c "import sys; print(sys.executable)"
+	$(DATA_PYTHON) -c "import kagglehub; print('kagglehub import ok')"
+
 data-policy-check:
 	bash scripts/data/check-data-policy.sh
 
-download-paysim:
-	python3 scripts/data/download_paysim_dataset.py
+download-paysim: data-env
+	$(DATA_PYTHON) scripts/data/download_paysim_dataset.py
 
-prepare-paysim:
-	python3 scripts/data/prepare_paysim_dataset.py
+prepare-paysim: data-env
+	$(DATA_PYTHON) scripts/data/prepare_paysim_dataset.py
 
-prepare-paysim-smoke:
-	python3 scripts/data/prepare_paysim_dataset.py --limit 1000 --force
+prepare-paysim-smoke: data-env
+	$(DATA_PYTHON) scripts/data/prepare_paysim_dataset.py --limit 1000 --force
 
-test-data-scripts:
-	python3 -m unittest discover -s scripts/data -p 'test_*.py'
+test-data-scripts: data-env
+	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
 topics:
 	./scripts/create-topics.sh

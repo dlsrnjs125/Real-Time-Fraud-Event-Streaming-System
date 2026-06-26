@@ -17,6 +17,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+.venv/
+venv/
+.venv-data/
 
 load-test/k6/results/*
 !load-test/k6/results/.gitkeep

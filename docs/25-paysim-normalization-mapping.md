@@ -313,7 +313,17 @@ PaySim은 수백만 row 규모로 사용될 수 있으므로 전처리 script는
 CLI 예시:
 
 ```bash
-python scripts/data/prepare_paysim_dataset.py \
+make data-env
+make prepare-paysim-smoke
+make prepare-paysim
+```
+
+`make prepare-paysim-smoke`와 `make prepare-paysim`은 `data-env`를 먼저 실행하고 `.venv-data/bin/python`으로 preprocessing script를 실행합니다. Python toolchain은 PaySim data helper에만 사용하며 Java application runtime에는 포함하지 않습니다.
+
+직접 옵션을 조정해야 할 때는 venv Python을 사용합니다.
+
+```bash
+.venv-data/bin/python scripts/data/prepare_paysim_dataset.py \
   --input data/raw/PS_20174392719_1491204439457_log.csv \
   --output-dir data/processed \
   --base-time 2026-01-01T00:00:00Z \
