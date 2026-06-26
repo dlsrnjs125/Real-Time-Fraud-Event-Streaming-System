@@ -738,3 +738,65 @@ make prepare-paysim-smoke
 - Kaggle 인증은 사용자 로컬 환경에서 별도로 준비해야 합니다.
 - `.venv-data`는 재현 가능한 helper 실행 환경일 뿐, Java application runtime dependency가 아닙니다.
 - KaggleHub API 변화가 생기면 `scripts/data/requirements.txt`의 version range를 조정해야 합니다.
+
+## V2 Phase 3 Review
+
+### 잘한 점
+
+- processed events/labels/rejected/report 간 count와 eventId join consistency를 자동 검증했습니다.
+- runtime event에 label field나 `receivedAt`이 들어오면 실패하도록 했습니다.
+- raw identifier field와 PaySim identifier pattern leakage를 validator와 sample generator 양쪽에서 검사했습니다.
+- rejected reason allowlist와 reject ratio threshold를 추가했습니다.
+- JSONL sample과 label sidecar를 분리하고 sample manifest를 생성했습니다.
+- `data/samples/*.csv`와 일반 JSON 허용을 제거하고 `*manifest*.json`만 제한 허용했습니다.
+- fixture 기반 unittest를 추가해 실제 Kaggle CSV 없이 Phase 3 contract를 검증했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] full processed output이 커밋되지 않았는가
+- [ ] data/samples에 1MB 초과 파일이 없는가
+- [ ] data/samples에 CSV sample이 없는가
+- [ ] data/samples에 일반 JSON 파일이 없고 manifest JSON만 허용되는가
+- [ ] sample event에 label field가 없는가
+- [ ] sample event에 `receivedAt`이 없는가
+- [ ] sample event/label eventId set이 일치하는가
+- [ ] sample manifest에 raw identifier나 salt 값이 없는가
+- [ ] validation script가 reject ratio를 실패로 처리하는가
+- [ ] validation script가 report count와 실제 line count를 비교하는가
+- [ ] validation script가 eventId set mismatch를 잡는가
+- [ ] CI에서 full validation이나 sample generation을 실행하지 않는가
+- [ ] fixture 기반 test는 CI에서 실행되는가
+- [ ] `make data-policy-check`가 sample policy를 실제로 강제하는가
+
+### 검증 기록
+
+```bash
+bash -n scripts/data/*.sh
+make data-env
+make test-data-scripts
+make data-policy-check
+make prepare-paysim-smoke
+make validate-paysim
+make generate-paysim-sample-strict
+```
+
+결과:
+
+- `make test-data-scripts`: PASS, 30 tests
+- `make validate-paysim`: PASS, events=1000 labels=1000 rejected=0 fraud=9 flagged=0 rejectRatio=0.0000
+- `make generate-paysim-sample-strict`: PASS, events=1000 labels=1000 fraud=9
+- sample files: each under 1MB
+- raw CSV, processed output, `.venv-data` are ignored and not staged
+
+### 의도적으로 제외한 것
+
+- Java Rule Engine V2 구현
+- Kafka replay script
+- API/DB/Kafka schema 변경
+- CI에서 full Kaggle download, full preprocessing, full validation, sample generation 실행
+
+### 남은 한계
+
+- Full output validation은 accepted eventId set을 메모리에 보관합니다.
+- Balanced sampling은 deterministic first-N-per-class 방식입니다.
+- eventId prefix/replay 충돌과 stronger salt policy는 후속 Phase에서 다룹니다.

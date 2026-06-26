@@ -151,7 +151,11 @@ V2 PaySim data workflow:
 make data-env
 make download-paysim
 make prepare-paysim-smoke
+make validate-paysim
+make generate-paysim-sample
 make test-data-scripts
 ```
 
 Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.
+
+Detailed validation and sampling contracts are documented in [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md) and [PaySim Data Scripts](scripts/data/README.md).

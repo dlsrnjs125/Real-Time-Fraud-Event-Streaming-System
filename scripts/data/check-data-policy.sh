@@ -15,7 +15,7 @@ tracked_files() {
 
 is_allowed_sample() {
   case "$1" in
-    data/samples/.gitkeep|data/samples/*.jsonl|data/samples/*.csv)
+    data/samples/.gitkeep|data/samples/*.jsonl|data/samples/*manifest*.json)
       return 0
       ;;
     *)
@@ -44,6 +44,11 @@ tracked_files | while IFS= read -r file; do
       fail "processed data file must not be committed: $file"
       ;;
     data/samples/*)
+      case "$file" in
+        data/samples/*.csv|data/samples/raw*|data/samples/full*|data/samples/*processed*)
+          fail "sample file name is not allowed: $file"
+          ;;
+      esac
       if ! is_allowed_sample "$file"; then
         fail "sample file extension is not allowed: $file"
       fi

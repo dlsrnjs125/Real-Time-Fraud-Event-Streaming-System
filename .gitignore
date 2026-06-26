@@ -32,4 +32,4 @@ data/samples/*
 !data/processed/.gitkeep
 !data/samples/.gitkeep
 !data/samples/*.jsonl
-!data/samples/*.csv
+!data/samples/*manifest*.json
