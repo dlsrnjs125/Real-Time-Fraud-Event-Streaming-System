@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-policy-check topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 help:
 	@echo "Available targets:"
@@ -22,6 +22,10 @@ help:
 	@echo "  make infra-logs     - Show local infrastructure logs"
 	@echo "  make scripts-check  - Validate shell scripts"
 	@echo "  make data-policy-check - Validate V2 PaySim data commit policy"
+	@echo "  make download-paysim - Download PaySim raw CSV locally"
+	@echo "  make prepare-paysim - Normalize PaySim CSV into processed JSONL"
+	@echo "  make prepare-paysim-smoke - Normalize a limited PaySim subset"
+	@echo "  make test-data-scripts - Run Python data script tests"
 	@echo "  make topics         - Create Kafka topics"
 	@echo "  make smoke          - Run local smoke test"
 	@echo "  make k6-smoke       - Run short k6 smoke scenario"
@@ -70,6 +74,7 @@ failure-drill:
 ci-check:
 	./gradlew test
 	./gradlew assemble
+	$(MAKE) test-data-scripts
 	$(MAKE) data-policy-check
 
 clean:
@@ -108,6 +113,18 @@ scripts-check:
 data-policy-check:
 	bash scripts/data/check-data-policy.sh
 
+download-paysim:
+	python3 scripts/data/download_paysim_dataset.py
+
+prepare-paysim:
+	python3 scripts/data/prepare_paysim_dataset.py
+
+prepare-paysim-smoke:
+	python3 scripts/data/prepare_paysim_dataset.py --limit 1000 --force
+
+test-data-scripts:
+	python3 -m unittest discover -s scripts/data -p 'test_*.py'
+
 topics:
 	./scripts/create-topics.sh
 
@@ -133,4 +150,4 @@ k6-duplicate-check:
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
-final-check: build infra-config scripts-check data-policy-check
+final-check: build infra-config scripts-check test-data-scripts data-policy-check

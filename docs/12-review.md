@@ -548,7 +548,7 @@ rg --pcre2 "[\x{202A}-\x{202E}\x{2066}-\x{2069}]" \
 - V2 시작 순서를 Rule Engine이 아니라 data provenance, raw protection, preprocessing, validation, sampling, hashing, replay pipeline으로 재정렬했습니다.
 - ActionDecision은 CRITICAL 이벤트의 복수 action을 지원하기 위해 `unique(event_id, action_type)` 기준으로 정리했습니다.
 - V2 runtime schema를 `TransactionBalanceFeatures` typed optional field로 확정하고 generic feature map을 제외했습니다.
-- preprocessing fail-fast/row-level reject, streaming CSV 처리, max reject ratio 기준을 문서화했습니다.
+- preprocessing fail-fast/row-level reject, streaming CSV 처리 기준을 문서화하고 max reject ratio는 Phase 3 후보로 분리했습니다.
 - 자동 ActionDecision 생성은 admin audit log가 아니라 `fraud_action_decisions` table과 metrics/evidence로 추적하도록 정리했습니다.
 - CRITICAL risk도 실제 계좌 정지로 자동 연결하지 않고 `BLOCK_TRANSACTION_CANDIDATE`, `ACCOUNT_RISK_FLAG`, Fraud Case, Admin Review로 분리했습니다.
 - V2 구현 전 data mapping, Rule V2, Action Decision, Fraud Case, Evidence Plan을 독립 문서로 나눠 구현 순서를 명확히 했습니다.
@@ -628,3 +628,60 @@ Negative guardrail 검증 결과:
 - shell 기반 data policy check는 sample 내부의 raw identifier를 완전히 검출하지 못합니다.
 - 1MB sample size 기준은 초기 guardrail이며, Phase 3 sample 생성 정책에서 다시 조정할 수 있습니다.
 - CSV sample 허용은 Phase 1에서 문서와 크기 기준으로만 제한합니다. Phase 3 sample generation 단계에서 raw `nameOrig`/`nameDest` column 제거와 hashed identifier 사용을 자동 검증해야 합니다.
+
+## V2 Phase 2 Review
+
+### 잘한 점
+
+- KaggleHub download helper를 optional local tool로 분리하고 CI에서 실행하지 않도록 했습니다.
+- PaySim preprocessing을 Python stdlib `csv.DictReader` streaming 방식으로 구현했습니다.
+- runtime event와 label sidecar를 분리해 label leakage를 방지했습니다.
+- amount와 balance 값을 `Decimal`로 읽고 JSON에는 문자열로 기록하도록 했습니다.
+- rejected row에 raw row 전체나 `nameOrig`, `nameDest`를 남기지 않도록 했습니다.
+- fixture 기반 unittest를 추가해 실제 Kaggle CSV 없이 normalization contract를 검증했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] Kaggle token 또는 access token이 커밋되지 않았는가
+- [ ] raw CSV가 커밋되지 않았는가
+- [ ] full processed output이 커밋되지 않았는가
+- [ ] runtime event에 `isFraud`, `isFlaggedFraud`가 포함되지 않았는가
+- [ ] runtime event에 `nameOrig`, `nameDest`가 포함되지 않았는가
+- [ ] label sidecar가 `eventId` 기준으로만 연결되는가
+- [ ] rejected row가 raw row 전체를 dump하지 않는가
+- [ ] CSV를 streaming 방식으로 처리하는가
+- [ ] Decimal/string 기준으로 금액을 처리하는가
+- [ ] CI에서 Kaggle download/full preprocessing을 실행하지 않는가
+- [ ] `make data-policy-check`가 계속 통과하는가
+
+### 검증 기록
+
+```bash
+python3 -m unittest discover -s scripts/data -p 'test_*.py'
+make test-data-scripts
+make data-policy-check
+make ci-check
+make final-check
+PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
+  scripts/data/download_paysim_dataset.py \
+  scripts/data/prepare_paysim_dataset.py \
+  scripts/data/test_prepare_paysim_dataset.py
+```
+
+### 의도적으로 제외한 것
+
+- KaggleHub download helper의 CI 실행
+- full PaySim CSV preprocessing의 CI 실행
+- sample generation
+- API replay pipeline
+- Java Rule Engine V2, API DTO, Kafka schema, DB migration 변경
+
+### 남은 한계
+
+- 실제 Kaggle dataset 접근과 token 설정은 local 환경에서만 확인합니다.
+- identifier hashing은 최소 구현이며 Phase 4에서 salt policy와 sample 검증을 강화합니다.
+- rejected row taxonomy와 reject ratio policy는 Phase 3에서 고도화합니다.
+- data script test는 missing column, invalid label/type, blank identifier, non-finite Decimal, existing output protection, raw identifier leakage까지 검증합니다.
+- Phase 2 preprocessing은 output file을 직접 쓰므로 fail-fast/interrupt 시 partial output이 남을 수 있습니다. Phase 5 replay 연결 전 atomic write와 final rename 방식을 검토합니다.
+- Phase 5 replay script에는 dataset/sample 충돌 방지를 위한 `--event-id-prefix` 옵션을 둡니다.
+- Phase 3 sample generation에서는 `default-local` salt 사용을 금지하고 환경변수 또는 CLI salt 명시를 요구합니다.

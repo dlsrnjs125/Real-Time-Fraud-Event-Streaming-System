@@ -1,12 +1,12 @@
 # PaySim Data Scripts
 
-This directory is reserved for V2 PaySim data workflow helpers.
+This directory contains V2 PaySim data workflow helpers.
 
-V2 Phase 1 only adds directory, Git ignore, documentation, and data policy check guardrails. It does not implement preprocessing, sampling, replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
+V2 Phase 2 adds local dataset acquisition and preprocessing normalization. It does not implement sampling, replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
 
 ## Dataset Location
 
-Download the Kaggle PaySim CSV manually and place it here:
+Download the Kaggle PaySim CSV manually or use the optional KaggleHub helper and place it here:
 
 ```text
 data/raw/PS_20174392719_1491204439457_log.csv
@@ -17,6 +17,39 @@ Dataset page:
 ```text
 https://www.kaggle.com/datasets/ealaxi/paysim1
 ```
+
+Optional helper:
+
+```bash
+python3 scripts/data/download_paysim_dataset.py
+python3 scripts/data/download_paysim_dataset.py --force
+```
+
+The helper uses `kagglehub` to download `ealaxi/paysim1` into the local KaggleHub cache and copies the expected CSV into `data/raw`. Install the optional dependency when needed:
+
+```bash
+pip install kagglehub
+```
+
+Do not commit Kaggle tokens, API tokens, `.env`, or raw CSV files.
+
+## Kaggle Authentication
+
+`download_paysim_dataset.py` is a local-only helper.
+
+Recommended options:
+
+- OAuth: `kaggle auth login`
+- API token: create a token from Kaggle account settings
+- Legacy credentials: store `kaggle.json` under `~/.kaggle/kaggle.json`
+
+Do not commit:
+
+- `kaggle.json`
+- `.env`
+- access tokens
+- `KAGGLE_API_TOKEN`
+- downloaded raw CSV files
 
 ## Data Directory Policy
 
@@ -38,12 +71,12 @@ https://www.kaggle.com/datasets/ealaxi/paysim1
 
 PaySim is synthetic, but `nameOrig` and `nameDest` look like account identifiers. Treat them as sensitive for repository and logging purposes.
 
-Future preprocessing phases should hash identifiers before writing replayable events or samples:
+The preprocessing script hashes identifiers before writing replayable events:
 
 ```text
-userId = U-{sha256(nameOrig + salt).substring(0, 16)}
-accountId = A-{sha256(nameOrig + salt).substring(0, 16)}
-destinationAccountId = D-{sha256(nameDest + salt).substring(0, 16)}
+userId = U-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+accountId = A-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
+destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 ```
 
 Do not commit a production salt or `.env` file.
@@ -51,10 +84,47 @@ Do not commit a production salt or `.env` file.
 ## Phase Responsibilities
 
 - V2 Phase 1: directory guardrails, `.gitignore`, documentation, and `check-data-policy.sh`
-- V2 Phase 2: PaySim normalization script
+- V2 Phase 2: optional KaggleHub download helper and PaySim normalization script
 - V2 Phase 3: validation, rejected rows, and sample generation
 - V2 Phase 4: identifier hashing enforcement
 - V2 Phase 5: replay pipeline
+
+## Preprocessing
+
+Run a limited local smoke conversion after the raw CSV exists:
+
+```bash
+make prepare-paysim-smoke
+```
+
+Run the full conversion locally:
+
+```bash
+make prepare-paysim
+```
+
+Generated full outputs are written under `data/processed` and must not be committed:
+
+- `paysim-events.jsonl`
+- `paysim-labels.jsonl`
+- `paysim-rejected.jsonl`
+- `paysim-validation-report.json`
+
+The preprocessing script streams the CSV with Python `csv.DictReader`. It does not load the full file into memory.
+
+Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`. Labels are written only to the sidecar file and joined by `eventId`.
+
+`--limit` only limits output row processing. The script still computes SHA-256 for the full raw input file so the validation report keeps file-level provenance.
+
+Phase 2 writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay processed output until Phase 5 adds replay-specific safety checks. Atomic temp-file writes are a Phase 5 follow-up.
+
+Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
+
+Test the data scripts without the real Kaggle CSV:
+
+```bash
+make test-data-scripts
+```
 
 ## Policy Check
 

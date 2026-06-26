@@ -6,7 +6,7 @@
 
 V2의 핵심은 PaySim 데이터를 단순히 보관하는 것이 아니라, Kafka event로 replay 가능한 입력으로 바꾸는 것입니다.
 
-V2 Phase 1에서는 이 mapping을 구현하지 않습니다. 이번 Phase의 범위는 raw/processed/sample data guardrail, `.gitignore`, data policy check, 문서 정리입니다. 아래 output contract는 V2 Phase 2 이후 전처리 script 구현 기준으로 유지합니다.
+V2 Phase 2에서 `scripts/data/prepare_paysim_dataset.py`가 이 mapping의 첫 구현을 제공합니다. sample generation, API replay, Rule Engine V2 구현은 후속 Phase로 남깁니다.
 
 ## 2. PaySim Input Columns
 
@@ -39,17 +39,17 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
   "accountId": "A-9f1a3c21e2b0",
   "destinationAccountId": "D-12ab8821cdae",
   "eventType": "PAYMENT",
-  "amount": 9839.64,
+  "amount": "9839.64",
   "currency": "KRW",
   "eventTime": "2026-01-01T01:00:00Z",
   "traceId": "trace-paysim-000000001",
   "schemaVersion": "v2-paysim",
   "source": "PAYSIM",
   "balanceFeatures": {
-    "oldBalanceOrig": 170136.0,
-    "newBalanceOrig": 160296.36,
-    "oldBalanceDest": 0.0,
-    "newBalanceDest": 0.0,
+    "oldBalanceOrig": "170136.00",
+    "newBalanceOrig": "160296.36",
+    "oldBalanceDest": "0.00",
+    "newBalanceDest": "9839.64",
     "sourceStep": 1
   }
 }
@@ -58,6 +58,8 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
 `receivedAt`은 app-api가 이벤트를 접수할 때 생성하는 값이므로 normalized runtime event에는 포함하지 않습니다. Kafka message에는 app-api가 생성한 `receivedAt`이 포함됩니다.
 
 `currency`는 현행 API validation과 맞추기 위해 `KRW`로 고정합니다. PaySim 금액은 synthetic amount이므로 실제 원화 거래 의미를 주장하지 않으며, 데이터 출처는 `source=PAYSIM`으로 표현합니다.
+
+`amount`와 balance field는 Python `Decimal`로 읽고 JSON에는 문자열로 기록합니다. float 기반 직렬화는 사용하지 않습니다.
 
 ## 3.1 Evaluation Label Sidecar
 
@@ -70,11 +72,12 @@ PaySim label은 runtime event와 물리적으로 분리합니다.
   "eventId": "paysim-000000001",
   "isFraud": false,
   "sourceFlaggedFraud": false,
-  "sourceRowNumber": 1
+  "sourceStep": 1,
+  "sourceType": "TRANSFER"
 }
 ```
 
-이 분리는 Consumer가 정답 label을 볼 수 있는 구조를 피하기 위한 설계입니다. Rule Engine과 action decision은 `paysim-events.jsonl`을 통해 들어온 runtime event만 사용합니다.
+이 분리는 Consumer가 정답 label을 볼 수 있는 구조를 피하기 위한 설계입니다. Rule Engine과 action decision은 `paysim-events.jsonl`을 통해 들어온 runtime event만 사용합니다. Runtime event와 label sidecar는 `eventId`로만 연결합니다.
 
 ## 4. Mapping Table
 
@@ -114,7 +117,7 @@ data/processed/paysim-validation-report.json
 `paysim-labels.jsonl`:
 
 - evaluation용 sidecar
-- `eventId`, `isFraud`, `sourceFlaggedFraud`, `sourceRowNumber`만 포함
+- `eventId`, `isFraud`, `sourceFlaggedFraud`, `sourceStep`, `sourceType`만 포함
 - hash identifier도 evaluation join에 필요하지 않으므로 포함하지 않음
 - app-api/Kafka replay 입력으로 사용하지 않음
 
@@ -124,37 +127,42 @@ data/processed/paysim-validation-report.json
 {
   "rowNumber": 12345,
   "reason": "INVALID_AMOUNT",
-  "raw": {
-    "type": "TRANSFER",
-    "amount": "-100"
-  }
+  "rawType": "TRANSFER",
+  "message": "amount must be >= 0"
 }
 ```
+
+Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습니다.
 
 `paysim-validation-report.json`:
 
 ```json
 {
-  "datasetName": "PaySim",
-  "inputFile": "PS_20174392719_1491204439457_log.csv",
+  "scriptVersion": "v2-phase-2",
+  "datasetSlug": "ealaxi/paysim1",
+  "rawFileName": "PS_20174392719_1491204439457_log.csv",
+  "inputPath": "data/raw/PS_20174392719_1491204439457_log.csv",
   "inputSha256": "TBD",
-  "eventsOutputSha256": "TBD",
-  "labelsOutputSha256": "TBD",
-  "scriptVersion": "v2-preprocess-001",
   "baseTime": "2026-01-01T00:00:00Z",
-  "hashIdentifiers": true,
-  "inputRows": "TBD",
-  "normalizedRows": "TBD",
+  "startedAt": "TBD",
+  "finishedAt": "TBD",
+  "totalRows": "TBD",
+  "acceptedRows": "TBD",
   "rejectedRows": "TBD",
   "fraudRows": "TBD",
-  "normalRows": "TBD",
-  "fraudRatio": "TBD",
-  "typeDistribution": {
+  "flaggedFraudRows": "TBD",
+  "eventTypeCounts": {
     "PAYMENT": "TBD",
     "TRANSFER": "TBD",
     "CASH_OUT": "TBD",
     "CASH_IN": "TBD",
     "DEBIT": "TBD"
+  },
+  "hashSaltSource": "default-local",
+  "outputFiles": {
+    "events": "data/processed/paysim-events.jsonl",
+    "labels": "data/processed/paysim-labels.jsonl",
+    "rejected": "data/processed/paysim-rejected.jsonl"
   }
 }
 ```
@@ -173,7 +181,9 @@ traceId = trace-paysim-{rowNumber zero padded}
 - replay를 반복해도 같은 row는 같은 `eventId`를 갖습니다.
 - Consumer idempotency와 duplicate replay 검증에 사용할 수 있습니다.
 - PaySim row order가 바뀌면 eventId가 바뀔 수 있으므로 전처리 script는 input order를 보존합니다.
-- `eventId`는 `inputSha256`과 `sourceRowNumber` 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
+- `eventId`는 `inputSha256`과 raw row number 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
+
+후속 Phase 5 replay에서는 다른 dataset/sample을 같은 API/DB에 주입할 때 충돌을 피할 수 있도록 `--event-id-prefix` 옵션을 둡니다. 기본 preprocessing output은 idempotency 검증에 유용하도록 row number 기반 deterministic id를 유지합니다.
 
 ## 6. Time Policy
 
@@ -278,7 +288,9 @@ Row-level reject:
 - `nameOrig` 또는 `nameDest` blank
 - `isFraud` 또는 `isFlaggedFraud`가 0/1이 아님
 
-Rejected row 비율 정책:
+Rejected row 비율 정책은 V2 Phase 3에서 구현합니다. Phase 2는 `row-level`과 `fail-fast` reject policy만 제공합니다.
+
+Phase 3 후보:
 
 - 기본 `--max-reject-ratio 0.01`
 - reject ratio가 max reject ratio를 초과하면 report와 rejected output은 생성하되 exit code 2로 종료합니다.
@@ -295,22 +307,32 @@ PaySim은 수백만 row 규모로 사용될 수 있으므로 전처리 script는
 - 전체 input을 memory에 올리지 않음
 - progress log는 N건마다 출력
 - 개발 중 일부 row만 처리할 수 있도록 `--limit` 옵션 제공
+- `nameOrig`, `nameDest`, label 값은 progress log에 출력하지 않음
+- `--limit`은 output row 수만 제한하며, input provenance를 위해 SHA-256은 전체 raw file 기준으로 계산
 
 CLI 예시:
 
 ```bash
 python scripts/data/prepare_paysim_dataset.py \
   --input data/raw/PS_20174392719_1491204439457_log.csv \
-  --events-output data/processed/paysim-events.jsonl \
-  --labels-output data/processed/paysim-labels.jsonl \
-  --rejected-output data/processed/paysim-rejected.jsonl \
-  --report-output data/processed/paysim-validation-report.json \
+  --output-dir data/processed \
   --base-time 2026-01-01T00:00:00Z \
-  --hash-identifiers \
   --hash-salt-env PAYSIM_HASH_SALT \
   --limit 100000 \
-  --max-reject-ratio 0.01
+  --reject-policy row-level \
+  --force
 ```
+
+CLI options:
+
+- `--input`
+- `--output-dir`
+- `--base-time`
+- `--limit`
+- `--reject-policy row-level|fail-fast`
+- `--hash-salt`
+- `--hash-salt-env`
+- `--force`
 
 ## 10. Sampling Policy
 
@@ -359,17 +381,34 @@ python scripts/data/replay_paysim_to_api.py \
 - 기본 replay는 `paysim-events.jsonl`만 읽고 label에 접근하지 않음
 - fraud-only/normal-only replay는 명시적으로 `--labels-input`을 전달한 경우에만 허용
 - filtered replay에서도 API/Kafka payload에는 label을 포함하지 않음
+- 후속 Phase 5에서는 `--event-id-prefix`로 replay 시점 eventId prefix를 조정할 수 있게 함
 
 fraud-only replay 예시:
 
 ```bash
 python scripts/data/replay_paysim_to_api.py \
   --input data/processed/paysim-events.jsonl \
+  --event-id-prefix paysim-full-v1 \
   --labels-input data/processed/paysim-labels.jsonl \
   --filter fraud-only \
   --api-base-url http://localhost:8080 \
   --limit 1000
 ```
+
+## 12. Partial Output Safety
+
+V2 Phase 2 script는 output file을 직접 씁니다. `fail-fast` 중단이나 사용자 interrupt가 발생하면 partial output이 남을 수 있습니다. 현재는 `data/processed`가 Git ignore 대상이고 replay pipeline이 아직 없으므로 Phase 2 blocker로 보지 않습니다.
+
+후속 Phase 5에서 replay pipeline을 연결하기 전에는 다음 atomic write 방식을 검토합니다.
+
+```text
+paysim-events.jsonl.tmp
+paysim-labels.jsonl.tmp
+paysim-rejected.jsonl.tmp
+paysim-validation-report.json.tmp
+```
+
+정상 완료 시에만 final filename으로 rename해 partial output replay 위험을 줄입니다.
 
 Replay summary:
 
