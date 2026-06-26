@@ -693,8 +693,10 @@ PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
 - Java/Spring Boot runtime과 PaySim Python data helper 의존성을 분리했습니다.
 - global `pip install kagglehub` 안내를 제거하고 `.venv-data` 기반 bootstrap으로 정리했습니다.
 - `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`가 같은 venv Python을 사용하도록 Makefile을 통일했습니다.
+- GitHub Actions에서 Python 3.11을 명시적으로 설정해 CI가 runner 기본 Python에 의존하지 않도록 했습니다.
 - CI에서는 Kaggle download와 full preprocessing을 실행하지 않고 fixture test와 data policy check만 실행하도록 유지했습니다.
 - `.venv-data/`를 Git ignore에 추가해 local dependency directory가 커밋되지 않도록 했습니다.
+- macOS system Python SSL 호환 경고를 줄이기 위해 `urllib3<2` 제한을 문서화했습니다.
 
 ### 사람 검토 체크리스트
 
@@ -702,6 +704,7 @@ PYTHONPYCACHEPREFIX=/tmp/pycache-paysim python3 -m py_compile \
 - [ ] `make data-env`가 `.venv-data`를 생성하는가
 - [ ] `make download-paysim`이 `.venv-data/bin/python`을 사용하는가
 - [ ] `make test-data-scripts`가 venv Python으로 실행되는가
+- [ ] GitHub Actions가 Python version을 명시적으로 설정하는가
 - [ ] `.venv-data/`가 Git에 커밋되지 않는가
 - [ ] `data/raw/*.csv`가 커밋되지 않는가
 - [ ] `data/processed/*`가 커밋되지 않는가

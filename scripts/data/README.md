@@ -14,6 +14,8 @@ make data-env
 
 The environment is generated from `scripts/data/requirements.txt`. Do not commit `.venv-data`.
 
+`urllib3<2` is pinned for local macOS/Python compatibility observed during KaggleHub bootstrap with system Python SSL libraries. Revisit this constraint when upgrading KaggleHub or standardizing on a newer Python/OpenSSL runtime.
+
 ## Dataset Location
 
 Download the Kaggle PaySim CSV manually or use the optional KaggleHub helper and place it here:

@@ -19,7 +19,12 @@ fi
 
 if [ ! -d "$DATA_VENV_DIR" ]; then
   echo "Creating data Python virtual environment: ${DATA_VENV_DIR}"
-  "$PYTHON" -m venv "$DATA_VENV_DIR"
+  if ! "$PYTHON" -m venv "$DATA_VENV_DIR"; then
+    echo "ERROR: failed to create Python venv: ${DATA_VENV_DIR}" >&2
+    echo "On Debian/Ubuntu, install python3-venv or use actions/setup-python in CI." >&2
+    echo "You can also set PYTHON=/path/to/python3 and retry: make data-env" >&2
+    exit 1
+  fi
 else
   echo "Reusing data Python virtual environment: ${DATA_VENV_DIR}"
 fi
