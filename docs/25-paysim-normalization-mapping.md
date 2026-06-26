@@ -413,6 +413,7 @@ sample contract:
 - manifest에 salt 값 자체를 기록하지 않음
 - 각 sample file은 1MB 이하
 - Phase 3에서는 CSV sample을 생성하지 않음
+- committed sample은 salt 값을 노출하지 않는 것을 우선하므로 동일한 private salt 없이는 byte-for-byte 재생성을 보장하지 않음
 
 Sampling strategy:
 

@@ -1644,11 +1644,11 @@ manifest도 JSON이고 validation summary도 JSON이므로 extension 기준 allo
 
 ### 대응
 
-`data/samples/*manifest*.json`만 제한적으로 허용하고 일반 `*.json`은 허용하지 않습니다.
+`paysim-sample-manifest.json`만 제한적으로 허용하고 일반 `*.json`은 허용하지 않습니다. JSONL도 `paysim-events-sample.jsonl`, `paysim-labels-sample.jsonl`만 허용합니다.
 
 ### 검증
 
-생성된 `paysim-sample-manifest.json`은 data policy check를 통과합니다. full/processed/raw 이름은 policy check에서 실패하도록 했습니다.
+생성된 `paysim-sample-manifest.json`은 data policy check를 통과합니다. full/processed/raw 이름과 임의 JSONL sample은 policy check에서 실패하도록 했습니다.
 
 ### 남은 한계
 

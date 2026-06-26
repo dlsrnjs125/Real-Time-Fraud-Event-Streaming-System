@@ -38,8 +38,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--strategy", choices=("head", "balanced"), default="balanced")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--require-non-default-salt", action="store_true")
-    parser.add_argument("--include-label-sample", dest="include_label_sample", action="store_true", default=True)
-    parser.add_argument("--no-include-label-sample", dest="include_label_sample", action="store_false")
     return parser.parse_args()
 
 
@@ -134,10 +132,8 @@ def select_rows(path: Path, selected_ids: set[str]) -> list[dict[str, Any]]:
     return rows
 
 
-def ensure_outputs(events_path: Path, labels_path: Path, manifest_path: Path, force: bool, include_labels: bool) -> None:
-    existing = [events_path, manifest_path]
-    if include_labels:
-        existing.append(labels_path)
+def ensure_outputs(events_path: Path, labels_path: Path, manifest_path: Path, force: bool) -> None:
+    existing = [events_path, labels_path, manifest_path]
     present = [str(path) for path in existing if path.exists()]
     if present and not force:
         raise SampleError(f"output file already exists. Use --force: {', '.join(present)}")
@@ -178,7 +174,7 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
     events_output = args.output_dir / "paysim-events-sample.jsonl"
     labels_output = args.output_dir / "paysim-labels-sample.jsonl"
     manifest_output = args.output_dir / "paysim-sample-manifest.json"
-    ensure_outputs(events_output, labels_output, manifest_output, args.force, args.include_label_sample)
+    ensure_outputs(events_output, labels_output, manifest_output, args.force)
 
     report = load_report(args.report, args.require_non_default_salt)
     selected_ids = choose_ids_head(args.events, args.sample_size) if args.strategy == "head" else choose_ids_balanced(args.labels, args.sample_size)
@@ -216,8 +212,7 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
     }
     validate_generated(events, labels, manifest, [events_output, labels_output, manifest_output])
     write_jsonl(events_output, events)
-    if args.include_label_sample:
-        write_jsonl(labels_output, labels)
+    write_jsonl(labels_output, labels)
     manifest_output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     validate_generated(events, labels, manifest, [events_output, labels_output, manifest_output])
     return manifest

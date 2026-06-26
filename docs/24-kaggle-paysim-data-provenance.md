@@ -74,8 +74,9 @@ data/samples/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
-!data/samples/*.jsonl
-!data/samples/*manifest*.json
+!data/samples/paysim-events-sample.jsonl
+!data/samples/paysim-labels-sample.jsonl
+!data/samples/paysim-sample-manifest.json
 ```
 
 정책:
@@ -83,7 +84,7 @@ data/samples/*
 - `data/raw`: Kaggle 원본 CSV 위치. `.gitkeep` 외 커밋 금지.
 - `data/processed`: 전처리 전체 산출물 위치. `.gitkeep` 외 커밋 금지.
 - `data/samples`: 검증된 작은 JSONL sample과 sample manifest만 제한적으로 커밋 가능.
-- sample은 100~1,000건 이하, raw identifier 미포함, `.jsonl` 또는 `*manifest*.json`, 1MB 이하를 기준으로 둡니다.
+- sample은 100~1,000건 이하, raw identifier 미포함, 지정된 sample JSONL/manifest 파일명, 1MB 이하를 기준으로 둡니다.
 
 `scripts/data/check-data-policy.sh`는 tracked 또는 staged 상태의 `data/` 파일을 검사합니다.
 
@@ -237,11 +238,13 @@ Phase 3 sample policy:
 
 - JSONL sample만 생성합니다.
 - CSV sample은 raw column leakage 위험 때문에 생성하지 않습니다.
-- `data/samples/*.csv`와 일반 `data/samples/*.json`은 data policy check에서 막습니다.
-- `data/samples/*manifest*.json`만 제한적으로 허용합니다.
+- `data/samples/*.csv`, 임의 `data/samples/*.jsonl`, 일반 `data/samples/*.json`은 data policy check에서 막습니다.
+- `paysim-events-sample.jsonl`, `paysim-labels-sample.jsonl`, `paysim-sample-manifest.json`만 제한적으로 허용합니다.
 - sample manifest에는 dataset slug, raw filename, input SHA-256, sample count, strategy, `hashSaltSource`만 기록합니다.
 - sample manifest에 raw identifier나 salt 값 자체를 기록하지 않습니다.
 - local smoke sample에는 `default-local` salt source가 허용되지만, 공유/커밋 sample에는 `--require-non-default-salt` 사용을 권장합니다.
+
+Committed sample은 raw identifier와 salt 값을 노출하지 않는 것을 우선하므로, 동일한 raw dataset과 동일한 private salt가 없으면 byte-for-byte 재생성은 보장하지 않습니다. 재현성은 `sourceInputSha256`, sample manifest, generation script, validation script 기준으로 설명합니다.
 
 V2 Phase 3 검증 결과:
 

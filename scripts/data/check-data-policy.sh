@@ -15,7 +15,7 @@ tracked_files() {
 
 is_allowed_sample() {
   case "$1" in
-    data/samples/.gitkeep|data/samples/*.jsonl|data/samples/*manifest*.json)
+    data/samples/.gitkeep|data/samples/paysim-events-sample.jsonl|data/samples/paysim-labels-sample.jsonl|data/samples/paysim-sample-manifest.json)
       return 0
       ;;
     *)
@@ -31,6 +31,32 @@ check_sample_size() {
   if [ "$size" -gt "$MAX_SAMPLE_BYTES" ]; then
     fail "sample file is larger than 1MB: $file"
   fi
+}
+
+check_staged_content() {
+  file="$1"
+  pattern="$2"
+  message="$3"
+
+  if git show ":$file" 2>/dev/null | grep -E "$pattern" >/dev/null; then
+    fail "$message: $file"
+  fi
+}
+
+check_sample_content() {
+  file="$1"
+
+  case "$file" in
+    data/samples/paysim-events-sample.jsonl)
+      check_staged_content "$file" '"(isFraud|isFlaggedFraud|sourceFlaggedFraud|nameOrig|nameDest)"|[CM][0-9]+' "sample event file contains label or raw identifier leakage"
+      ;;
+    data/samples/paysim-labels-sample.jsonl)
+      check_staged_content "$file" '"(nameOrig|nameDest)"|[CM][0-9]+' "sample label file contains raw identifier leakage"
+      ;;
+    data/samples/paysim-sample-manifest.json)
+      check_staged_content "$file" '"(hashSaltValue|saltValue|nameOrig|nameDest)"|[CM][0-9]+' "sample manifest contains raw identifier or salt leakage"
+      ;;
+  esac
 }
 
 tracked_files | while IFS= read -r file; do
@@ -53,6 +79,7 @@ tracked_files | while IFS= read -r file; do
         fail "sample file extension is not allowed: $file"
       fi
       check_sample_size "$file"
+      check_sample_content "$file"
       ;;
   esac
 done

@@ -37,7 +37,7 @@ Rejected row가 많아도 preprocessing이 성공처럼 보일 수 있습니다.
 
 CSV sample은 작은 파일이라도 raw PaySim column을 보존하기 쉽습니다. Phase 3 data policy는 CSV sample을 금지하고 JSONL sample과 manifest만 허용합니다.
 
-Manifest를 허용하려다 `data/samples/*.json` 전체를 열면 full summary나 임의 JSON이 들어올 수 있습니다. 따라서 `*manifest*.json`만 제한적으로 허용합니다.
+Manifest를 허용하려다 `data/samples/*.json` 전체를 열면 full summary나 임의 JSON이 들어올 수 있습니다. 임의 JSONL도 수동 leakage를 만들 수 있으므로 현재 생성되는 sample 3개 파일만 제한적으로 허용합니다. Data policy check는 staged sample content도 scan해서 event label leakage, raw identifier, manifest salt value를 막습니다.
 
 Balanced sampling은 deterministic first-N-per-class 방식입니다. Fraud row가 적으면 가능한 fraud row를 우선 포함하고 나머지는 non-fraud로 채웁니다.
 
@@ -65,6 +65,7 @@ Smoke output 기준:
 - rejectRatio=0.0000
 - generated sample events=1000
 - generated sample labels=1000
+- sample leakage grep checks: no matches
 
 ## 남은 한계
 

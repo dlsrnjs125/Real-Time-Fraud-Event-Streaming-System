@@ -164,6 +164,8 @@ class ValidatePaySimOutputsTest(unittest.TestCase):
         self.assert_fails_with("rejectedRows must match rejected line count")
         self.write_fixture(report=self.report(eventTypeCounts={"TRANSFER": 0, "CASH_OUT": 0, "PAYMENT": 0, "CASH_IN": 0, "DEBIT": 0}))
         self.assert_fails_with("eventTypeCounts must match events")
+        self.write_fixture(report=self.report(eventTypeCounts={"TRANSFER": 1}))
+        self.assert_fails_with("eventTypeCounts must contain all valid event types")
 
     def test_reject_ratio_threshold_fails(self):
         self.write_fixture(rejected=[self.rejected()], report=self.report(totalRows=2, rejectedRows=1))
@@ -182,6 +184,12 @@ class ValidatePaySimOutputsTest(unittest.TestCase):
         del event["amount"]
         self.write_fixture(events=[event])
         self.assert_fails_with("missing event fields")
+
+    def test_missing_balance_source_step_fails(self):
+        event = self.event()
+        del event["balanceFeatures"]["sourceStep"]
+        self.write_fixture(events=[event])
+        self.assert_fails_with("missing balance fields")
 
     def test_report_salt_value_and_bad_sha_fail(self):
         self.write_fixture(report=self.report(hashSaltValue="secret"))

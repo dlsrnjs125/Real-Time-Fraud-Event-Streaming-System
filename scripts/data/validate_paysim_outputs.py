@@ -47,6 +47,7 @@ EVENT_REQUIRED_FIELDS = {
     "balanceFeatures",
 }
 BALANCE_REQUIRED_FIELDS = {
+    "sourceStep",
     "oldBalanceOrig",
     "newBalanceOrig",
     "oldBalanceDest",
@@ -117,7 +118,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rejected", type=Path, default=DEFAULT_REJECTED)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--max-reject-ratio", default=str(DEFAULT_MAX_REJECT_RATIO))
-    parser.add_argument("--fail-on-warning", action="store_true")
     parser.add_argument("--summary-output", type=Path)
     return parser.parse_args()
 
@@ -241,7 +241,9 @@ def validate_events(path: Path) -> tuple[set[str], set[str], Counter[str], int]:
         missing_balance = BALANCE_REQUIRED_FIELDS - balances.keys()
         if missing_balance:
             fail(f"{row}: missing balance fields: {', '.join(sorted(missing_balance))}")
-        for field in BALANCE_REQUIRED_FIELDS:
+        if not isinstance(balances["sourceStep"], int) or balances["sourceStep"] < 0:
+            fail(f"{row}.balanceFeatures.sourceStep must be a non-negative integer")
+        for field in BALANCE_REQUIRED_FIELDS - {"sourceStep"}:
             decimal_value(balances[field], f"{row}.balanceFeatures.{field}")
         event_type_counts[event["eventType"]] += 1
     return event_ids, trace_ids, event_type_counts, count
@@ -352,6 +354,8 @@ def validate_report(
         fail("report.flaggedFraudRows must match labels")
     if not isinstance(report["eventTypeCounts"], dict):
         fail("report.eventTypeCounts must be an object")
+    if set(report["eventTypeCounts"].keys()) != VALID_TYPES:
+        fail("report.eventTypeCounts must contain all valid event types")
     report_type_sum = 0
     for event_type, value in report["eventTypeCounts"].items():
         if event_type not in VALID_TYPES:

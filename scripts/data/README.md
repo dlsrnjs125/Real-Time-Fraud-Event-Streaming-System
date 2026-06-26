@@ -67,7 +67,7 @@ Do not commit:
 
 `data/samples` is for small samples only. A sample may be committed only when all of these are true:
 
-- It is a `.jsonl` file or `*manifest*.json` file.
+- It is one of `paysim-events-sample.jsonl`, `paysim-labels-sample.jsonl`, or `paysim-sample-manifest.json`.
 - It is 100 to 1,000 rows or less.
 - It does not contain raw `nameOrig` or `nameDest`.
 - It uses hashed identifiers only.
@@ -75,7 +75,7 @@ Do not commit:
 
 `data/samples` is not a place for the original Kaggle CSV.
 
-Phase 3 does not generate CSV samples because CSV can accidentally preserve raw PaySim columns. The data policy check rejects CSV samples, generic JSON samples, full/processed sample names, and sample files larger than 1MB.
+Phase 3 does not generate CSV samples because CSV can accidentally preserve raw PaySim columns. The data policy check rejects CSV samples, arbitrary JSONL samples, generic JSON samples, full/processed sample names, and sample files larger than 1MB.
 
 ## Identifier Hashing
 
@@ -167,6 +167,8 @@ Generated sample files:
 - `data/samples/paysim-sample-manifest.json`
 
 The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, and `hashSaltSource`. It must not contain raw identifiers or the salt value itself.
+
+Committed samples prioritize not exposing raw identifiers or salt values. Without the same private salt, byte-for-byte regeneration of the pseudonymized sample is not guaranteed; reproducibility is described through `sourceInputSha256`, the sample manifest, and the generation/validation scripts.
 
 CI runs fixture-based data script tests only. Full validation and sample generation require local `data/processed` output and are not part of the default CI path.
 

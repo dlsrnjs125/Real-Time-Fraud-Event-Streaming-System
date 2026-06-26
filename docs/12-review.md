@@ -748,7 +748,8 @@ make prepare-paysim-smoke
 - raw identifier field와 PaySim identifier pattern leakage를 validator와 sample generator 양쪽에서 검사했습니다.
 - rejected reason allowlist와 reject ratio threshold를 추가했습니다.
 - JSONL sample과 label sidecar를 분리하고 sample manifest를 생성했습니다.
-- `data/samples/*.csv`와 일반 JSON 허용을 제거하고 `*manifest*.json`만 제한 허용했습니다.
+- `data/samples/*.csv`, 임의 JSONL, 일반 JSON 허용을 제거하고 현재 생성되는 sample 3개 파일만 제한 허용했습니다.
+- data policy check가 staged sample content를 scan해 event label leakage, raw identifier, manifest salt value를 차단하도록 보강했습니다.
 - fixture 기반 unittest를 추가해 실제 Kaggle CSV 없이 Phase 3 contract를 검증했습니다.
 
 ### 사람 검토 체크리스트
@@ -757,6 +758,7 @@ make prepare-paysim-smoke
 - [ ] data/samples에 1MB 초과 파일이 없는가
 - [ ] data/samples에 CSV sample이 없는가
 - [ ] data/samples에 일반 JSON 파일이 없고 manifest JSON만 허용되는가
+- [ ] data/samples에 임의 JSONL 파일이 없고 지정된 sample JSONL만 허용되는가
 - [ ] sample event에 label field가 없는가
 - [ ] sample event에 `receivedAt`이 없는가
 - [ ] sample event/label eventId set이 일치하는가
@@ -782,9 +784,10 @@ make generate-paysim-sample-strict
 
 결과:
 
-- `make test-data-scripts`: PASS, 30 tests
+- `make test-data-scripts`: PASS, 31 tests
 - `make validate-paysim`: PASS, events=1000 labels=1000 rejected=0 fraud=9 flagged=0 rejectRatio=0.0000
 - `make generate-paysim-sample-strict`: PASS, events=1000 labels=1000 fraud=9
+- sample leakage grep checks: PASS, expected no-output checks returned no matches
 - sample files: each under 1MB
 - raw CSV, processed output, `.venv-data` are ignored and not staged
 
