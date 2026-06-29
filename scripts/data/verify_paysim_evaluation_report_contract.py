@@ -25,13 +25,22 @@ FORBIDDEN_TEXT = ("requestBody", "responseBody", "token", "authToken", "authoriz
 REQUIRED_TOP_LEVEL_FIELDS = {
     "scriptVersion",
     "reportSchemaVersion",
+    "recordFailurePolicy",
+    "pipelineFailureCountingPolicy",
+    "invalidRecordCountingPolicy",
     "totalEvents",
+    "totalFraudLabels",
+    "totalNonFraudLabels",
     "fraudLabeledEvents",
+    "evaluatedFraudLabeledEvents",
     "detectedFraudEvents",
     "missedFraudEvents",
+    "evaluatedMissedFraudEvents",
     "falsePositiveEvents",
     "truePositiveEvents",
     "trueNegativeEvents",
+    "missingFraudLabels",
+    "missingNonFraudLabels",
     "misclassifiedEvents",
     "unmatchedResultEvents",
     "evaluationExcludedRecords",
@@ -78,8 +87,36 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         raise ContractError("fixture report should produce f1Score")
     if report["missingResultTreatment"] != "missing_results_excluded_from_denominator":
         raise ContractError("missing results should be excluded by default")
+    if report["recordFailurePolicy"] != "fail_fast_before_report_generation":
+        raise ContractError("record failure policy should document fail-fast behavior")
     if report["failedRecords"] != 0 or report["invalidRecords"] != 0:
         raise ContractError("fixture report should not report pipeline failed/invalid records")
+    expected_values = {
+        "totalLabels": 3,
+        "totalFraudLabels": 2,
+        "totalNonFraudLabels": 1,
+        "totalResults": 2,
+        "matchedResults": 2,
+        "missingResults": 1,
+        "missingFraudLabels": 1,
+        "missingNonFraudLabels": 0,
+        "evaluatedEvents": 2,
+        "totalEvents": 2,
+        "fraudLabeledEvents": 1,
+        "evaluatedFraudLabeledEvents": 1,
+        "truePositiveEvents": 1,
+        "trueNegativeEvents": 1,
+        "falsePositiveEvents": 0,
+        "missedFraudEvents": 0,
+        "evaluatedMissedFraudEvents": 0,
+        "misclassifiedEvents": 0,
+        "unmatchedResultEvents": 0,
+        "evaluationExcludedRecords": 0,
+    }
+    for key, expected in expected_values.items():
+        actual = report.get(key)
+        if actual != expected:
+            raise ContractError(f"{key} expected {expected}, got {actual}")
 
 
 def main() -> int:

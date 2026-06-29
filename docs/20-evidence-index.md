@@ -90,4 +90,4 @@
 | Evidence | Command | Output | Pass Criteria | Notes |
 |---|---|---|---|---|
 | V2 Replay Evaluation Report | `make evaluate-paysim-replay` | `data/processed/paysim-evaluation-report.json` | report 생성, strict contract 통과, required fields 존재 | 성능 보장값이 아니라 rule baseline 검증 evidence |
-| V2 Phase 7 CI-safe checks | `make verify-v2-phase7` | unittest output, data policy check output, fixture report contract check | data script tests pass, raw/full processed PaySim files excluded from Git, required report fields exist | full evaluation input 없이 실행 가능 |
+| V2 Phase 7 CI-safe checks | `make verify-v2-phase7` | unittest output, data policy check output, fixture report contract check | data script tests pass, raw/full processed PaySim files excluded from Git, required report fields and expected fixture counts match | full evaluation input 없이 실행 가능 |

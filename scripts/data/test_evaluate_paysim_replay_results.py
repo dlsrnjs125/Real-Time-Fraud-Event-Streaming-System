@@ -102,17 +102,24 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1.0, report["metrics"]["f1Score"])
         self.assertEqual(1.0, report["metrics"]["accuracy"])
         self.assertEqual(2, report["totalEvents"])
+        self.assertEqual(1, report["totalFraudLabels"])
+        self.assertEqual(1, report["totalNonFraudLabels"])
         self.assertEqual(1, report["fraudLabeledEvents"])
+        self.assertEqual(1, report["evaluatedFraudLabeledEvents"])
         self.assertEqual(1, report["detectedFraudEvents"])
         self.assertEqual(0, report["missedFraudEvents"])
+        self.assertEqual(0, report["evaluatedMissedFraudEvents"])
         self.assertEqual(0, report["falsePositiveEvents"])
         self.assertEqual(1, report["truePositiveEvents"])
         self.assertEqual(1, report["trueNegativeEvents"])
+        self.assertEqual(0, report["missingFraudLabels"])
+        self.assertEqual(0, report["missingNonFraudLabels"])
         self.assertEqual(0, report["misclassifiedEvents"])
         self.assertEqual(0, report["unmatchedResultEvents"])
         self.assertEqual(0, report["evaluationExcludedRecords"])
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
+        self.assertEqual("fail_fast_before_report_generation", report["recordFailurePolicy"])
         self.assertEqual("2026-06-v2-phase7", report["reportSchemaVersion"])
         self.assertFalse(report["replayReportUsed"])
 
@@ -160,17 +167,23 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
     def test_missing_fraud_result_is_excluded_by_default(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [])
         self.assertEqual(1, report["missingResults"])
+        self.assertEqual(1, report["totalFraudLabels"])
+        self.assertEqual(0, report["evaluatedFraudLabeledEvents"])
+        self.assertEqual(1, report["missingFraudLabels"])
         self.assertEqual(0, report["evaluatedEvents"])
         self.assertEqual(0, report["confusionMatrix"]["falseNegative"])
 
     def test_missing_fraud_result_is_false_negative_when_included(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=True)
         self.assertEqual(1, report["missingResults"])
+        self.assertEqual(1, report["missingFraudLabels"])
+        self.assertEqual(1, report["evaluatedFraudLabeledEvents"])
         self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
 
     def test_missing_non_fraud_result_is_true_negative_when_included(self):
         report = self.evaluate_fixture([self.label("paysim-1", False)], [], include_missing_results=True)
         self.assertEqual(1, report["missingResults"])
+        self.assertEqual(1, report["missingNonFraudLabels"])
         self.assertEqual(1, report["confusionMatrix"]["trueNegative"])
 
     def test_missing_result_can_be_excluded_from_denominator(self):

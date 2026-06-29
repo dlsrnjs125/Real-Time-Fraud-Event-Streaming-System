@@ -57,11 +57,11 @@ make verify-v2-phase7
 
 `make evaluate-paysim-replay`는 local detection result export가 있을 때 evaluation report를 만든다.
 
-`make verify-v2-phase7`은 전체 PaySim raw data나 local DB export 없이 실행 가능한 check다. CI나 리뷰 환경에서는 이 경로가 더 안전하다. 이 target은 fixture 기반 report contract check까지 실행해서 report 생성, required field, 민감 필드 미포함, missing result 기본 정책을 확인한다.
+`make verify-v2-phase7`은 전체 PaySim raw data나 local DB export 없이 실행 가능한 check다. CI나 리뷰 환경에서는 이 경로가 더 안전하다. 이 target은 fixture 기반 report contract check까지 실행해서 report 생성, required field, fixture 기대값, 민감 필드 미포함, missing result 기본 정책을 확인한다.
 
-Evaluator report에는 Phase 7 문서와 맞도록 `f1Score`, `totalEvents`, `fraudLabeledEvents`, `detectedFraudEvents`, `missedFraudEvents`, `falsePositiveEvents`, `truePositiveEvents`, `trueNegativeEvents`, `misclassifiedEvents`, `unmatchedResultEvents`, `evaluationExcludedRecords`를 추가했다.
+Evaluator report에는 Phase 7 문서와 맞도록 `f1Score`, `totalEvents`, `totalFraudLabels`, `evaluatedFraudLabeledEvents`, `missingFraudLabels`, `missingNonFraudLabels`, `detectedFraudEvents`, `evaluatedMissedFraudEvents`, `falsePositiveEvents`, `truePositiveEvents`, `trueNegativeEvents`, `misclassifiedEvents`, `unmatchedResultEvents`, `evaluationExcludedRecords`를 추가했다.
 
-`failedRecords`와 `invalidRecords`는 탐지 오분류가 아니라 pipeline/schema failure 의미로 분리했다. Missing result도 기본적으로 denominator에서 제외한다. 누락된 non-fraud row를 true negative로 세면 accuracy가 좋아 보일 수 있기 때문이다.
+`fraudLabeledEvents`와 `missedFraudEvents`는 호환용 alias로 남겼지만, 문서에서는 denominator-scoped 값이라고 제한했다. `failedRecords`와 `invalidRecords`는 탐지 오분류가 아니라 future pipeline/schema failure 의미로 분리했고, Phase 7에서는 invalid input이 report 생성 전에 fail-fast된다는 policy를 기록한다. Missing result도 기본적으로 denominator에서 제외한다. 누락된 non-fraud row를 true negative로 세면 accuracy가 좋아 보일 수 있기 때문이다.
 
 기존 confusion matrix와 precision/recall 구조는 유지했다.
 

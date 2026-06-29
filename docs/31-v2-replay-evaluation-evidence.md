@@ -97,7 +97,7 @@ make evaluate-paysim-replay
 
 `data/processed/*` remains local evidence and is intentionally ignored by Git.
 
-`make verify-v2-phase7` is CI-safe because it uses fixture data for report contract validation. It verifies that a report can be generated, required fields exist, sensitive fields are absent, and missing results are excluded from denominator metrics by default.
+`make verify-v2-phase7` is CI-safe because it uses fixture data for report contract validation. It verifies that a report can be generated, required fields exist, expected fixture counts match, sensitive fields are absent, and missing results are excluded from denominator metrics by default.
 
 ## 5. Current Report Metrics
 
@@ -105,10 +105,15 @@ make evaluate-paysim-replay
 
 | Metric | Source | Meaning |
 |---|---|---|
+| `totalFraudLabels` | label sidecar | all `isFraud=true` rows in the label sidecar |
+| `evaluatedFraudLabeledEvents` | evaluation denominator | fraud-labeled rows included after replay-rejected and missing-result policy |
+| `missingFraudLabels` | label/result join | fraud-labeled rows missing from the detection result export |
+| `missingNonFraudLabels` | label/result join | non-fraud rows missing from the detection result export |
 | `totalEvents` | evaluation report | events included in the evaluation denominator |
-| `fraudLabeledEvents` | label sidecar + confusion matrix | PaySim-labeled fraud events in the denominator |
+| `fraudLabeledEvents` | compatibility alias | same as `evaluatedFraudLabeledEvents`; not total sidecar fraud count |
 | `detectedFraudEvents` | detection results + threshold | predicted positive events |
-| `missedFraudEvents` | confusion matrix | fraud-labeled events predicted negative or missing by policy |
+| `missedFraudEvents` | compatibility alias | same as `evaluatedMissedFraudEvents`; calculated inside the denominator |
+| `evaluatedMissedFraudEvents` | confusion matrix | denominator-included fraud rows predicted negative |
 | `falsePositiveEvents` | confusion matrix | non-fraud labels predicted positive |
 | `truePositiveEvents` | confusion matrix | fraud labels predicted positive |
 | `trueNegativeEvents` | confusion matrix | non-fraud labels predicted negative |
@@ -124,6 +129,10 @@ make evaluate-paysim-replay
 | `invalidRecords` | invalid input signal | reserved for malformed input records; not unsupported PaySim event type |
 
 Missing detection results are excluded from denominator metrics by default. `--include-missing-results` is available only for explicit sensitivity checks because counting missing non-fraud rows as true negatives can inflate accuracy on sparse-fraud datasets.
+
+`missedFraudEvents` is calculated within the evaluation denominator. When missing results are excluded by default, missing fraud labels are counted in `missingFraudLabels` and `missingResults`, not in `missedFraudEvents`.
+
+`failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema error aggregation. In Phase 7, invalid input fails fast before report generation, so successful reports keep these fields at 0 and include `recordFailurePolicy=fail_fast_before_report_generation`.
 
 The replay report separately provides:
 

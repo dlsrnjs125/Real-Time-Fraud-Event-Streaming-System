@@ -2029,3 +2029,21 @@ Evaluator 기본값을 missing result denominator 제외로 변경했습니다. 
 ### 남은 한계
 
 Missing result 원인이 replay rejected, Consumer lag, export 누락, DB query 조건 문제 중 무엇인지는 별도 operational evidence로 확인해야 합니다.
+
+## V2 Phase 7. Fraud label count가 전체 label 수처럼 과대 해석될 위험
+
+### 문제
+
+`fraudLabeledEvents`와 `missedFraudEvents`가 전체 PaySim label sidecar 기준 값처럼 읽힐 수 있습니다. 하지만 replay rejected와 missing result 제외 정책을 적용하면 confusion matrix denominator에 들어가는 fraud label 수는 전체 fraud label 수보다 작을 수 있습니다.
+
+### 판단
+
+전체 label sidecar 분포와 평가 denominator 분포는 분리해야 합니다. 그렇지 않으면 missing result를 제외한 평가 결과가 전체 PaySim fraud label을 모두 평가한 것처럼 보일 수 있습니다.
+
+### 대응
+
+Report에 `totalFraudLabels`, `evaluatedFraudLabeledEvents`, `missingFraudLabels`, `missingNonFraudLabels`, `evaluatedMissedFraudEvents`를 추가했습니다. 기존 `fraudLabeledEvents`와 `missedFraudEvents`는 compatibility alias로 남기되 denominator-scoped 값임을 문서화했습니다.
+
+### 남은 한계
+
+기존 report consumer가 있다면 `fraudLabeledEvents` 대신 `evaluatedFraudLabeledEvents`를 사용하도록 전환해야 합니다.

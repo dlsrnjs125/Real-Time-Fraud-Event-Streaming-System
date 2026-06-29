@@ -71,6 +71,10 @@ class EvaluationStats:
     evaluated_events: int = 0
     excluded_replay_rejected: int = 0
     missing_results: int = 0
+    total_fraud_labels: int = 0
+    total_non_fraud_labels: int = 0
+    missing_fraud_labels: int = 0
+    missing_non_fraud_labels: int = 0
     true_positive: int = 0
     false_positive: int = 0
     true_negative: int = 0
@@ -294,6 +298,8 @@ def evaluate_rows(
         total_results=len(results),
         matched_results=len(label_ids & result_ids),
         unmatched_results=len(result_ids - label_ids),
+        total_fraud_labels=sum(1 for label in labels.values() if label.is_fraud),
+        total_non_fraud_labels=sum(1 for label in labels.values() if not label.is_fraud),
     )
     for event_id in sorted(labels):
         label = labels[event_id]
@@ -303,6 +309,10 @@ def evaluate_rows(
         result = results.get(event_id)
         if result is None:
             stats.missing_results += 1
+            if label.is_fraud:
+                stats.missing_fraud_labels += 1
+            else:
+                stats.missing_non_fraud_labels += 1
             if not include_missing_results:
                 continue
             stats.evaluated_events += 1
@@ -408,7 +418,12 @@ def build_report(
         "missingResultTreatment": "fraud_missing_as_FN_non_fraud_missing_as_TN"
         if args.include_missing_results
         else "missing_results_excluded_from_denominator",
+        "recordFailurePolicy": "fail_fast_before_report_generation",
+        "pipelineFailureCountingPolicy": "fail_fast_before_report_generation",
+        "invalidRecordCountingPolicy": "fail_fast_before_report_generation",
         "totalLabels": stats.total_labels,
+        "totalFraudLabels": stats.total_fraud_labels,
+        "totalNonFraudLabels": stats.total_non_fraud_labels,
         "totalResults": stats.total_results,
         "matchedResults": stats.matched_results,
         "unmatchedResults": stats.unmatched_results,
@@ -420,10 +435,14 @@ def build_report(
         if replay_payload_rejected is None or not args.exclude_replay_rejected
         else replay_payload_rejected <= len(rejected_event_ids),
         "missingResults": stats.missing_results,
+        "missingFraudLabels": stats.missing_fraud_labels,
+        "missingNonFraudLabels": stats.missing_non_fraud_labels,
         "totalEvents": stats.evaluated_events,
         "fraudLabeledEvents": tp + fn,
+        "evaluatedFraudLabeledEvents": tp + fn,
         "detectedFraudEvents": tp + fp,
         "missedFraudEvents": fn,
+        "evaluatedMissedFraudEvents": fn,
         "falsePositiveEvents": fp,
         "truePositiveEvents": tp,
         "trueNegativeEvents": tn,

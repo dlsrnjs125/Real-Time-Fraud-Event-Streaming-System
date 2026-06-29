@@ -302,9 +302,14 @@ Current evaluation report fields include:
 
 ```text
 totalEvents
+totalFraudLabels
+evaluatedFraudLabeledEvents
+missingFraudLabels
+missingNonFraudLabels
 fraudLabeledEvents
 detectedFraudEvents
 missedFraudEvents
+evaluatedMissedFraudEvents
 falsePositiveEvents
 truePositiveEvents
 trueNegativeEvents
@@ -318,9 +323,14 @@ unmatchedResultEvents
 evaluationExcludedRecords
 failedRecords
 invalidRecords
+recordFailurePolicy
 ```
 
-`misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means detection result rows that did not join to a label. `failedRecords` and `invalidRecords` are reserved for pipeline/schema failures and must not be interpreted as rule false positives or false negatives.
+`totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud-labeled count after replay-rejected and missing-result policy has been applied. `fraudLabeledEvents` remains as a compatibility alias for `evaluatedFraudLabeledEvents`.
+
+`missedFraudEvents` is calculated within the evaluation denominator. When missing results are excluded by default, missing fraud labels are counted in `missingFraudLabels` and `missingResults`, not in `missedFraudEvents`.
+
+`misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means detection result rows that did not join to a label. `failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema failure aggregation and must not be interpreted as rule false positives or false negatives. Phase 7 invalid input fails fast before report generation, so successful reports keep these fields at 0 and record `recordFailurePolicy=fail_fast_before_report_generation`.
 
 Phase 7 separates current report metrics from future or operational metrics. `action_decision_distribution` requires the V2 action workflow, and Consumer Lag/API latency/Redis degraded count remain streaming operation metrics, not label-based detection quality metrics.
 
