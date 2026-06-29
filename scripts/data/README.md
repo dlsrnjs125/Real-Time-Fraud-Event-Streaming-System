@@ -97,6 +97,8 @@ destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 
 Use the `PAYSIM_HASH_SALT` environment variable for shared or committed sample regeneration. `--hash-salt` exists for local reproducibility, but it can be captured in shell history. `default-local` salt is allowed only for local smoke/debug output.
 
+Use `--hash-salt` only for local reproducibility checks. For shared or committed sample regeneration, prefer `PAYSIM_HASH_SALT` so the salt value is not captured in shell history.
+
 Do not commit a production salt, local private salt, `.env` file, or report/manifest field that contains the salt value itself. Reports and manifests may record only `hashSaltSource`, `hashAlgorithm`, and `hashIdPrefixLength`.
 
 ## Phase Responsibilities
@@ -138,6 +140,18 @@ Phase 2 writes output files directly. If `fail-fast` stops during processing, pa
 
 Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
 Phase 4 enforces this more strongly with `--require-non-default-salt`, `make validate-paysim-strict`, `make generate-paysim-sample-strict`, fixture tests, and data policy checks against committed sample manifests.
+
+V2 Phase 4 changes the validation report contract. Reports must include `hashAlgorithm`, `hashIdPrefixLength`, and `hashSaltSource`. If `data/processed/*` was generated during V2 Phase 2 or V2 Phase 3, regenerate it before running validation:
+
+```bash
+make prepare-paysim-smoke
+```
+
+For full local output, rerun the preprocessing script with `--force` through the data venv:
+
+```bash
+.venv-data/bin/python scripts/data/prepare_paysim_dataset.py --force
+```
 
 ## Validation and Sampling
 
@@ -188,13 +202,15 @@ make generate-paysim-sample-strict
 make data-policy-check
 ```
 
+`--require-non-default-salt` blocks `default-local`; it does not validate salt entropy, age, rotation, or secret-manager storage. Keep those as separate operational controls.
+
 Generated sample files:
 
 - `data/samples/paysim-events-sample.jsonl`
 - `data/samples/paysim-labels-sample.jsonl`
 - `data/samples/paysim-sample-manifest.json`
 
-The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`, and replay collision notes. It must not contain raw identifiers or the salt value itself.
+The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`, generation/policy phase metadata, and replay collision notes. It must not contain raw identifiers or the salt value itself.
 
 Committed samples prioritize not exposing raw identifiers or salt values. Without the same private salt, byte-for-byte regeneration of the pseudonymized sample is not guaranteed; reproducibility is described through `sourceInputSha256`, the sample manifest, and the generation/validation scripts.
 

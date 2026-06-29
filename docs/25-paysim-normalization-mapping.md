@@ -138,7 +138,7 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
 
 ```json
 {
-  "scriptVersion": "v2-phase-2",
+  "scriptVersion": "v2-phase-4",
   "datasetSlug": "ealaxi/paysim1",
   "rawFileName": "PS_20174392719_1491204439457_log.csv",
   "inputPath": "data/raw/PS_20174392719_1491204439457_log.csv",
@@ -215,7 +215,11 @@ Salt source policy:
 - salt가 없으면 local smoke/debug 용도로 `hashSaltSource=default-local`
 - `--require-non-default-salt`가 있으면 `default-local` 사용 시 실패
 
-Report와 manifest에는 salt 값 자체를 기록하지 않습니다. `--hash-salt`는 shell history에 남을 수 있으므로 공유/커밋 sample 재생성에는 env salt를 권장합니다.
+Report와 manifest에는 salt 값 자체를 기록하지 않습니다. `--hash-salt`는 shell history에 남을 수 있으므로 로컬 재현성 검증용으로만 사용하고, 공유/커밋 sample 재생성에는 `PAYSIM_HASH_SALT` env salt를 권장합니다.
+
+`--require-non-default-salt`는 `default-local` source를 막는 정책입니다. Salt entropy, age, rotation, secret-manager storage까지 자동 검증하지는 않습니다.
+
+V2 Phase 4부터 validation report contract에 `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`가 필수로 포함됩니다. V2 Phase 2/3에서 생성한 기존 `data/processed/*` 산출물이 있다면 `make prepare-paysim-smoke` 또는 `.venv-data/bin/python scripts/data/prepare_paysim_dataset.py --force`로 report를 재생성해야 합니다.
 
 ## 6. Time Policy
 
@@ -469,6 +473,7 @@ Phase 4에서는 hash/salt policy를 더 강화했습니다.
 - committed sample manifest의 `default-local` salt source 차단
 - validation script의 identifier format, hash metadata, non-default salt option 검증
 - replay 단계에서 dataset/sample 충돌을 피하기 위한 eventId prefix policy 문서화
+- committed sample JSONL을 재생성하지 않는 경우 manifest에 `generatedByScriptVersion`과 `policyHardenedByPhase`를 분리해 기록
 
 Java replay path와 API payload validation 연결은 Phase 5 replay pipeline 범위입니다.
 

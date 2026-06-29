@@ -202,6 +202,8 @@ destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 - report와 manifest에는 salt 값 자체를 기록하지 않고 `hashSaltSource`, `hashAlgorithm`, `hashIdPrefixLength`만 기록합니다.
 - `default-local` salt는 로컬 smoke/debug 용도이며 committed/shared sample에는 사용할 수 없습니다.
 - 공유/커밋 sample 재생성에는 `PAYSIM_HASH_SALT` 환경 변수와 `make generate-paysim-sample-strict`를 사용합니다.
+- `--hash-salt`는 로컬 재현성 검증용으로만 사용하고, 공유/커밋 sample 재생성 시에는 shell history 노출을 피하기 위해 `PAYSIM_HASH_SALT` 환경변수 사용을 권장합니다.
+- `--require-non-default-salt`는 `default-local` 사용을 막는 정책입니다. salt entropy, rotation, secret-manager storage까지 자동 검증하지는 않습니다.
 
 ## 8. V2 Phase 1 Completion Criteria
 
@@ -281,6 +283,9 @@ V2 Phase 4에서 추가한 구현:
 - `validate_paysim_outputs.py --require-non-default-salt`는 `hashSaltSource=default-local` report를 실패시킵니다.
 - `generate_paysim_samples.py --require-non-default-salt`는 committed/shared sample 생성 전 non-default salt source를 강제합니다.
 - sample manifest에는 hash metadata와 replay collision note를 남기지만 salt 값 자체는 남기지 않습니다.
+- 이번 committed sample manifest는 sample JSONL을 재생성하지 않고 `generatedByScriptVersion=v2-phase-3`, `policyHardenedByPhase=v2-phase-4`로 생성 시점과 policy hardening 시점을 분리해 기록합니다.
 - `check-data-policy.sh`는 committed sample manifest의 `default-local` salt source와 salt value field를 차단합니다.
+
+V2 Phase 4부터 validation report contract에 `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`가 필수로 포함됩니다. V2 Phase 2/3에서 생성한 기존 `data/processed/*` 산출물이 있다면 `make prepare-paysim-smoke` 또는 `.venv-data/bin/python scripts/data/prepare_paysim_dataset.py --force`로 report를 재생성한 뒤 `make validate-paysim` 또는 `make validate-paysim-strict`를 실행합니다.
 
 Phase 4는 replay script, app-api 주입, Java Rule Engine V2, DB migration, Kafka topic/schema 변경을 구현하지 않습니다.
