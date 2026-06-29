@@ -54,6 +54,8 @@ REQUIRED_TOP_LEVEL_FIELDS = {
     "blockedCandidateRate",
     "actionDecisionDistribution",
     "operatorWorkloadSummary",
+    "riskScoreCoverage",
+    "thresholdRegressionReliability",
     "evaluationExcludedRecords",
     "failedRecords",
     "invalidRecords",
@@ -136,10 +138,25 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "ruleVersion": "rule-v2-baseline-v1",
         "thresholdVersion": "threshold-v1",
+        "positiveRiskLevel": "MEDIUM",
     }
     for key, expected in expected_versions.items():
         if report.get(key) != expected:
             raise ContractError(f"{key} expected {expected}, got {report.get(key)}")
+    if report["operatorWorkloadSummary"]["budgetStatus"] != {
+        "reviewCandidateRateWithinBudget": False,
+        "blockedCandidateRateWithinBudget": False,
+    }:
+        raise ContractError("unexpected workload budget status")
+    if report["riskScoreCoverage"] != {
+        "resultsWithRiskScore": 2,
+        "resultsWithoutRiskScore": 0,
+        "coverageRate": 1.0,
+        "coverageScope": "evaluated_results_only",
+    }:
+        raise ContractError("unexpected riskScore coverage")
+    if report["thresholdRegressionReliability"] != "full_risk_score_coverage":
+        raise ContractError("unexpected threshold regression reliability")
 
 
 def main() -> int:
@@ -168,7 +185,7 @@ def main() -> int:
             results=results,
             replay_report=None,
             output=output,
-            positive_risk_level="MEDIUM",
+            positive_risk_level=None,
             threshold_version="threshold-v1",
             rule_version="rule-v2-baseline-v1",
             evaluation_policy_version="evaluation-policy-v1",

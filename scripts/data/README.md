@@ -353,7 +353,7 @@ Local/manual Phase 8 evidence uses an existing detection result export and repla
 
 ```bash
 make evaluate-paysim-native-replay
-make evaluate-paysim-threshold-regression
+make evaluate-paysim-threshold-policy-report
 make v2-phase8-evidence
 make v2-phase9-evidence
 ```
@@ -370,7 +370,7 @@ Evaluation rules:
 
 - Labels JSONL is evaluation input only. It is never replay payload.
 - Join key is `eventId`. If replay used an eventId prefix, pass `--event-id-prefix` so detection result ids can be normalized back to original PaySim ids.
-- `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
+- The selected `thresholdVersion` is the source of truth for fraud-positive and action fallback decisions. `--positive-risk-level` is a legacy compatibility option and must match `thresholdPolicy.positiveRiskLevelFallback` when provided.
 - Missing detection results are excluded from denominator metrics by default. The report records `missingResultTreatment=missing_results_excluded_from_denominator`.
 - Use `--include-missing-results` only for explicit sensitivity checks. In that mode, fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
 - With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
@@ -379,7 +379,7 @@ Evaluation rules:
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
 - Phase 8 separates replay input type distribution from evaluation denominator type distribution. `replayNativeTypeDistribution` is replay-report input scope, while `evaluatedNativeTypeDistribution` is label/result denominator scope.
 - Evaluation reports propagate `mappingMetadataPolicy` and `replayMissingMappingMetadata` from replay reports.
-- Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, `reviewCandidateEvents`, `reviewCandidateRate`, `blockedCandidateEvents`, `blockedCandidateRate`, `actionDecisionDistribution`, and `operatorWorkloadSummary`.
+- Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, `riskScoreCoverage`, `thresholdRegressionReliability`, `reviewCandidateEvents`, `reviewCandidateRate`, `blockedCandidateEvents`, `blockedCandidateRate`, `actionDecisionDistribution`, and `operatorWorkloadSummary`.
 - Current `ruleVersion` is an evaluation evidence policy value. Direct app-consumer Rule Engine version integration remains a follow-up.
 - `totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud count inside the evaluation denominator after replay-rejected and missing-result policy is applied.
 - `missedFraudEvents` is denominator-scoped. Missing fraud labels excluded by default are counted in `missingFraudLabels`, not in `missedFraudEvents`.

@@ -215,7 +215,7 @@ def main() -> int:
             results=results,
             replay_report=replay_report_path,
             output=evaluation_report_path,
-            positive_risk_level="MEDIUM",
+            positive_risk_level=None,
             threshold_version="threshold-v1",
             rule_version="rule-v2-baseline-v1",
             evaluation_policy_version="evaluation-policy-v1",

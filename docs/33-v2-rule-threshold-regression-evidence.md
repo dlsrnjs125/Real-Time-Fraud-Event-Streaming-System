@@ -39,6 +39,8 @@ Therefore precision, recall, F1, and workload counts must be read with explicit 
 
 Phase 9 fills these fields in the evaluation report. Consumer Rule Engine version integration remains a follow-up; the current version is an evaluation evidence policy version.
 
+Threshold policy is the source of truth for threshold-related decisions. The report-level `positiveRiskLevel` is derived from `thresholdPolicy.positiveRiskLevelFallback`, and the legacy `--positive-risk-level` option is accepted only when it matches the selected threshold policy fallback.
+
 ## 4. Threshold Trade-Off
 
 Threshold down:
@@ -72,6 +74,8 @@ The CI-safe gate uses fixture data only. It verifies:
 - `mappingPolicyVersion` and `evaluationContractVersion` exist
 - expected precision/recall/F1 fixture values match
 - expected review/block workload values match
+- expected riskScore coverage and fallback behavior match
+- workload budget status is present
 - unsupported native type remains excluded
 - missing result default policy remains explicit
 - raw/full PaySim data is not staged
@@ -79,7 +83,7 @@ The CI-safe gate uses fixture data only. It verifies:
 Local/manual gate:
 
 ```bash
-make evaluate-paysim-threshold-regression
+make evaluate-paysim-threshold-policy-report
 make v2-phase9-evidence
 ```
 
@@ -96,9 +100,12 @@ Implemented Phase 9 fields:
 - `ruleVersion`
 - `thresholdVersion`
 - `thresholdPolicy`
+- `positiveRiskLevel`
 - `mediumRiskThreshold`
 - `highRiskThreshold`
 - `decisionPolicy`
+- `riskScoreCoverage`
+- `thresholdRegressionReliability`
 - `reviewCandidateEvents`
 - `reviewCandidateRate`
 - `blockedCandidateEvents`
@@ -114,6 +121,10 @@ Future fields:
 - consumer threshold config snapshot
 - production action decision distribution
 - automated before/after threshold comparison file
+
+When `riskScore` is missing for an evaluated result, threshold decisions fall back to the risk-level fallback sets defined by `thresholdPolicy`. The report records this with `riskScoreCoverage`, `thresholdRegressionReliability`, and a warning.
+
+`operatorWorkloadSummary.budgetStatus` records whether review/block candidate rates are within the selected threshold policy's candidate workload budget. This is a warning signal, not a release gate.
 
 ## 7. Operational Use
 

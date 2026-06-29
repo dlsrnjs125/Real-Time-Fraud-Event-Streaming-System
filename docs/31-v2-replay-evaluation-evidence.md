@@ -157,7 +157,7 @@ The replay report separately provides:
 
 Phase 8 adds the native type contract fields above. The evaluation report also separates `replayNativeTypeDistribution` from `evaluatedNativeTypeDistribution`, so replay input composition is not confused with the denominator used for precision/recall. Evaluation metrics should be compared only when `mappingPolicyVersion`, denominator policy, rule version, and threshold version are compatible.
 
-Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, and operator workload summary fields.
+Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, riskScore coverage, threshold regression reliability, and operator workload summary fields.
 
 ## 6. Future Metrics
 

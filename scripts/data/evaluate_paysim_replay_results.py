@@ -19,6 +19,7 @@ from paysim_evaluation_policy import (
     EVALUATION_POLICY_VERSION,
     RULE_VERSION,
     threshold_policy_for,
+    validate_rule_version,
 )
 from paysim_native_type_mapping import mapping_for
 
@@ -102,6 +103,8 @@ class EvaluationStats:
     action_decision_distribution: Counter[str] = field(default_factory=Counter)
     review_candidate_events: int = 0
     blocked_candidate_events: int = 0
+    evaluated_results_with_risk_score: int = 0
+    evaluated_results_without_risk_score: int = 0
     evaluated_native_type_distribution: Counter[str] = field(default_factory=Counter)
     evaluated_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
     denominator_excluded_native_type_distribution: Counter[str] = field(default_factory=Counter)
@@ -118,7 +121,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--replay-report", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--positive-risk-level", choices=RISK_LEVELS, default="MEDIUM")
+    parser.add_argument("--positive-risk-level", choices=RISK_LEVELS, default=None)
     parser.add_argument("--threshold-version", default=DEFAULT_THRESHOLD_VERSION)
     parser.add_argument("--rule-version", default=RULE_VERSION)
     parser.add_argument("--evaluation-policy-version", default=EVALUATION_POLICY_VERSION)
@@ -309,10 +312,10 @@ def replay_mapping_value(replay_report: dict[str, Any] | None, key: str, default
     return value
 
 
-def is_predicted_positive(result: DetectionResult, positive_risk_level: str, threshold_policy) -> bool:
+def is_predicted_positive(result: DetectionResult, threshold_policy) -> bool:
     if result.risk_score is not None:
         return result.risk_score >= threshold_policy.medium_risk_threshold
-    return RISK_RANK[result.risk_level] >= RISK_RANK[positive_risk_level]
+    return RISK_RANK[result.risk_level] >= RISK_RANK[threshold_policy.positive_risk_level_fallback]
 
 
 def action_decision_for(result: DetectionResult, threshold_policy) -> str:
@@ -322,9 +325,9 @@ def action_decision_for(result: DetectionResult, threshold_policy) -> str:
         if result.risk_score >= threshold_policy.medium_risk_threshold:
             return "REVIEW"
         return "ALLOW"
-    if result.risk_level in ("HIGH", "CRITICAL"):
+    if result.risk_level in threshold_policy.block_risk_levels_fallback:
         return "BLOCK"
-    if result.risk_level == "MEDIUM":
+    if result.risk_level in threshold_policy.review_risk_levels_fallback:
         return "REVIEW"
     return "ALLOW"
 
@@ -362,7 +365,6 @@ def evaluate_rows(
     labels: dict[str, LabelRow],
     results: dict[str, DetectionResult],
     rejected_event_ids: set[str],
-    positive_risk_level: str,
     threshold_policy,
     include_missing_results: bool,
 ) -> EvaluationStats:
@@ -405,10 +407,14 @@ def evaluate_rows(
                 stats.true_negative += 1
             continue
 
-        predicted_positive = is_predicted_positive(result, positive_risk_level, threshold_policy)
+        predicted_positive = is_predicted_positive(result, threshold_policy)
         action_decision = action_decision_for(result, threshold_policy)
         stats.evaluated_events += 1
         stats.add_sample_event_id(event_id)
+        if result.risk_score is None:
+            stats.evaluated_results_without_risk_score += 1
+        else:
+            stats.evaluated_results_with_risk_score += 1
         if label.source_type:
             stats.evaluated_native_type_distribution[label.source_type] += 1
             normalized_type = normalized_type_for_source(label.source_type)
@@ -443,8 +449,13 @@ def build_warnings(
     replay_payload_rejected: int | None,
     rejected_event_ids: set[str],
     include_missing_results: bool,
+    threshold_policy,
 ) -> list[str]:
     warnings = list(base_warnings)
+    review_candidate_rate = safe_ratio(stats.review_candidate_events, stats.evaluated_events)
+    blocked_candidate_rate = safe_ratio(stats.blocked_candidate_events, stats.evaluated_events)
+    max_review_rate = threshold_policy.operator_workload_budget["maxReviewCandidateRateCandidate"]
+    max_blocked_rate = threshold_policy.operator_workload_budget["maxBlockedCandidateRateCandidate"]
     if stats.true_positive + stats.false_positive == 0:
         warnings.append("No positive prediction was produced; precision is null.")
     if stats.evaluated_events == 0:
@@ -465,6 +476,12 @@ def build_warnings(
         warnings.append("Detection results exist but do not match any label eventId. Check --event-id-prefix or result export source.")
     elif stats.unmatched_results > 0:
         warnings.append("Some detection results do not match any label eventId and were not used in metrics.")
+    if stats.evaluated_results_without_risk_score > 0:
+        warnings.append("Some evaluated results do not include riskScore; threshold policy falls back to riskLevel-based decisions.")
+    if review_candidate_rate is not None and review_candidate_rate > max_review_rate:
+        warnings.append("Review candidate rate exceeds candidate workload budget.")
+    if blocked_candidate_rate is not None and blocked_candidate_rate > max_blocked_rate:
+        warnings.append("Blocked candidate rate exceeds candidate workload budget.")
     return warnings
 
 
@@ -515,6 +532,12 @@ def build_report(
     threshold_policy = threshold_policy_for(args.threshold_version)
     review_candidate_rate = safe_ratio(stats.review_candidate_events, stats.evaluated_events)
     blocked_candidate_rate = safe_ratio(stats.blocked_candidate_events, stats.evaluated_events)
+    risk_score_coverage_denominator = stats.evaluated_results_with_risk_score + stats.evaluated_results_without_risk_score
+    risk_score_coverage_rate = safe_ratio(stats.evaluated_results_with_risk_score, risk_score_coverage_denominator)
+    max_review_rate = threshold_policy.operator_workload_budget["maxReviewCandidateRateCandidate"]
+    max_blocked_rate = threshold_policy.operator_workload_budget["maxBlockedCandidateRateCandidate"]
+    review_rate_within_budget = review_candidate_rate is None or review_candidate_rate <= max_review_rate
+    blocked_rate_within_budget = blocked_candidate_rate is None or blocked_candidate_rate <= max_blocked_rate
     return {
         "scriptVersion": SCRIPT_VERSION,
         "reportSchemaVersion": REPORT_SCHEMA_VERSION,
@@ -535,7 +558,7 @@ def build_report(
         "replayReportUsed": replay_report_path is not None,
         "startedAt": started_at,
         "finishedAt": finished_at,
-        "positiveRiskLevel": args.positive_risk_level,
+        "positiveRiskLevel": threshold_policy.positive_risk_level_fallback,
         "eventIdPrefix": event_id_prefix,
         "excludeReplayRejected": args.exclude_replay_rejected,
         "includeMissingResults": args.include_missing_results,
@@ -597,12 +620,25 @@ def build_report(
         "blockedCandidateEvents": stats.blocked_candidate_events,
         "blockedCandidateRate": blocked_candidate_rate,
         "actionDecisionDistribution": dict(sorted(stats.action_decision_distribution.items())),
+        "riskScoreCoverage": {
+            "resultsWithRiskScore": stats.evaluated_results_with_risk_score,
+            "resultsWithoutRiskScore": stats.evaluated_results_without_risk_score,
+            "coverageRate": risk_score_coverage_rate,
+            "coverageScope": "evaluated_results_only",
+        },
+        "thresholdRegressionReliability": "full_risk_score_coverage"
+        if stats.evaluated_results_without_risk_score == 0
+        else "partial_without_full_risk_score_coverage",
         "operatorWorkloadSummary": {
             "reviewCandidateEvents": stats.review_candidate_events,
             "reviewCandidateRate": review_candidate_rate,
             "blockedCandidateEvents": stats.blocked_candidate_events,
             "blockedCandidateRate": blocked_candidate_rate,
             "workloadBudget": threshold_policy.operator_workload_budget,
+            "budgetStatus": {
+                "reviewCandidateRateWithinBudget": review_rate_within_budget,
+                "blockedCandidateRateWithinBudget": blocked_rate_within_budget,
+            },
             "interpretation": "candidate workload summary for evaluation evidence; not a production staffing guarantee",
         },
         "evaluationExcludedRecords": stats.excluded_replay_rejected,
@@ -639,13 +675,20 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.output.exists() and not args.force:
         raise EvaluationError(f"output file already exists. Use --force: {args.output}")
     try:
-        threshold_policy_for(args.threshold_version)
+        threshold_policy = threshold_policy_for(args.threshold_version)
     except ValueError as exc:
         raise EvaluationError(str(exc)) from exc
     if args.evaluation_policy_version != EVALUATION_POLICY_VERSION:
         raise EvaluationError(f"unsupported evaluationPolicyVersion: {args.evaluation_policy_version}")
-    if not args.rule_version:
-        raise EvaluationError("ruleVersion must not be blank")
+    try:
+        validate_rule_version(args.rule_version)
+    except ValueError as exc:
+        raise EvaluationError(str(exc)) from exc
+    if args.positive_risk_level is not None and args.positive_risk_level != threshold_policy.positive_risk_level_fallback:
+        raise EvaluationError(
+            "--positive-risk-level must match threshold policy fallback in Phase 9: "
+            f"{threshold_policy.positive_risk_level_fallback}"
+        )
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
@@ -663,13 +706,14 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     rejected_event_ids = replay_rejected_event_ids(replay_report, event_id_prefix) if args.exclude_replay_rejected else set()
     replay_payload_rejected = replay_payload_rejected_count(replay_report)
     threshold_policy = threshold_policy_for(args.threshold_version)
-    stats = evaluate_rows(labels, results, rejected_event_ids, args.positive_risk_level, threshold_policy, args.include_missing_results)
+    stats = evaluate_rows(labels, results, rejected_event_ids, threshold_policy, args.include_missing_results)
     warnings = build_warnings(
         label_warnings + result_warnings,
         stats,
         replay_payload_rejected,
         rejected_event_ids,
         args.include_missing_results,
+        threshold_policy,
     )
     finished_at = iso_now()
     report = build_report(

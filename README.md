@@ -176,7 +176,7 @@ make replay-paysim-sample
 
 Actual replay requires local app-api and infrastructure to be running. Detailed replay contract is documented in [PaySim Data Scripts](scripts/data/README.md) and [V2 Result Evidence Plan](docs/29-v2-result-evidence.md).
 
-V2 PaySim replay evaluation:
+### V2 Phase 7: Replay Evaluation Evidence
 
 ```bash
 make evaluate-paysim-replay
@@ -186,12 +186,16 @@ make test-data-scripts
 
 V2 Phase 7 turns the PaySim replay evaluation baseline into reproducible evidence. The result is a rule baseline/report contract check, not a production fraud performance guarantee.
 
+### V2 Phase 8: PaySim Native Replay Contract
+
 V2 Phase 8 keeps the production API enum stable while adding an explicit PaySim native type replay contract:
 
 ```bash
 make verify-v2-phase8
 make v2-phase8-evidence
 ```
+
+### V2 Phase 9: Rule Threshold Regression Evidence
 
 V2 Phase 9 adds rule/threshold regression evidence for PaySim replay evaluation:
 

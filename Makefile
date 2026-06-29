@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -36,6 +36,7 @@ help:
 	@echo "  make replay-paysim-sample - Replay committed PaySim sample into local app-api"
 	@echo "  make evaluate-paysim-sample - Evaluate local PaySim detection result export"
 	@echo "  make evaluate-paysim-replay - Evaluate existing PaySim labels and local detection result export"
+	@echo "  make evaluate-paysim-threshold-policy-report - Generate default Phase 9 threshold policy report"
 	@echo "  make verify-paysim-evaluation-report-contract - Verify Phase 7 report schema with fixtures"
 	@echo "  make verify-paysim-native-replay-contract - Verify Phase 8 native type contract with fixtures"
 	@echo "  make verify-paysim-rule-threshold-regression - Verify Phase 9 rule/threshold regression contract"
@@ -180,7 +181,9 @@ evaluate-paysim-replay: evaluate-paysim-sample
 
 evaluate-paysim-native-replay: evaluate-paysim-replay
 
-evaluate-paysim-threshold-regression: evaluate-paysim-replay
+evaluate-paysim-threshold-policy-report: evaluate-paysim-replay
+
+evaluate-paysim-threshold-regression: evaluate-paysim-threshold-policy-report
 
 verify-paysim-evaluation-report-contract: data-env
 	$(DATA_PYTHON) scripts/data/verify_paysim_evaluation_report_contract.py
@@ -201,7 +204,7 @@ v2-phase7-evidence: evaluate-paysim-replay
 
 v2-phase8-evidence: evaluate-paysim-native-replay
 
-v2-phase9-evidence: evaluate-paysim-threshold-regression
+v2-phase9-evidence: evaluate-paysim-threshold-policy-report
 
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'

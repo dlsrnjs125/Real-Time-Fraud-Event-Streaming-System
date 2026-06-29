@@ -47,6 +47,8 @@ REQUIRED_FIELDS = {
     "blockedCandidateRate",
     "actionDecisionDistribution",
     "operatorWorkloadSummary",
+    "riskScoreCoverage",
+    "thresholdRegressionReliability",
     "replayNativeTypeDistribution",
     "evaluatedNativeTypeDistribution",
     "excludedByType",
@@ -90,6 +92,7 @@ def verify_baseline(report: dict[str, Any]) -> None:
         "mappingPolicyVersion": "paysim-native-mapping-v1",
         "ruleVersion": "rule-v2-baseline-v1",
         "thresholdVersion": "threshold-v1",
+        "positiveRiskLevel": "MEDIUM",
         "totalLabels": 4,
         "evaluatedEvents": 3,
         "missingResults": 0,
@@ -113,6 +116,20 @@ def verify_baseline(report: dict[str, Any]) -> None:
         raise ContractError(f"unexpected baseline metrics: {metrics}")
     if report["reviewCandidateRate"] != 2 / 3 or report["blockedCandidateRate"] != 1 / 3:
         raise ContractError("unexpected workload rates")
+    if report["operatorWorkloadSummary"]["budgetStatus"] != {
+        "reviewCandidateRateWithinBudget": False,
+        "blockedCandidateRateWithinBudget": False,
+    }:
+        raise ContractError("unexpected baseline workload budget status")
+    if report["riskScoreCoverage"] != {
+        "resultsWithRiskScore": 3,
+        "resultsWithoutRiskScore": 0,
+        "coverageRate": 1.0,
+        "coverageScope": "evaluated_results_only",
+    }:
+        raise ContractError("unexpected riskScore coverage")
+    if report["thresholdRegressionReliability"] != "full_risk_score_coverage":
+        raise ContractError("unexpected threshold regression reliability")
     if report["missingResultTreatment"] != "missing_results_excluded_from_denominator":
         raise ContractError("missing result default policy changed")
     assert_sensitive_free(report, "baseline report")
@@ -121,6 +138,8 @@ def verify_baseline(report: dict[str, Any]) -> None:
 def verify_strict_policy(report: dict[str, Any]) -> None:
     if report["thresholdVersion"] != "threshold-strict-v1":
         raise ContractError("strict report did not use threshold-strict-v1")
+    if report["positiveRiskLevel"] != "HIGH":
+        raise ContractError("strict report did not use policy fallback positive risk level")
     if report["reviewCandidateEvents"] != 1 or report["blockedCandidateEvents"] != 0:
         raise ContractError("strict threshold should reduce candidate workload in fixture")
     if report["metrics"]["recall"] != 0.0 or report["missedFraudEvents"] != 1:
@@ -171,7 +190,7 @@ def main() -> int:
             results=results,
             replay_report=replay_report,
             output=baseline_output,
-            positive_risk_level="MEDIUM",
+            positive_risk_level=None,
             threshold_version="threshold-v1",
             rule_version="rule-v2-baseline-v1",
             evaluation_policy_version="evaluation-policy-v1",
