@@ -63,3 +63,8 @@
 - Native type distribution blind spot: `docs/11-troubleshooting-log.md#v2-phase-8-native-type-분포를-보지-않고-precisionrecall만-보는-문제`
 - Native mapping consistency risk: `docs/11-troubleshooting-log.md#v2-phase-8-nativeeventtype과-eventtype-mapping-consistency-검증-누락`
 - Type distribution scope confusion: `docs/11-troubleshooting-log.md#v2-phase-8-type-distribution-scope가-replay-input과-evaluation-denominator를-혼동시키는-문제`
+- Threshold down workload risk: `docs/11-troubleshooting-log.md#v2-phase-9-threshold를-낮춰-recall이-좋아진-것처럼-보이지만-false-positive가-증가하는-문제`
+- Missing threshold version risk: `docs/11-troubleshooting-log.md#v2-phase-9-thresholdversion-없이-metric을-비교하는-문제`
+- F1-only optimization risk: `docs/11-troubleshooting-log.md#v2-phase-9-f1-score만-보고-운영-최적화로-오해하는-문제`
+- Fixture performance overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-9-fixture-regression을-production-성능-보장으로-오해하는-문제`
+- Rule and threshold version coupling risk: `docs/11-troubleshooting-log.md#v2-phase-9-ruleversion과-thresholdversion을-하나로-뭉치는-문제`

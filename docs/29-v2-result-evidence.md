@@ -269,6 +269,37 @@ Implementation:
 scripts/data/evaluate_paysim_replay_results.py
 ```
 
+### 2.3.1 Phase 9 Rule/Threshold Regression Fields
+
+V2 Phase 9 extends the replay evaluation report with rule/threshold regression evidence fields:
+
+```json
+{
+  "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
+  "evaluationPolicyVersion": "evaluation-policy-v1",
+  "ruleVersion": "rule-v2-baseline-v1",
+  "thresholdVersion": "threshold-v1",
+  "thresholdPolicy": {
+    "mediumRiskThreshold": 50,
+    "highRiskThreshold": 80
+  },
+  "reviewCandidateEvents": "TBD",
+  "reviewCandidateRate": "TBD",
+  "blockedCandidateEvents": "TBD",
+  "blockedCandidateRate": "TBD",
+  "actionDecisionDistribution": "TBD",
+  "operatorWorkloadSummary": "TBD"
+}
+```
+
+These fields support regression comparison. They are not a production fraud performance guarantee.
+
+CI-safe verification:
+
+```bash
+make verify-v2-phase9
+```
+
 Commands:
 
 ```bash

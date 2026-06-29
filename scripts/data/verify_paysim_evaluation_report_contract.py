@@ -25,6 +25,11 @@ FORBIDDEN_TEXT = ("requestBody", "responseBody", "token", "authToken", "authoriz
 REQUIRED_TOP_LEVEL_FIELDS = {
     "scriptVersion",
     "reportSchemaVersion",
+    "evaluationContractVersion",
+    "evaluationPolicyVersion",
+    "ruleVersion",
+    "thresholdVersion",
+    "thresholdPolicy",
     "recordFailurePolicy",
     "pipelineFailureCountingPolicy",
     "invalidRecordCountingPolicy",
@@ -43,6 +48,12 @@ REQUIRED_TOP_LEVEL_FIELDS = {
     "missingNonFraudLabels",
     "misclassifiedEvents",
     "unmatchedResultEvents",
+    "reviewCandidateEvents",
+    "reviewCandidateRate",
+    "blockedCandidateEvents",
+    "blockedCandidateRate",
+    "actionDecisionDistribution",
+    "operatorWorkloadSummary",
     "evaluationExcludedRecords",
     "failedRecords",
     "invalidRecords",
@@ -112,11 +123,23 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         "misclassifiedEvents": 0,
         "unmatchedResultEvents": 0,
         "evaluationExcludedRecords": 0,
+        "reviewCandidateEvents": 1,
+        "blockedCandidateEvents": 1,
     }
     for key, expected in expected_values.items():
         actual = report.get(key)
         if actual != expected:
             raise ContractError(f"{key} expected {expected}, got {actual}")
+    expected_versions = {
+        "reportSchemaVersion": "2026-06-v2-phase9",
+        "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
+        "evaluationPolicyVersion": "evaluation-policy-v1",
+        "ruleVersion": "rule-v2-baseline-v1",
+        "thresholdVersion": "threshold-v1",
+    }
+    for key, expected in expected_versions.items():
+        if report.get(key) != expected:
+            raise ContractError(f"{key} expected {expected}, got {report.get(key)}")
 
 
 def main() -> int:
@@ -146,6 +169,9 @@ def main() -> int:
             replay_report=None,
             output=output,
             positive_risk_level="MEDIUM",
+            threshold_version="threshold-v1",
+            rule_version="rule-v2-baseline-v1",
+            evaluation_policy_version="evaluation-policy-v1",
             event_id_prefix=None,
             exclude_replay_rejected=True,
             include_missing_results=False,

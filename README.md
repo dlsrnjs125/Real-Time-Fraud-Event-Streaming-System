@@ -134,6 +134,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [31. V2 Visualization Plan](docs/30-v2-visualization.md)
 - [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
 - [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md)
+- [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Drafts](blog/README.md)
 
@@ -192,7 +193,16 @@ make verify-v2-phase8
 make v2-phase8-evidence
 ```
 
-Details: [PaySim Data Scripts](scripts/data/README.md), [V2 Result Evidence Plan](docs/29-v2-result-evidence.md), [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md), [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md), [V2 Phase 7 Blog Draft](blog/25-v2-paysim-replay-evaluation-evidence.md), [V2 Phase 8 Blog Draft](blog/26-v2-paysim-native-type-replay-contract.md).
+V2 Phase 9 adds rule/threshold regression evidence for PaySim replay evaluation:
+
+```bash
+make verify-v2-phase9
+make verify-paysim-rule-threshold-regression
+```
+
+This is a regression evidence baseline, not a production fraud performance guarantee.
+
+Details: [PaySim Data Scripts](scripts/data/README.md), [V2 Result Evidence Plan](docs/29-v2-result-evidence.md), [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md), [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md), [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md), [V2 Phase 7 Blog Draft](blog/25-v2-paysim-replay-evaluation-evidence.md), [V2 Phase 8 Blog Draft](blog/26-v2-paysim-native-type-replay-contract.md), [V2 Phase 9 Blog Draft](blog/27-v2-rule-threshold-regression-evidence.md).
 
 Raw and full processed PaySim data are intentionally excluded from the repository.
 

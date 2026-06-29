@@ -13,11 +13,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from paysim_evaluation_policy import (
+    DEFAULT_THRESHOLD_VERSION,
+    EVALUATION_CONTRACT_VERSION,
+    EVALUATION_POLICY_VERSION,
+    RULE_VERSION,
+    threshold_policy_for,
+)
 from paysim_native_type_mapping import mapping_for
 
 
 SCRIPT_VERSION = "paysim-evaluation-v1"
-REPORT_SCHEMA_VERSION = "2026-06-v2-phase8"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase9"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
@@ -67,6 +74,7 @@ class DetectionResult:
     event_id: str
     normalized_event_id: str
     risk_level: str
+    risk_score: float | None = None
     rule_codes: list[str] = field(default_factory=list)
 
 
@@ -91,6 +99,9 @@ class EvaluationStats:
     fraud_by_risk_level: Counter[str] = field(default_factory=Counter)
     non_fraud_by_risk_level: Counter[str] = field(default_factory=Counter)
     rule_code_counts: Counter[str] = field(default_factory=Counter)
+    action_decision_distribution: Counter[str] = field(default_factory=Counter)
+    review_candidate_events: int = 0
+    blocked_candidate_events: int = 0
     evaluated_native_type_distribution: Counter[str] = field(default_factory=Counter)
     evaluated_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
     denominator_excluded_native_type_distribution: Counter[str] = field(default_factory=Counter)
@@ -108,6 +119,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--replay-report", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--positive-risk-level", choices=RISK_LEVELS, default="MEDIUM")
+    parser.add_argument("--threshold-version", default=DEFAULT_THRESHOLD_VERSION)
+    parser.add_argument("--rule-version", default=RULE_VERSION)
+    parser.add_argument("--evaluation-policy-version", default=EVALUATION_POLICY_VERSION)
     parser.add_argument("--event-id-prefix")
     parser.add_argument("--exclude-replay-rejected", dest="exclude_replay_rejected", action="store_true", default=True)
     parser.add_argument("--include-replay-rejected", dest="exclude_replay_rejected", action="store_false")
@@ -169,6 +183,18 @@ def extract_rule_codes(row: dict[str, Any]) -> list[str]:
     raise EvaluationError("detection result ruleCodes/matchedRules must be a list or comma-separated string")
 
 
+def extract_risk_score(row: dict[str, Any]) -> float | None:
+    if "riskScore" not in row or row["riskScore"] is None:
+        return None
+    try:
+        value = float(row["riskScore"])
+    except (TypeError, ValueError) as exc:
+        raise EvaluationError("detection result riskScore must be numeric when present") from exc
+    if value < 0 or value > 100:
+        raise EvaluationError("detection result riskScore must be between 0 and 100")
+    return value
+
+
 def load_labels(path: Path, strict: bool) -> tuple[dict[str, LabelRow], list[str]]:
     labels: dict[str, LabelRow] = {}
     warnings: list[str] = []
@@ -211,6 +237,7 @@ def load_results(path: Path, event_id_prefix: str | None, strict: bool) -> tuple
             event_id=event_id,
             normalized_event_id=normalized_event_id,
             risk_level=risk_level,
+            risk_score=extract_risk_score(row),
             rule_codes=extract_rule_codes(row),
         )
     return results, warnings
@@ -282,8 +309,24 @@ def replay_mapping_value(replay_report: dict[str, Any] | None, key: str, default
     return value
 
 
-def is_predicted_positive(risk_level: str, positive_risk_level: str) -> bool:
-    return RISK_RANK[risk_level] >= RISK_RANK[positive_risk_level]
+def is_predicted_positive(result: DetectionResult, positive_risk_level: str, threshold_policy) -> bool:
+    if result.risk_score is not None:
+        return result.risk_score >= threshold_policy.medium_risk_threshold
+    return RISK_RANK[result.risk_level] >= RISK_RANK[positive_risk_level]
+
+
+def action_decision_for(result: DetectionResult, threshold_policy) -> str:
+    if result.risk_score is not None:
+        if result.risk_score >= threshold_policy.high_risk_threshold:
+            return "BLOCK"
+        if result.risk_score >= threshold_policy.medium_risk_threshold:
+            return "REVIEW"
+        return "ALLOW"
+    if result.risk_level in ("HIGH", "CRITICAL"):
+        return "BLOCK"
+    if result.risk_level == "MEDIUM":
+        return "REVIEW"
+    return "ALLOW"
 
 
 def safe_ratio(numerator: int, denominator: int) -> float | None:
@@ -320,6 +363,7 @@ def evaluate_rows(
     results: dict[str, DetectionResult],
     rejected_event_ids: set[str],
     positive_risk_level: str,
+    threshold_policy,
     include_missing_results: bool,
 ) -> EvaluationStats:
     label_ids = set(labels)
@@ -361,7 +405,8 @@ def evaluate_rows(
                 stats.true_negative += 1
             continue
 
-        predicted_positive = is_predicted_positive(result.risk_level, positive_risk_level)
+        predicted_positive = is_predicted_positive(result, positive_risk_level, threshold_policy)
+        action_decision = action_decision_for(result, threshold_policy)
         stats.evaluated_events += 1
         stats.add_sample_event_id(event_id)
         if label.source_type:
@@ -370,6 +415,11 @@ def evaluate_rows(
             if normalized_type:
                 stats.evaluated_normalized_type_distribution[normalized_type] += 1
         stats.risk_level_counts[result.risk_level] += 1
+        stats.action_decision_distribution[action_decision] += 1
+        if action_decision in ("REVIEW", "BLOCK"):
+            stats.review_candidate_events += 1
+        if action_decision == "BLOCK":
+            stats.blocked_candidate_events += 1
         if label.is_fraud:
             stats.fraud_by_risk_level[result.risk_level] += 1
             if predicted_positive:
@@ -462,12 +512,23 @@ def build_report(
         replay_mapping_value(replay_report, "typeSupportLevelDistribution", {}),
     )
     replay_excluded_by_type = replay_mapping_value(replay_report, "excludedByType", {})
+    threshold_policy = threshold_policy_for(args.threshold_version)
+    review_candidate_rate = safe_ratio(stats.review_candidate_events, stats.evaluated_events)
+    blocked_candidate_rate = safe_ratio(stats.blocked_candidate_events, stats.evaluated_events)
     return {
         "scriptVersion": SCRIPT_VERSION,
         "reportSchemaVersion": REPORT_SCHEMA_VERSION,
-        "evaluationContractVersion": REPORT_SCHEMA_VERSION,
-        "ruleVersion": None,
-        "thresholdVersion": None,
+        "evaluationContractVersion": EVALUATION_CONTRACT_VERSION,
+        "evaluationPolicyVersion": args.evaluation_policy_version,
+        "ruleVersion": args.rule_version,
+        "thresholdVersion": args.threshold_version,
+        "thresholdPolicy": threshold_policy.as_dict(),
+        "highRiskThreshold": threshold_policy.high_risk_threshold,
+        "mediumRiskThreshold": threshold_policy.medium_risk_threshold,
+        "decisionPolicy": {
+            "reviewCandidate": threshold_policy.review_candidate_policy,
+            "blockedCandidate": threshold_policy.blocked_candidate_policy,
+        },
         "labelsPath": str(labels_path),
         "resultsPath": str(results_path),
         "replayReportPath": str(replay_report_path) if replay_report_path else None,
@@ -531,6 +592,19 @@ def build_report(
         "trueNegativeEvents": tn,
         "misclassifiedEvents": misclassified_events,
         "unmatchedResultEvents": unmatched_result_events,
+        "reviewCandidateEvents": stats.review_candidate_events,
+        "reviewCandidateRate": review_candidate_rate,
+        "blockedCandidateEvents": stats.blocked_candidate_events,
+        "blockedCandidateRate": blocked_candidate_rate,
+        "actionDecisionDistribution": dict(sorted(stats.action_decision_distribution.items())),
+        "operatorWorkloadSummary": {
+            "reviewCandidateEvents": stats.review_candidate_events,
+            "reviewCandidateRate": review_candidate_rate,
+            "blockedCandidateEvents": stats.blocked_candidate_events,
+            "blockedCandidateRate": blocked_candidate_rate,
+            "workloadBudget": threshold_policy.operator_workload_budget,
+            "interpretation": "candidate workload summary for evaluation evidence; not a production staffing guarantee",
+        },
         "evaluationExcludedRecords": stats.excluded_replay_rejected,
         "failedRecords": failed_records,
         "invalidRecords": invalid_records,
@@ -564,6 +638,14 @@ def validate_args(args: argparse.Namespace) -> None:
         raise FileNotFoundError(str(args.results))
     if args.output.exists() and not args.force:
         raise EvaluationError(f"output file already exists. Use --force: {args.output}")
+    try:
+        threshold_policy_for(args.threshold_version)
+    except ValueError as exc:
+        raise EvaluationError(str(exc)) from exc
+    if args.evaluation_policy_version != EVALUATION_POLICY_VERSION:
+        raise EvaluationError(f"unsupported evaluationPolicyVersion: {args.evaluation_policy_version}")
+    if not args.rule_version:
+        raise EvaluationError("ruleVersion must not be blank")
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
@@ -580,7 +662,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     results, result_warnings = load_results(args.results, event_id_prefix, args.strict)
     rejected_event_ids = replay_rejected_event_ids(replay_report, event_id_prefix) if args.exclude_replay_rejected else set()
     replay_payload_rejected = replay_payload_rejected_count(replay_report)
-    stats = evaluate_rows(labels, results, rejected_event_ids, args.positive_risk_level, args.include_missing_results)
+    threshold_policy = threshold_policy_for(args.threshold_version)
+    stats = evaluate_rows(labels, results, rejected_event_ids, args.positive_risk_level, threshold_policy, args.include_missing_results)
     warnings = build_warnings(
         label_warnings + result_warnings,
         stats,
