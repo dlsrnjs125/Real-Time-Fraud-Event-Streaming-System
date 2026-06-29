@@ -156,6 +156,15 @@ make generate-paysim-sample
 make test-data-scripts
 ```
 
+V2 PaySim strict hash/salt checks:
+
+```bash
+make validate-paysim-strict
+make generate-paysim-sample-strict
+make test-data-scripts
+```
+
 Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.
 
 Detailed validation and sampling contracts are documented in [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md) and [PaySim Data Scripts](scripts/data/README.md).
+Detailed hash/salt policy is documented in [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md), [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md), and [PaySim Data Scripts](scripts/data/README.md).

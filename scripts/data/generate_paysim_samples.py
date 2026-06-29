@@ -18,10 +18,18 @@ DEFAULT_REPORT = Path("data/processed/paysim-validation-report.json")
 DEFAULT_OUTPUT_DIR = Path("data/samples")
 MAX_SAMPLE_SIZE = 1000
 MAX_SAMPLE_BYTES = 1048576
-SCRIPT_VERSION = "v2-phase-3"
+SCRIPT_VERSION = "v2-phase-4"
+EXPECTED_HASH_ALGORITHM = "HMAC-SHA256"
+EXPECTED_HASH_PREFIX_LENGTH = 16
 LABEL_FIELDS = {"isFraud", "isFlaggedFraud", "sourceFlaggedFraud"}
 RAW_FIELDS = {"nameOrig", "nameDest"}
-RAW_IDENTIFIER_PATTERN = re.compile(r"\b[CM]\d+\b")
+RAW_IDENTIFIER_PATTERN = re.compile(r"\b[CM]\d{3,}\b")
+HASH_ID_PATTERNS = {
+    "userId": re.compile(r"^U-[0-9a-f]{16}$"),
+    "accountId": re.compile(r"^A-[0-9a-f]{16}$"),
+    "destinationAccountId": re.compile(r"^D-[0-9a-f]{16}$"),
+}
+SALT_VALUE_FIELDS = {"hashSaltValue", "saltValue", "salt", "rawSalt"}
 
 
 class SampleError(Exception):
@@ -75,7 +83,7 @@ def scan_forbidden(value: Any, path: str, *, forbid_label_fields: bool = False, 
                 raise SampleError(f"{child_path} must not contain raw identifier fields")
             if forbid_label_fields and key in LABEL_FIELDS:
                 raise SampleError(f"{child_path} must not contain label fields")
-            if forbid_salt_fields and "salt" in key.lower() and key != "hashSaltSource":
+            if forbid_salt_fields and (key in SALT_VALUE_FIELDS or ("salt" in key.lower() and key != "hashSaltSource")):
                 raise SampleError(f"{child_path} must not contain salt values")
             scan_forbidden(child, child_path, forbid_label_fields=forbid_label_fields, forbid_salt_fields=forbid_salt_fields)
     elif isinstance(value, list):
@@ -92,6 +100,12 @@ def load_report(path: Path, require_non_default_salt: bool) -> dict[str, Any]:
         raise SampleError("report must be valid JSON") from exc
     if not isinstance(report, dict):
         raise SampleError("report must be an object")
+    if report.get("hashAlgorithm") != EXPECTED_HASH_ALGORITHM:
+        raise SampleError("report.hashAlgorithm must be HMAC-SHA256")
+    if report.get("hashIdPrefixLength") != EXPECTED_HASH_PREFIX_LENGTH:
+        raise SampleError("report.hashIdPrefixLength must be 16")
+    if not isinstance(report.get("hashSaltSource"), str) or not report.get("hashSaltSource"):
+        raise SampleError("report.hashSaltSource must be present")
     if require_non_default_salt and report.get("hashSaltSource") == "default-local":
         raise SampleError("--require-non-default-salt requires non-default hashSaltSource")
     scan_forbidden(report, "report", forbid_salt_fields=True)
@@ -154,6 +168,9 @@ def validate_generated(
         raise SampleError("sample eventId set must match label eventId set")
     for event in events:
         scan_forbidden(event, "sampleEvent", forbid_label_fields=True)
+        for field, pattern in HASH_ID_PATTERNS.items():
+            if not isinstance(event.get(field), str) or not pattern.match(event[field]):
+                raise SampleError(f"sampleEvent.{field} must match {pattern.pattern}")
         if "receivedAt" in event:
             raise SampleError("sampleEvent.receivedAt must not be present")
     for label in labels:
@@ -201,7 +218,11 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
         "sampleLabels": len(labels),
         "sampleFraudRows": fraud_rows,
         "sampleNonFraudRows": len(labels) - fraud_rows,
+        "hashAlgorithm": report.get("hashAlgorithm"),
+        "hashIdPrefixLength": report.get("hashIdPrefixLength"),
         "hashSaltSource": report.get("hashSaltSource"),
+        "eventIdPolicy": "row-number-deterministic",
+        "replayCollisionNote": "eventId is deterministic for idempotency tests; Phase 5 replay may add an event-id-prefix option when mixing datasets or rerunning into the same API/database.",
         "createdAt": iso_now(),
         "containsRuntimeLabels": False,
         "containsRawIdentifiers": False,

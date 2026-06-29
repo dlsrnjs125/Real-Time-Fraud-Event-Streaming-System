@@ -20,6 +20,8 @@ DEFAULT_LABELS = Path("data/processed/paysim-labels.jsonl")
 DEFAULT_REJECTED = Path("data/processed/paysim-rejected.jsonl")
 DEFAULT_REPORT = Path("data/processed/paysim-validation-report.json")
 DEFAULT_MAX_REJECT_RATIO = Decimal("0.01")
+EXPECTED_HASH_ALGORITHM = "HMAC-SHA256"
+EXPECTED_HASH_PREFIX_LENGTH = 16
 EXPECTED_DATASET = "ealaxi/paysim1"
 EXPECTED_RAW_FILE = "PS_20174392719_1491204439457_log.csv"
 VALID_TYPES = {"TRANSFER", "CASH_OUT", "PAYMENT", "CASH_IN", "DEBIT"}
@@ -77,12 +79,20 @@ REPORT_REQUIRED_FIELDS = {
     "flaggedFraudRows",
     "eventTypeCounts",
     "outputFiles",
+    "hashAlgorithm",
+    "hashIdPrefixLength",
     "hashSaltSource",
 }
 LABEL_LEAKAGE_FIELDS = {"isFraud", "isFlaggedFraud", "sourceFlaggedFraud"}
 RAW_IDENTIFIER_FIELDS = {"nameOrig", "nameDest"}
-RAW_IDENTIFIER_PATTERN = re.compile(r"\b[CM]\d+\b")
+RAW_IDENTIFIER_PATTERN = re.compile(r"\b[CM]\d{3,}\b")
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
+HASH_ID_PATTERNS = {
+    "userId": re.compile(r"^U-[0-9a-f]{16}$"),
+    "accountId": re.compile(r"^A-[0-9a-f]{16}$"),
+    "destinationAccountId": re.compile(r"^D-[0-9a-f]{16}$"),
+}
+SALT_VALUE_FIELDS = {"hashSaltValue", "saltValue", "salt", "rawSalt"}
 
 
 class ValidationError(Exception):
@@ -119,6 +129,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--max-reject-ratio", default=str(DEFAULT_MAX_REJECT_RATIO))
     parser.add_argument("--summary-output", type=Path)
+    parser.add_argument("--require-non-default-salt", action="store_true")
     return parser.parse_args()
 
 
@@ -178,7 +189,7 @@ def scan_forbidden(value: Any, path: str, *, forbid_label_fields: bool = False, 
                 fail(f"{child_path} must not contain raw identifier fields")
             if forbid_label_fields and key in LABEL_LEAKAGE_FIELDS:
                 fail(f"{child_path} must not contain label fields")
-            if forbid_salt_fields and "salt" in key.lower() and key != "hashSaltSource":
+            if forbid_salt_fields and (key in SALT_VALUE_FIELDS or ("salt" in key.lower() and key != "hashSaltSource")):
                 fail(f"{child_path} must not contain salt values")
             scan_forbidden(child, child_path, forbid_label_fields=forbid_label_fields, forbid_salt_fields=forbid_salt_fields)
     elif isinstance(value, list):
@@ -214,12 +225,9 @@ def validate_events(path: Path) -> tuple[set[str], set[str], Counter[str], int]:
             fail(f"{row}: duplicate traceId")
         trace_ids.add(trace_id)
 
-        if not isinstance(event["userId"], str) or not event["userId"].startswith("U-"):
-            fail(f"{row}: userId must start with U-")
-        if not isinstance(event["accountId"], str) or not event["accountId"].startswith("A-"):
-            fail(f"{row}: accountId must start with A-")
-        if not isinstance(event["destinationAccountId"], str) or not event["destinationAccountId"].startswith("D-"):
-            fail(f"{row}: destinationAccountId must start with D-")
+        for field, pattern in HASH_ID_PATTERNS.items():
+            if not isinstance(event[field], str) or not pattern.match(event[field]):
+                fail(f"{row}: {field} must match {pattern.pattern}")
         if event.get("eventType") not in VALID_TYPES:
             fail(f"{row}: invalid eventType")
         amount = decimal_value(event["amount"], f"{row}.amount")
@@ -314,6 +322,7 @@ def validate_report(
     flagged_count: int,
     event_type_counts: Counter[str],
     max_reject_ratio: Decimal,
+    require_non_default_salt: bool,
 ) -> ValidationSummary:
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
@@ -332,6 +341,14 @@ def validate_report(
         fail("report.rawFileName is invalid")
     if not isinstance(report["inputSha256"], str) or not SHA256_PATTERN.match(report["inputSha256"]):
         fail("report.inputSha256 must be 64 hex characters")
+    if report["hashAlgorithm"] != EXPECTED_HASH_ALGORITHM:
+        fail("report.hashAlgorithm must be HMAC-SHA256")
+    if report["hashIdPrefixLength"] != EXPECTED_HASH_PREFIX_LENGTH:
+        fail("report.hashIdPrefixLength must be 16")
+    if not isinstance(report["hashSaltSource"], str) or not report["hashSaltSource"]:
+        fail("report.hashSaltSource must be present")
+    if require_non_default_salt and report["hashSaltSource"] == "default-local":
+        fail("--require-non-default-salt requires non-default hashSaltSource")
 
     accepted_rows = int_field(report, "acceptedRows")
     rejected_rows = int_field(report, "rejectedRows")
@@ -402,6 +419,7 @@ def validate(args: argparse.Namespace) -> ValidationSummary:
         flagged_count=flagged_count,
         event_type_counts=event_type_counts,
         max_reject_ratio=max_reject_ratio,
+        require_non_default_salt=args.require_non_default_salt,
     )
     if args.summary_output:
         args.summary_output.parent.mkdir(parents=True, exist_ok=True)

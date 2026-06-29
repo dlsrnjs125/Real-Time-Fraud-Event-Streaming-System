@@ -35,9 +35,9 @@ Runtime event JSONL은 app-api/Kafka replay에 사용하는 입력입니다. 정
 ```json
 {
   "eventId": "paysim-000000001",
-  "userId": "U-9f1a3c21e2b0",
-  "accountId": "A-9f1a3c21e2b0",
-  "destinationAccountId": "D-12ab8821cdae",
+  "userId": "U-9f1a3c21e2b0abcd",
+  "accountId": "A-9f1a3c21e2b0abcd",
+  "destinationAccountId": "D-12ab8821cdaefeed",
   "eventType": "PAYMENT",
   "amount": "9839.64",
   "currency": "KRW",
@@ -138,7 +138,7 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
 
 ```json
 {
-  "scriptVersion": "v2-phase-2",
+  "scriptVersion": "v2-phase-4",
   "datasetSlug": "ealaxi/paysim1",
   "rawFileName": "PS_20174392719_1491204439457_log.csv",
   "inputPath": "data/raw/PS_20174392719_1491204439457_log.csv",
@@ -158,6 +158,8 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
     "CASH_IN": "TBD",
     "DEBIT": "TBD"
   },
+  "hashAlgorithm": "HMAC-SHA256",
+  "hashIdPrefixLength": 16,
   "hashSaltSource": "default-local",
   "outputFiles": {
     "events": "data/processed/paysim-events.jsonl",
@@ -183,7 +185,41 @@ traceId = trace-paysim-{rowNumber zero padded}
 - PaySim row order가 바뀌면 eventId가 바뀔 수 있으므로 전처리 script는 input order를 보존합니다.
 - `eventId`는 `inputSha256`과 raw row number 맥락에서 해석합니다. 서로 다른 input file에 같은 row number가 있으면 같은 eventId 규칙을 사용할 수 있으므로 validation report의 `inputSha256`을 함께 보존합니다.
 
-후속 Phase 5 replay에서는 다른 dataset/sample을 같은 API/DB에 주입할 때 충돌을 피할 수 있도록 `--event-id-prefix` 옵션을 둡니다. 기본 preprocessing output은 idempotency 검증에 유용하도록 row number 기반 deterministic id를 유지합니다.
+후속 Phase 5 replay에서는 다른 dataset/sample을 같은 API/DB에 주입할 때 충돌을 피할 수 있도록 `--event-id-prefix` 옵션을 둡니다. 기본 preprocessing output은 idempotency 검증에 유용하도록 row number 기반 deterministic id를 유지합니다. Phase 4 sample manifest는 이 결정을 `eventIdPolicy=row-number-deterministic`과 replay collision note로 남깁니다.
+
+## 5.1 Identifier Hash Contract
+
+V2 Phase 4 기준 identifier format은 다음과 같습니다.
+
+```text
+userId = U- + 16 lowercase hex chars
+accountId = A- + 16 lowercase hex chars
+destinationAccountId = D- + 16 lowercase hex chars
+```
+
+Hash contract:
+
+```text
+algorithm = HMAC-SHA256
+hashIdPrefixLength = 16
+saltSourceOnly = true
+saltValueRecorded = false
+```
+
+`nameOrig`는 `userId`와 `accountId` 생성에 사용하고, `nameDest`는 `destinationAccountId` 생성에 사용합니다. 동일 raw identifier는 같은 salt에서 같은 pseudonym으로 변환되어 사용자 단위 grouping과 Kafka key 정책을 유지합니다.
+
+Salt source policy:
+
+- `--hash-salt`를 지정하면 `hashSaltSource=cli`
+- `--hash-salt-env PAYSIM_HASH_SALT` 또는 기본 env 값이 있으면 `hashSaltSource=env:PAYSIM_HASH_SALT`
+- salt가 없으면 local smoke/debug 용도로 `hashSaltSource=default-local`
+- `--require-non-default-salt`가 있으면 `default-local` 사용 시 실패
+
+Report와 manifest에는 salt 값 자체를 기록하지 않습니다. `--hash-salt`는 shell history에 남을 수 있으므로 로컬 재현성 검증용으로만 사용하고, 공유/커밋 sample 재생성에는 `PAYSIM_HASH_SALT` env salt를 권장합니다.
+
+`--require-non-default-salt`는 `default-local` source를 막는 정책입니다. Salt entropy, age, rotation, secret-manager storage까지 자동 검증하지는 않습니다.
+
+V2 Phase 4부터 validation report contract에 `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`가 필수로 포함됩니다. V2 Phase 2/3에서 생성한 기존 `data/processed/*` 산출물이 있다면 `make prepare-paysim-smoke` 또는 `.venv-data/bin/python scripts/data/prepare_paysim_dataset.py --force`로 report를 재생성해야 합니다.
 
 ## 6. Time Policy
 
@@ -342,6 +378,7 @@ CLI options:
 - `--reject-policy row-level|fail-fast`
 - `--hash-salt`
 - `--hash-salt-env`
+- `--require-non-default-salt`
 - `--force`
 
 ## 10. Sampling Policy
@@ -381,13 +418,16 @@ data/samples/paysim-sample-manifest.json
 - `amount`와 balance field는 finite Decimal 문자열
 - `currency=KRW`, `source=PAYSIM`, `schemaVersion=v2-paysim`
 - `eventTime`은 UTC ISO-8601 형식
+- identifier는 `U-`/`A-`/`D-` + 16 lowercase hex 형식
 - runtime event에 `receivedAt`, `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud` 없음
 - event/label sidecar는 `eventId` set이 일치
 - rejected row는 reason allowlist만 사용
 - report의 accepted/rejected/fraud/flagged/type count가 실제 line count와 일치
 - `rejectRatio = rejectedRows / totalRows`가 기본 0.01을 초과하면 실패
 - raw `nameOrig`, `nameDest`, `C12345`, `M12345` 형태 값이 output에 있으면 실패
-- report에는 `hashSaltSource`만 있고 salt 값 자체는 없어야 함
+- report에는 `hashAlgorithm=HMAC-SHA256`, `hashIdPrefixLength=16`, `hashSaltSource`가 있어야 함
+- report에는 salt 값 자체가 없어야 함
+- `--require-non-default-salt` 사용 시 `hashSaltSource=default-local`이면 실패
 
 Validator는 full JSONL payload 전체를 메모리에 올리지 않고 line-by-line으로 읽습니다. 다만 event/label 정합성 검증을 위해 eventId set과 traceId set은 메모리에 보관합니다. 전체 PaySim full output 검증 시 이 set 크기는 accepted row 수에 비례합니다.
 
@@ -410,6 +450,7 @@ sample contract:
 - event sample에 label field나 `receivedAt` 없음
 - event/label/manifest에 raw identifier pattern 없음
 - manifest에는 source dataset slug, raw filename, input SHA-256, sample count, strategy, hashSaltSource 기록
+- manifest에는 `hashAlgorithm`, `hashIdPrefixLength`, `eventIdPolicy`, replay collision note 기록
 - manifest에 salt 값 자체를 기록하지 않음
 - 각 sample file은 1MB 이하
 - Phase 3에서는 CSV sample을 생성하지 않음
@@ -424,12 +465,17 @@ Sampling strategy:
 
 ## 10.3 Phase 4 Handoff
 
-Phase 4에서는 hash/salt policy를 더 강화합니다. 후보:
+Phase 4에서는 hash/salt policy를 더 강화했습니다.
 
-- committed sample 생성 시 non-default salt source를 필수화
-- salt source policy를 문서뿐 아니라 sample generation command policy로 고정
-- replay 단계에서 dataset/sample 충돌을 피하기 위한 eventId prefix policy 검토
-- raw identifier leakage check를 Java replay path와 API payload validation에도 연결
+- committed/shared sample 생성 시 `--require-non-default-salt` 사용
+- `make validate-paysim-strict`
+- `make generate-paysim-sample-strict`
+- committed sample manifest의 `default-local` salt source 차단
+- validation script의 identifier format, hash metadata, non-default salt option 검증
+- replay 단계에서 dataset/sample 충돌을 피하기 위한 eventId prefix policy 문서화
+- committed sample JSONL을 재생성하지 않는 경우 manifest에 `generatedByScriptVersion`과 `policyHardenedByPhase`를 분리해 기록
+
+Java replay path와 API payload validation 연결은 Phase 5 replay pipeline 범위입니다.
 
 ## 11. Replay Pipeline Contract
 
