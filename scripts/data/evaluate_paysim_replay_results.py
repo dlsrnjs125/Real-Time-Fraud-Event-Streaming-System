@@ -267,6 +267,12 @@ def safe_ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator
 
 
+def f1_score(precision: float | None, recall: float | None) -> float | None:
+    if precision is None or recall is None or precision + recall == 0:
+        return None
+    return 2 * precision * recall / (precision + recall)
+
+
 def sorted_counter(counter: Counter[str]) -> dict[str, int]:
     values = {key: counter.get(key, 0) for key in RISK_LEVELS}
     values.update({key: counter[key] for key in sorted(counter) if key not in RISK_RANK})
@@ -372,6 +378,14 @@ def build_report(
     fp = stats.false_positive
     tn = stats.true_negative
     fn = stats.false_negative
+    precision = safe_ratio(tp, tp + fp)
+    recall = safe_ratio(tp, tp + fn)
+    false_positive_rate = safe_ratio(fp, fp + tn)
+    false_negative_rate = safe_ratio(fn, fn + tp)
+    accuracy = safe_ratio(tp + tn, stats.evaluated_events)
+    f1 = f1_score(precision, recall)
+    failed_records = fp + fn + stats.unmatched_results
+    invalid_records = stats.excluded_replay_rejected
     return {
         "scriptVersion": SCRIPT_VERSION,
         "labelsPath": str(labels_path),
@@ -399,6 +413,15 @@ def build_report(
         if replay_payload_rejected is None or not args.exclude_replay_rejected
         else replay_payload_rejected <= len(rejected_event_ids),
         "missingResults": stats.missing_results,
+        "totalEvents": stats.evaluated_events,
+        "fraudLabeledEvents": tp + fn,
+        "detectedFraudEvents": tp + fp,
+        "missedFraudEvents": fn,
+        "falsePositiveEvents": fp,
+        "truePositiveEvents": tp,
+        "trueNegativeEvents": tn,
+        "failedRecords": failed_records,
+        "invalidRecords": invalid_records,
         "confusionMatrix": {
             "truePositive": tp,
             "falsePositive": fp,
@@ -406,11 +429,12 @@ def build_report(
             "falseNegative": fn,
         },
         "metrics": {
-            "precision": safe_ratio(tp, tp + fp),
-            "recall": safe_ratio(tp, tp + fn),
-            "falsePositiveRate": safe_ratio(fp, fp + tn),
-            "falseNegativeRate": safe_ratio(fn, fn + tp),
-            "accuracy": safe_ratio(tp + tn, stats.evaluated_events),
+            "precision": precision,
+            "recall": recall,
+            "f1Score": f1,
+            "falsePositiveRate": false_positive_rate,
+            "falseNegativeRate": false_negative_rate,
+            "accuracy": accuracy,
         },
         "riskLevelCounts": sorted_counter(stats.risk_level_counts),
         "fraudByRiskLevel": sorted_counter(stats.fraud_by_risk_level),

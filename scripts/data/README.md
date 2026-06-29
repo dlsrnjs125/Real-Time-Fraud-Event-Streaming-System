@@ -108,6 +108,8 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 3: validation, rejected rows, and sample generation
 - V2 Phase 4: identifier hashing enforcement
 - V2 Phase 5: replay pipeline
+- V2 Phase 6: replay result evaluation baseline
+- V2 Phase 7: evaluation evidence command alias and CI-safe verification checks
 
 ## Preprocessing
 
@@ -297,6 +299,7 @@ Local sample evaluation requires a detection result export under `data/processed
 
 ```bash
 make evaluate-paysim-sample
+make evaluate-paysim-replay
 ```
 
 The default Make target runs with `--strict`, so duplicate label/result eventIds, unsupported risk levels, label leakage, raw identifier leakage, and invalid label sidecar metadata fail the evaluation.
@@ -308,6 +311,12 @@ make evaluate-paysim-sample-no-replay-report
 ```
 
 `make evaluate-paysim-sample` passes `--replay-report`; that file must exist or evaluation fails. Use the no-replay target when intentionally evaluating labels and results without replay rejected exclusion.
+
+For Phase 7 evidence checks that do not require full PaySim raw data, local DB exports, or actual app-api replay:
+
+```bash
+make verify-v2-phase7
+```
 
 Detection result export contract:
 

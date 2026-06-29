@@ -132,6 +132,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [29. Fraud Case Management](docs/28-fraud-case-management.md)
 - [30. V2 Result Evidence Plan](docs/29-v2-result-evidence.md)
 - [31. V2 Visualization Plan](docs/30-v2-visualization.md)
+- [32. V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Drafts](blog/README.md)
 
@@ -177,10 +178,16 @@ V2 PaySim replay evaluation:
 
 ```bash
 make evaluate-paysim-sample
+make evaluate-paysim-replay
+make verify-v2-phase7
 make test-data-scripts
 ```
 
-Evaluation uses the PaySim label sidecar and a local detection result export. Detailed evaluation contract is documented in [PaySim Data Scripts](scripts/data/README.md) and [V2 Result Evidence Plan](docs/29-v2-result-evidence.md).
+V2 Phase 7에서는 PaySim replay evaluation baseline을 재현 가능한 evaluation evidence로 정리했습니다. 이 단계의 결과는 실제 운영 fraud detection 성능 보장값이 아니라 rule baseline과 report 생성 과정을 검증하기 위한 기준선입니다.
+
+Evaluation uses the PaySim label sidecar and a local detection result export. Detection quality and streaming operation metrics are interpreted separately. Detailed evaluation contract is documented in [PaySim Data Scripts](scripts/data/README.md), [V2 Result Evidence Plan](docs/29-v2-result-evidence.md), [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md), and [V2 Phase 7 blog draft](blog/25-v2-paysim-replay-evaluation-evidence.md).
+
+Raw and full processed PaySim data are intentionally excluded from the repository.
 
 Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.
 

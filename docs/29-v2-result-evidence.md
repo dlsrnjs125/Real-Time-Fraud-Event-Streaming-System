@@ -259,6 +259,7 @@ Metrics:
 ```text
 precision = TP / (TP + FP)
 recall = TP / (TP + FN)
+f1Score = 2 * precision * recall / (precision + recall)
 falsePositiveRate = FP / (FP + TN)
 falseNegativeRate = FN / (FN + TP)
 accuracy = (TP + TN) / evaluatedEvents
@@ -280,6 +281,42 @@ Baseline limitations:
 - DB/API export is a local input contract in this Phase, not an automated connector.
 - A 1,000-row committed sample is pipeline validation evidence, not representative PaySim-wide performance.
 - Replay report `failures` is bounded, so rejected event exclusion may be incomplete if rejected ids are not present in the summary. The evaluator emits a warning for that case.
+
+## 2.4 Phase 7 Replay Evaluation Evidence
+
+V2 Phase 7는 Phase 6 evaluation script를 기반으로 report 해석과 운영 evidence 기준을 정리합니다.
+
+Commands:
+
+```bash
+make evaluate-paysim-replay
+make verify-v2-phase7
+```
+
+`make evaluate-paysim-replay`는 local detection result export와 replay report가 준비된 환경에서 실행합니다. `make verify-v2-phase7`는 full PaySim raw data, local DB export, app-api replay 없이 fixture test와 data policy check를 실행하는 CI-safe check입니다.
+
+Current evaluation report fields include:
+
+```text
+totalEvents
+fraudLabeledEvents
+detectedFraudEvents
+missedFraudEvents
+falsePositiveEvents
+truePositiveEvents
+trueNegativeEvents
+metrics.precision
+metrics.recall
+metrics.f1Score
+riskLevelCounts
+ruleCodeCounts
+failedRecords
+invalidRecords
+```
+
+Phase 7 separates current report metrics from future or operational metrics. `action_decision_distribution` requires the V2 action workflow, and Consumer Lag/API latency/Redis degraded count remain streaming operation metrics, not label-based detection quality metrics.
+
+Detailed interpretation rules and gate criteria are documented in `docs/31-v2-replay-evaluation-evidence.md`.
 
 ## 3. Evidence Tables
 

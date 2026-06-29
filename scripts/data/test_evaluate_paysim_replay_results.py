@@ -99,7 +99,17 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         )
         self.assertEqual(1.0, report["metrics"]["precision"])
         self.assertEqual(1.0, report["metrics"]["recall"])
+        self.assertEqual(1.0, report["metrics"]["f1Score"])
         self.assertEqual(1.0, report["metrics"]["accuracy"])
+        self.assertEqual(2, report["totalEvents"])
+        self.assertEqual(1, report["fraudLabeledEvents"])
+        self.assertEqual(1, report["detectedFraudEvents"])
+        self.assertEqual(0, report["missedFraudEvents"])
+        self.assertEqual(0, report["falsePositiveEvents"])
+        self.assertEqual(1, report["truePositiveEvents"])
+        self.assertEqual(1, report["trueNegativeEvents"])
+        self.assertEqual(0, report["failedRecords"])
+        self.assertEqual(0, report["invalidRecords"])
         self.assertFalse(report["replayReportUsed"])
 
     def test_confusion_matrix_counts_tp_fp_tn_fn(self):
@@ -123,6 +133,8 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         )
         self.assertEqual(0.5, report["metrics"]["precision"])
         self.assertEqual(0.5, report["metrics"]["recall"])
+        self.assertEqual(0.5, report["metrics"]["f1Score"])
+        self.assertEqual(2, report["failedRecords"])
 
     def test_medium_or_higher_is_positive_by_default(self):
         report = self.evaluate_fixture(
@@ -243,6 +255,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=False)
         self.assertIsNone(report["metrics"]["precision"])
         self.assertIsNone(report["metrics"]["recall"])
+        self.assertIsNone(report["metrics"]["f1Score"])
         self.assertIsNone(report["metrics"]["falsePositiveRate"])
         self.assertIsNone(report["metrics"]["accuracy"])
 

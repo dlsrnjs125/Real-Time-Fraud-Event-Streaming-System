@@ -35,6 +35,7 @@
 - Redis integration test separation: `Makefile`, `docs/18-runbook.md#17-redis-integration-test와-metric-확인`
 - Failure drill script line ending issue: `docs/11-troubleshooting-log.md`
 - Phase 11 evidence index: `docs/20-evidence-index.md`
+- V2 Phase 7 replay evaluation evidence checks: `docs/31-v2-replay-evaluation-evidence.md`
 
 ## Load Test
 
@@ -45,3 +46,10 @@
 - Phase 13 load/failure evidence: `docs/23-load-test-results.md`
 - Phase 13 runbook: `docs/18-runbook.md#1-3-phase-13-load-test-runbook`
 - Phase 13 duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-13-duplicate-replay와-k6-failure-기준`
+
+## V2 PaySim Replay Evaluation
+
+- Replay evaluation overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-7-replay-evaluation-결과를-탐지-성능으로-과대-해석할-위험`
+- Detection quality vs operation metrics: `docs/11-troubleshooting-log.md#v2-phase-7-평가-지표와-운영-지표의-혼동`
+- Raw/full processed PaySim commit risk: `docs/11-troubleshooting-log.md#v2-phase-7-대용량-paySim-결과-커밋-위험`
+- Threshold tuning workload trade-off: `docs/11-troubleshooting-log.md#v2-phase-7-threshold-조정과-false-positive-증가`

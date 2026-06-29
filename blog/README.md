@@ -33,6 +33,7 @@
 22. [V2 PaySim identifier hash policy](22-v2-paysim-identifier-hash-policy.md)
 23. [V2 PaySim replay pipeline](23-v2-paysim-replay-pipeline.md)
 24. [V2 PaySim replay evaluation baseline](24-v2-paysim-replay-evaluation-baseline.md)
+25. [V2 Phase 7 - PaySim Replay Evaluation을 운영 Evidence로 바꾸기](25-v2-paysim-replay-evaluation-evidence.md)
 
 ## 글 구조
 
