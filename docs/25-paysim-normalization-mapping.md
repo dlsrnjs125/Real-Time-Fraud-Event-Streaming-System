@@ -632,8 +632,11 @@ Evaluation 기준:
 - 기본 positive threshold는 `MEDIUM`이며, `MEDIUM`, `HIGH`, `CRITICAL`을 predicted fraud positive로 봅니다.
 - `--event-id-prefix`가 있으면 detection result eventId에서 prefix를 제거해 원본 PaySim eventId와 join합니다.
 - `--include-missing-results` 기본값은 true입니다. Fraud label에 result가 없으면 FN, non-fraud label에 result가 없으면 TN으로 계산하고 `missingResults`를 증가시킵니다.
+- 기본 Make target은 `--strict`로 실행합니다. Duplicate label/result eventId, unsupported riskLevel, label leakage, raw identifier leakage, invalid label sidecar metadata는 evaluation 실패로 처리합니다.
+- Evaluation report는 기본 missing result 기준을 `missingResultTreatment=fraud_missing_as_FN_non_fraud_missing_as_TN`로 기록하고, missing result가 metric에 영향을 주면 warning을 남깁니다.
+- Detection result export에만 있고 label sidecar에는 없는 eventId는 metric에 사용하지 않습니다. Report는 `matchedResults`와 `unmatchedResults`를 기록해 prefix mismatch나 잘못된 export source를 확인할 수 있게 합니다.
 - replay report가 있으면 HTTP 전 payload rejected로 확인된 eventId는 denominator에서 제외합니다.
-- Phase 5 replay report의 `failures`는 bounded summary이므로, `payloadRejected` count는 있지만 eventId가 summary에 없으면 exclusion이 불완전할 수 있습니다. Evaluation report는 이 경우 warning을 남깁니다.
+- Phase 5 replay report의 `failures`는 bounded summary이므로, `payloadRejected` count보다 summary에서 확인 가능한 rejected eventId가 적으면 exclusion이 불완전할 수 있습니다. Evaluation report는 `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, `replayRejectedExclusionComplete`를 기록하고 warning을 남깁니다.
 
 Output:
 

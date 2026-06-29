@@ -195,12 +195,14 @@ make generate-paysim-sample-strict
 Strict local regeneration example:
 
 ```bash
-export PAYSIM_HASH_SALT="<local-private-salt-for-sample-regeneration>"
+export PAYSIM_HASH_SALT="replace-with-local-private-salt"
 make prepare-paysim-smoke
 make validate-paysim-strict
 make generate-paysim-sample-strict
 make data-policy-check
 ```
+
+Do not paste the actual salt value into Git, documentation, PR descriptions, terminal logs, or shared chat.
 
 `--require-non-default-salt` blocks `default-local`; it does not validate salt entropy, age, rotation, or secret-manager storage. Keep those as separate operational controls.
 
@@ -297,6 +299,8 @@ Local sample evaluation requires a detection result export under `data/processed
 make evaluate-paysim-sample
 ```
 
+The default Make target runs with `--strict`, so duplicate label/result eventIds, unsupported risk levels, label leakage, raw identifier leakage, and invalid label sidecar metadata fail the evaluation.
+
 If no replay report is available, evaluate labels and results only:
 
 ```bash
@@ -315,7 +319,9 @@ Evaluation rules:
 - Join key is `eventId`. If replay used an eventId prefix, pass `--event-id-prefix` so detection result ids can be normalized back to original PaySim ids.
 - `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
 - Missing detection results are included by default. Fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
-- With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. If the replay report has `payloadRejected` but no eventIds in `failures`, the evaluation report emits a warning because exclusion may be incomplete.
+- The report records `missingResultTreatment=fraud_missing_as_FN_non_fraud_missing_as_TN` by default and emits a warning when missing results affect metrics.
+- With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
+- Detection results that do not match any label eventId are not used in metrics. The report records `matchedResults` and `unmatchedResults`, and warns when result ids appear mismatched.
 - Evaluation reports are written under `data/processed`, defaulting to `data/processed/paysim-evaluation-report.json`, and must not be committed.
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
 - CI runs fixture tests only. Actual DB/API export evaluation is local-only and requires a prepared `data/processed/paysim-detection-results.jsonl`.

@@ -407,7 +407,7 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 문제: app-api replay는 성공했지만 Consumer 처리 실패, lag, Redis/DB 오류, 또는 export 누락으로 detection result가 없을 수 있습니다.
 - 원인: replay success와 fraud detection result persistence는 서로 다른 비동기 단계입니다.
 - 대응: evaluation 기본값은 missing result를 denominator에 포함합니다. Fraud label에 result가 없으면 FN, non-fraud label에 result가 없으면 TN으로 계산하고 `missingResults`를 증가시킵니다.
-- 검증: fixture test에서 missing fraud result는 FN, missing non-fraud result는 TN으로 집계되는지 확인했습니다.
+- 검증: fixture test에서 missing fraud result는 FN, missing non-fraud result는 TN으로 집계되는지 확인했습니다. Report에는 `missingResultTreatment`와 missing result warning을 기록합니다.
 - 남은 한계: missing result의 원인이 Consumer lag인지 export 누락인지는 evaluation script만으로 판별하지 않습니다.
 
 ## V2 Phase 6. Label sidecar를 replay payload나 result export에 섞을 수 있는 문제
@@ -423,7 +423,7 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 문제: prefix replay를 사용하면 detection result eventId가 `local-smoke-paysim-...` 형태가 되어 original PaySim label eventId와 join되지 않을 수 있습니다.
 - 원인: replay collision 회피용 prefix는 API/DB 저장 eventId를 바꾸지만 label sidecar는 원본 deterministic eventId를 유지합니다.
 - 대응: evaluator에 `--event-id-prefix`를 추가해 detection result eventId에서 prefix를 제거한 뒤 join합니다. Replay report에 `eventIdPrefix`가 있으면 기본값으로 사용할 수 있습니다.
-- 검증: fixture test에서 `local-smoke-paysim-1` 결과가 `paysim-1` label과 join되는지 확인했습니다.
+- 검증: fixture test에서 `local-smoke-paysim-1` 결과가 `paysim-1` label과 join되는지 확인했습니다. Report에는 `matchedResults`, `unmatchedResults`와 unmatched result warning을 기록합니다.
 - 남은 한계: prefix가 여러 번 중첩된 결과나 임의 eventId rewrite는 지원하지 않습니다.
 
 ## V2 Phase 6. Replay rejected event를 denominator에 포함하는 문제
@@ -431,8 +431,16 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 문제: current app-api enum 미지원 type처럼 HTTP 요청 전 rejected된 event를 evaluation denominator에 포함하면 model/rule 성능처럼 metric이 왜곡됩니다.
 - 원인: replay validation 단계에서 제외된 row는 Consumer와 Rule Engine에 도달하지 않습니다.
 - 대응: replay report가 있으면 pre-HTTP rejected eventId를 denominator에서 제외합니다.
-- 검증: fixture test에서 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API` failure event가 `excludedReplayRejected`로 제외되는지 확인했습니다.
+- 검증: fixture test에서 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API` failure event가 `excludedReplayRejected`로 제외되는지 확인했습니다. Report에는 `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, `replayRejectedExclusionComplete`를 기록합니다.
 - 남은 한계: Phase 5 replay report의 `failures`는 bounded summary이므로 모든 rejected eventId가 없을 수 있습니다. 이 경우 evaluator는 warning을 남기며, full exclusion이 필요하면 replay report contract 확장이 필요합니다.
+
+## V2 Phase 6. Duplicate label/result eventId를 warning으로 넘기는 문제
+
+- 문제: duplicate label eventId는 denominator를 왜곡하고, duplicate result eventId는 어떤 riskLevel을 metric에 사용할지 모호하게 만듭니다.
+- 원인: evaluation 초기 구현은 duplicate eventId를 strict mode에서만 실패시키고 non-strict에서는 warning으로 넘길 수 있었습니다.
+- 대응: duplicate label/result eventId는 strict 여부와 무관하게 항상 실패하도록 변경했고, Makefile evaluation target은 `--strict`를 기본으로 실행합니다.
+- 검증: duplicate label/result fixture가 `strict=False`에서도 실패하는지 확인했습니다.
+- 남은 한계: 중복 원인은 export SQL, admin API pagination, replay prefix 정책을 별도로 확인해야 합니다.
 
 ## V2 Phase 6. Metric denominator가 0일 때 division error가 나는 문제
 

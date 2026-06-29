@@ -161,18 +161,18 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         )
         self.assertEqual(1, report["confusionMatrix"]["truePositive"])
 
-    def test_duplicate_label_event_id_fails_in_strict_mode(self):
+    def test_duplicate_label_event_id_always_fails(self):
         self.write_fixture([self.label("paysim-1"), self.label("paysim-1")], [])
         with self.assertRaises(evaluate.EvaluationError):
-            evaluate.evaluate(self.args(strict=True))
+            evaluate.evaluate(self.args(strict=False))
 
-    def test_duplicate_result_event_id_fails_in_strict_mode(self):
+    def test_duplicate_result_event_id_always_fails(self):
         self.write_fixture(
             [self.label("paysim-1")],
             [self.result("paysim-1", "LOW"), self.result("paysim-1", "HIGH")],
         )
         with self.assertRaises(evaluate.EvaluationError):
-            evaluate.evaluate(self.args(strict=True))
+            evaluate.evaluate(self.args(strict=False))
 
     def test_unsupported_risk_level_fails(self):
         self.write_fixture([self.label("paysim-1")], [self.result("paysim-1", "UNKNOWN")])
@@ -204,8 +204,31 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             ),
         )
         self.assertEqual(1, report["excludedReplayRejected"])
+        self.assertEqual(1, report["replayPayloadRejected"])
+        self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
+        self.assertTrue(report["replayRejectedExclusionComplete"])
         self.assertEqual(1, report["evaluatedEvents"])
         self.assertEqual(1, report["confusionMatrix"]["truePositive"])
+
+    def test_replay_rejected_exclusion_warns_when_bounded_failures_are_incomplete(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", True), self.label("paysim-3", False)],
+            [self.result("paysim-2", "HIGH")],
+            self.replay(
+                payloadRejected=3,
+                failures=[
+                    {
+                        "rowNumber": 1,
+                        "eventId": "paysim-1",
+                        "reason": "UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:CASH_OUT",
+                    }
+                ],
+            ),
+        )
+        self.assertEqual(3, report["replayPayloadRejected"])
+        self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
+        self.assertFalse(report["replayRejectedExclusionComplete"])
+        self.assertTrue(any("payloadRejected is greater" in warning for warning in report["warnings"]))
 
     def test_zero_metric_denominators_are_null(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=False)
@@ -225,6 +248,31 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertNotIn("requestBody", text)
         self.assertNotIn("responseBody", text)
         self.assertNotIn("isFraud", text)
+
+    def test_missing_result_warning_and_treatment_are_reported(self):
+        report = self.evaluate_fixture([self.label("paysim-1", False)], [])
+        self.assertEqual("fraud_missing_as_FN_non_fraud_missing_as_TN", report["missingResultTreatment"])
+        self.assertTrue(any("Missing detection results are included" in warning for warning in report["warnings"]))
+
+    def test_unmatched_results_are_reported(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", False)],
+            [self.result("local-paysim-1", "LOW")],
+        )
+        self.assertEqual(0, report["matchedResults"])
+        self.assertEqual(1, report["unmatchedResults"])
+        self.assertTrue(any("do not match any label" in warning for warning in report["warnings"]))
+
+    def test_strict_label_contract_checks_sidecar_fields(self):
+        self.write_fixture([self.label("paysim-1", sourceFlaggedFraud="false")], [])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(strict=True))
+        self.write_fixture([self.label("paysim-1", sourceStep=-1)], [])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(strict=True))
+        self.write_fixture([self.label("paysim-1", sourceType="")], [])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(strict=True))
 
     def test_sample_event_ids_are_limited_to_ten(self):
         labels = [self.label(f"paysim-{index}", False) for index in range(20)]

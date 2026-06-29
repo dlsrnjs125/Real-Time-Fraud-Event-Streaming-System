@@ -161,10 +161,10 @@ replay-paysim-processed-smoke: data-env
 	$(DATA_PYTHON) scripts/data/replay_paysim_events.py --input data/processed/paysim-events.jsonl --max-events 1000 --rate-per-second 20 --force
 
 evaluate-paysim-sample: data-env
-	$(DATA_PYTHON) scripts/data/evaluate_paysim_replay_results.py --labels data/samples/paysim-labels-sample.jsonl --results data/processed/paysim-detection-results.jsonl --replay-report data/processed/paysim-replay-report.json --force
+	$(DATA_PYTHON) scripts/data/evaluate_paysim_replay_results.py --labels data/samples/paysim-labels-sample.jsonl --results data/processed/paysim-detection-results.jsonl --replay-report data/processed/paysim-replay-report.json --strict --force
 
 evaluate-paysim-sample-no-replay-report: data-env
-	$(DATA_PYTHON) scripts/data/evaluate_paysim_replay_results.py --labels data/samples/paysim-labels-sample.jsonl --results data/processed/paysim-detection-results.jsonl --force
+	$(DATA_PYTHON) scripts/data/evaluate_paysim_replay_results.py --labels data/samples/paysim-labels-sample.jsonl --results data/processed/paysim-detection-results.jsonl --strict --force
 
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'

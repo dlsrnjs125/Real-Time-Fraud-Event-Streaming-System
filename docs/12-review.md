@@ -183,7 +183,10 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - label/result join은 `eventId` 기준인가
 - eventId prefix 제거 로직이 있는가
 - replay rejected event 제외 기준이 명확한가
+- replay rejected exclusion이 bounded failure summary에 의존할 때 불완전성을 report에 남기는가
 - missing result 처리 기준이 명확한가
+- detection result export에만 있는 unmatched result count가 보이는가
+- duplicate label/result eventId를 warning이 아니라 data integrity failure로 처리하는가
 - metric 분모 0을 `null`로 처리하는가
 - report에 raw identifier/token/request/response body가 없는가
 - CI에서 DB/API evaluation을 실행하지 않는가
@@ -195,7 +198,11 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - detection result export에 label field나 raw PaySim identifier pattern이 있으면 실패합니다.
 - `--event-id-prefix`로 prefix replay result를 original PaySim eventId와 join할 수 있게 했습니다.
 - replay report의 pre-HTTP rejected eventId를 denominator에서 제외합니다.
+- replay rejected exclusion completeness를 `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, `replayRejectedExclusionComplete`로 report에 기록합니다.
 - missing detection result는 기본적으로 denominator에 포함하고, fraud label이면 FN, non-fraud label이면 TN으로 집계합니다.
+- missing result 기준을 `missingResultTreatment`에 기록하고 warning을 남깁니다.
+- result export의 matched/unmatched count를 기록해 prefix mismatch를 확인할 수 있게 했습니다.
+- duplicate label/result eventId는 strict 여부와 무관하게 실패시키고, Makefile evaluation target은 `--strict`로 실행합니다.
 - denominator가 0인 metric은 `null`로 기록합니다.
 - report는 metrics, distribution, warning, 최대 10개 sample eventIds만 저장하고 payload dump/token/raw identifier를 저장하지 않습니다.
 - Makefile evaluation target은 local-only이고 `ci-check`에는 실제 DB/API evaluation을 넣지 않았습니다.

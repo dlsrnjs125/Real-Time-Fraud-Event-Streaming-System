@@ -66,6 +66,8 @@ class DetectionResult:
 class EvaluationStats:
     total_labels: int = 0
     total_results: int = 0
+    matched_results: int = 0
+    unmatched_results: int = 0
     evaluated_events: int = 0
     excluded_replay_rejected: int = 0
     missing_results: int = 0
@@ -162,12 +164,15 @@ def load_labels(path: Path, strict: bool) -> tuple[dict[str, LabelRow], list[str
             raise EvaluationError(f"{path}:{line_no}: label eventId is required")
         if not isinstance(row.get("isFraud"), bool):
             raise EvaluationError(f"{path}:{line_no}: label isFraud boolean is required")
+        if strict:
+            if not isinstance(row.get("sourceFlaggedFraud"), bool):
+                raise EvaluationError(f"{path}:{line_no}: label sourceFlaggedFraud boolean is required")
+            if isinstance(row.get("sourceStep"), bool) or not isinstance(row.get("sourceStep"), int) or row["sourceStep"] < 0:
+                raise EvaluationError(f"{path}:{line_no}: label sourceStep non-negative integer is required")
+            if not isinstance(row.get("sourceType"), str) or not row["sourceType"]:
+                raise EvaluationError(f"{path}:{line_no}: label sourceType string is required")
         if event_id in labels:
-            message = f"duplicate label eventId: {event_id}"
-            if strict:
-                raise EvaluationError(message)
-            warnings.append(message)
-            continue
+            raise EvaluationError(f"duplicate label eventId: {event_id}")
         source_type = row.get("sourceType") if isinstance(row.get("sourceType"), str) else None
         labels[event_id] = LabelRow(event_id=event_id, is_fraud=row["isFraud"], source_type=source_type)
     return labels, warnings
@@ -186,11 +191,7 @@ def load_results(path: Path, event_id_prefix: str | None, strict: bool) -> tuple
             raise EvaluationError(f"{path}:{line_no}: unsupported riskLevel: {risk_level}")
         normalized_event_id = normalize_event_id(event_id, event_id_prefix)
         if normalized_event_id in results:
-            message = f"duplicate result eventId after prefix normalization: {normalized_event_id}"
-            if strict:
-                raise EvaluationError(message)
-            warnings.append(message)
-            continue
+            raise EvaluationError(f"duplicate result eventId after prefix normalization: {normalized_event_id}")
         results[normalized_event_id] = DetectionResult(
             event_id=event_id,
             normalized_event_id=normalized_event_id,
@@ -240,6 +241,21 @@ def replay_rejected_event_ids(replay_report: dict[str, Any] | None, event_id_pre
     return rejected
 
 
+def replay_payload_rejected_count(replay_report: dict[str, Any] | None) -> int | None:
+    if not replay_report:
+        return None
+    value = replay_report.get("payloadRejected", 0)
+    if value is None:
+        return 0
+    try:
+        count = int(value)
+    except (TypeError, ValueError) as exc:
+        raise EvaluationError("replay report payloadRejected must be an integer") from exc
+    if count < 0:
+        raise EvaluationError("replay report payloadRejected must be >= 0")
+    return count
+
+
 def is_predicted_positive(risk_level: str, positive_risk_level: str) -> bool:
     return RISK_RANK[risk_level] >= RISK_RANK[positive_risk_level]
 
@@ -263,7 +279,14 @@ def evaluate_rows(
     positive_risk_level: str,
     include_missing_results: bool,
 ) -> EvaluationStats:
-    stats = EvaluationStats(total_labels=len(labels), total_results=len(results))
+    label_ids = set(labels)
+    result_ids = set(results)
+    stats = EvaluationStats(
+        total_labels=len(labels),
+        total_results=len(results),
+        matched_results=len(label_ids & result_ids),
+        unmatched_results=len(result_ids - label_ids),
+    )
     for event_id in sorted(labels):
         label = labels[event_id]
         if event_id in rejected_event_ids:
@@ -303,14 +326,31 @@ def evaluate_rows(
     return stats
 
 
-def build_warnings(base_warnings: list[str], stats: EvaluationStats, replay_report: dict[str, Any] | None, rejected_event_ids: set[str]) -> list[str]:
+def build_warnings(
+    base_warnings: list[str],
+    stats: EvaluationStats,
+    replay_payload_rejected: int | None,
+    rejected_event_ids: set[str],
+) -> list[str]:
     warnings = list(base_warnings)
     if stats.true_positive + stats.false_positive == 0:
         warnings.append("No positive prediction was produced; precision is null.")
     if stats.evaluated_events == 0:
         warnings.append("No events were evaluated; denominator-based metrics are null.")
-    if replay_report and replay_report.get("payloadRejected", 0) and not rejected_event_ids:
-        warnings.append("Replay report has payloadRejected count but no rejected eventIds in bounded failures; exclusion may be incomplete.")
+    if replay_payload_rejected is not None and replay_payload_rejected > len(rejected_event_ids):
+        warnings.append(
+            "Replay report payloadRejected is greater than available rejected eventIds; "
+            "evaluation denominator may include replay-rejected events."
+        )
+    if stats.missing_results > 0:
+        warnings.append(
+            "Missing detection results are included in metrics; "
+            "non-fraud missing results are counted as true negatives by policy."
+        )
+    if stats.total_results > 0 and stats.matched_results == 0:
+        warnings.append("Detection results exist but do not match any label eventId. Check --event-id-prefix or result export source.")
+    elif stats.unmatched_results > 0:
+        warnings.append("Some detection results do not match any label eventId and were not used in metrics.")
     return warnings
 
 
@@ -321,6 +361,8 @@ def build_report(
     replay_report_path: Path | None,
     event_id_prefix: str | None,
     stats: EvaluationStats,
+    replay_payload_rejected: int | None,
+    rejected_event_ids: set[str],
     warnings: list[str],
     started_at: str,
     finished_at: str,
@@ -340,10 +382,20 @@ def build_report(
         "eventIdPrefix": event_id_prefix,
         "excludeReplayRejected": args.exclude_replay_rejected,
         "includeMissingResults": args.include_missing_results,
+        "missingResultTreatment": "fraud_missing_as_FN_non_fraud_missing_as_TN"
+        if args.include_missing_results
+        else "missing_results_excluded_from_denominator",
         "totalLabels": stats.total_labels,
         "totalResults": stats.total_results,
+        "matchedResults": stats.matched_results,
+        "unmatchedResults": stats.unmatched_results,
         "evaluatedEvents": stats.evaluated_events,
         "excludedReplayRejected": stats.excluded_replay_rejected,
+        "replayPayloadRejected": replay_payload_rejected,
+        "replayRejectedEventIdsAvailable": len(rejected_event_ids),
+        "replayRejectedExclusionComplete": None
+        if replay_payload_rejected is None or not args.exclude_replay_rejected
+        else replay_payload_rejected <= len(rejected_event_ids),
         "missingResults": stats.missing_results,
         "confusionMatrix": {
             "truePositive": tp,
@@ -389,8 +441,9 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     labels, label_warnings = load_labels(args.labels, args.strict)
     results, result_warnings = load_results(args.results, event_id_prefix, args.strict)
     rejected_event_ids = replay_rejected_event_ids(replay_report, event_id_prefix) if args.exclude_replay_rejected else set()
+    replay_payload_rejected = replay_payload_rejected_count(replay_report)
     stats = evaluate_rows(labels, results, rejected_event_ids, args.positive_risk_level, args.include_missing_results)
-    warnings = build_warnings(label_warnings + result_warnings, stats, replay_report, rejected_event_ids)
+    warnings = build_warnings(label_warnings + result_warnings, stats, replay_payload_rejected, rejected_event_ids)
     finished_at = iso_now()
     report = build_report(
         args,
@@ -399,6 +452,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         args.replay_report if replay_report else None,
         event_id_prefix,
         stats,
+        replay_payload_rejected,
+        rejected_event_ids,
         warnings,
         started_at,
         finished_at,
