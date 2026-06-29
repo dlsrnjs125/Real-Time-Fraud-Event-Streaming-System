@@ -240,6 +240,126 @@ Duplicate replay에서는 2xx만 성공으로 보지 않고, 프로젝트 정책
 
 ---
 
+## V2 Phase 8. PaySim native type을 운영 transaction type으로 과도하게 해석하는 문제
+
+### 초기 설계
+
+PaySim `type` 값을 그대로 transaction event type처럼 읽을 수 있었습니다.
+
+### 발생한 문제
+
+`CASH_OUT`, `CASH_IN`, `DEBIT`는 PaySim synthetic dataset의 native type입니다. 이를 production API enum에 그대로 추가하면 실제 운영 거래 타입을 지원하는 것처럼 문서가 읽힐 수 있습니다.
+
+### 변경한 설계
+
+Phase 8에서는 Java `TransactionEventType` enum을 확장하지 않습니다. `PAYMENT`, `TRANSFER`는 production-supported로 유지하고, `CASH_OUT -> WITHDRAWAL`, `CASH_IN -> DEPOSIT`은 replay-supported mapping으로만 사용합니다. `DEBIT`는 unsupported로 제외합니다.
+
+### 개선 결과
+
+Replay와 evaluation은 가능하지만 production API 의미 확장을 과도하게 주장하지 않습니다.
+
+### 남은 한계
+
+`CASH_OUT -> WITHDRAWAL` mapping은 semantic loss가 있으므로 Rule V2 평가에서 native type distribution과 함께 해석해야 합니다.
+
+---
+
+## V2 Phase 8. unsupported type을 default low risk로 처리하는 문제
+
+### 초기 설계
+
+Unknown 또는 unsupported type이 current API enum에 없으면 replay 전에 거부되지만, rule/evaluation 단계에서 낮은 위험으로 떨어지는 실수가 발생할 수 있었습니다.
+
+### 발생한 문제
+
+Unsupported type을 low risk로 세면 false negative가 숨겨지고 recall이 과대평가될 수 있습니다.
+
+### 변경한 설계
+
+`DEBIT`는 `UNSUPPORTED_NATIVE_TYPE:DEBIT` 또는 current API unsupported type으로 명시적으로 제외합니다. Replay/evaluation report에는 `excludedByType`과 `unsupportedEventTypes`를 남깁니다.
+
+### 개선 결과
+
+Unsupported type이 denominator에 조용히 들어가지 않고, excluded bucket으로 분리됩니다.
+
+### 남은 한계
+
+Full local replay에서는 rejected failure sample이 bounded summary일 수 있으므로, 대규모 결과 해석 시 `payloadRejected`와 exclusion completeness를 함께 확인해야 합니다.
+
+---
+
+## V2 Phase 8. type mapping 변경 후 Phase 7 평가 수치와 직접 비교하는 문제
+
+### 초기 설계
+
+Phase 7 evaluation report는 metric alias와 denominator 정책을 정리했지만, native type mapping version을 성능 비교 기준으로 명시하지 않았습니다.
+
+### 발생한 문제
+
+`CASH_OUT` 포함 여부나 `DEBIT` 제외 여부가 바뀌면 precision/recall denominator가 달라집니다. Mapping policy가 다른 report를 직접 비교하면 threshold나 rule 개선 효과처럼 오해할 수 있습니다.
+
+### 변경한 설계
+
+Phase 8 report에 `mappingPolicyVersion`, `mappingPolicyVersions`, replay input distribution, accepted/rejected distribution, evaluated denominator distribution, `excludedByType`를 추가했습니다.
+
+### 개선 결과
+
+Evaluation metric은 같은 mapping policy version끼리만 직접 비교한다는 기준이 생겼습니다.
+
+### 남은 한계
+
+Rule version, threshold version, mapping version을 함께 묶은 비교 matrix는 후속 Rule V2 evidence에서 보강해야 합니다.
+
+---
+
+## V2 Phase 8. replay-supported type을 production-supported처럼 문서화하는 문제
+
+### 초기 설계
+
+PaySim native type을 API replay 가능 여부만으로 지원 type처럼 표현할 위험이 있었습니다.
+
+### 발생한 문제
+
+`CASH_OUT -> WITHDRAWAL`, `CASH_IN -> DEPOSIT`은 replay 편의를 위한 mapping입니다. 이를 production-supported로 쓰면 실제 운영 계약보다 넓은 기능을 주장하게 됩니다.
+
+### 변경한 설계
+
+Support level을 `production-supported`, `replay-supported`, `unsupported`로 분리하고 report에 `typeSupportLevelDistribution`을 남깁니다.
+
+### 개선 결과
+
+Replay 가능한 타입과 운영 의미가 확정된 타입을 문서와 report에서 구분할 수 있습니다.
+
+### 남은 한계
+
+Production API에서 native type을 별도 계약으로 받을지는 후속 API/Rule V2 설계에서 결정해야 합니다.
+
+---
+
+## V2 Phase 8. native type 분포를 보지 않고 precision/recall만 보는 문제
+
+### 초기 설계
+
+Evaluation report의 confusion matrix만으로 탐지 결과를 해석할 수 있었습니다.
+
+### 발생한 문제
+
+PaySim fraud label은 type 분포와 강하게 연결될 수 있습니다. Native type distribution을 보지 않으면 특정 type 제외나 mapping이 precision/recall에 준 영향을 놓칠 수 있습니다.
+
+### 변경한 설계
+
+Replay/evaluation report에 replay input distribution과 evaluated denominator distribution을 분리해 추가했습니다. `nativeTypeDistribution` compatibility alias에는 source field를 함께 둡니다.
+
+### 개선 결과
+
+탐지 품질 지표를 type composition과 함께 읽을 수 있습니다.
+
+### 남은 한계
+
+Dashboard나 chart 기반 시각화는 아직 구현하지 않았습니다. Phase 8은 fixture 기반 contract verification까지를 범위로 둡니다.
+
+---
+
 ## Phase 12. Redis Down Load 후 Redis 복구 누락 위험
 
 ### 문제 상황
@@ -360,7 +480,24 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 원인: Phase 5에서는 Java DTO/API enum을 변경하지 않고 replay pipeline만 구현하기로 했습니다.
 - 대응: replay script 기본값은 `--event-type-policy current-api`이며 unsupported native type을 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
 - 검증: dry-run에서 first 100 sample 기준 `CASH_OUT=14`, `DEBIT=10`이 `unsupportedEventTypes`에 집계되었습니다.
-- 남은 한계: `--event-type-policy preserve`는 native type을 사전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error로 기록되며, PaySim native type 의미를 보존한 actual replay는 V2 Phase 8 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
+- 남은 한계: Phase 8부터 `--event-type-policy preserve`는 dry-run only contract inspection mode입니다. Current app-api actual replay에는 사용하지 않습니다. Native type을 first-class production type으로 받을지는 별도 API/Rule V2 검토가 필요합니다.
+
+## V2 Phase 8. nativeEventType과 eventType mapping consistency 검증 누락
+
+- 문제: `nativeEventType=DEBIT`인 row가 `eventType=DEPOSIT`, `normalizedEventType=DEPOSIT`, `typeSupportLevel=replay-supported`로 들어오면 current API enum 검증만으로는 accepted될 수 있었습니다.
+- 원인: replay validation이 `nativeEventType`을 기준으로 `paysim-native-mapping-v1`을 다시 계산하지 않았습니다.
+- 대응: `validate_native_mapping()`을 추가해 `nativeEventType`, `eventType`, `normalizedEventType`, `typeSupportLevel`, `typeMappingPolicyVersion`을 mapping policy와 대조합니다.
+- 추가 대응: native mapping metadata가 하나라도 있으면 `typeMappingPolicyVersion=paysim-native-mapping-v1`을 필수로 요구합니다. PaySim legacy row처럼 metadata가 전혀 없는 경우는 compatibility 때문에 accepted하되 `missingMappingMetadata`로 count합니다.
+- 검증: `test_debit_native_type_cannot_be_smuggled_as_deposit`, `make verify-paysim-native-replay-contract`.
+- 남은 한계: Production API가 native type을 first-class로 받을지는 별도 API/Rule V2 contract에서 검토합니다.
+
+## V2 Phase 8. type distribution scope가 replay input과 evaluation denominator를 혼동시키는 문제
+
+- 문제: replay input에는 `DEBIT`가 있지만 evaluation label/result denominator에는 없을 수 있습니다. 같은 `nativeTypeDistribution` 이름만 사용하면 `DEBIT`가 denominator에 포함되었는지 혼동됩니다.
+- 원인: replay report field를 evaluation report로 그대로 복사했습니다.
+- 대응: replay report는 input/accepted/rejected distribution으로 분리하고, evaluation report는 `replayNativeTypeDistribution`, `evaluatedNativeTypeDistribution`, `excludedNativeTypeDistribution`을 분리했습니다.
+- 검증: evaluator fixture와 native replay contract verifier에서 replay scope와 evaluated scope를 별도로 검증합니다.
+- 남은 한계: Full replay에서 bounded failure summary만으로 rejected eventId exclusion이 불완전할 수 있으므로, rejected id 전체 export는 후속 개선 후보로 남깁니다.
 
 ## V2 Phase 5. Retry outcome count 해석이 모호해지는 문제
 

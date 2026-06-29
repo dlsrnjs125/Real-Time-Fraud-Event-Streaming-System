@@ -56,3 +56,10 @@
 - Evaluation field naming risk: `docs/11-troubleshooting-log.md#v2-phase-7-evaluation-report-field-이름이-운영-실패처럼-읽힐-위험`
 - Missing result denominator risk: `docs/11-troubleshooting-log.md#v2-phase-7-missing-result를-true-negative로-세면-accuracy가-과대평가될-위험`
 - Fraud label denominator naming risk: `docs/11-troubleshooting-log.md#v2-phase-7-fraud-label-count가-전체-label-수처럼-과대-해석될-위험`
+- Native type production overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-8-paysim-native-type을-운영-transaction-type으로-과도하게-해석하는-문제`
+- Unsupported type default low-risk risk: `docs/11-troubleshooting-log.md#v2-phase-8-unsupported-type을-default-low-risk로-처리하는-문제`
+- Mapping version comparison risk: `docs/11-troubleshooting-log.md#v2-phase-8-type-mapping-변경-후-phase-7-평가-수치와-직접-비교하는-문제`
+- Replay-supported production wording risk: `docs/11-troubleshooting-log.md#v2-phase-8-replay-supported-type을-production-supported처럼-문서화하는-문제`
+- Native type distribution blind spot: `docs/11-troubleshooting-log.md#v2-phase-8-native-type-분포를-보지-않고-precisionrecall만-보는-문제`
+- Native mapping consistency risk: `docs/11-troubleshooting-log.md#v2-phase-8-nativeeventtype과-eventtype-mapping-consistency-검증-누락`
+- Type distribution scope confusion: `docs/11-troubleshooting-log.md#v2-phase-8-type-distribution-scope가-replay-input과-evaluation-denominator를-혼동시키는-문제`

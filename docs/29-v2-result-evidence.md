@@ -196,7 +196,68 @@ Evidence 구분:
 - preserve replay: 같은 eventId를 반복 replay해 duplicate/idempotency behavior와 `409` 집계를 확인합니다.
 - prefix replay: `--idempotency-mode prefix --event-id-prefix <prefix>`로 collision 없이 새 eventId를 만드는지 확인합니다.
 - current-api event type dry-run: Phase 5에서는 current app-api enum에 없는 PaySim native types를 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
-- preserve event type replay: native type을 HTTP 전송 전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error evidence로 해석합니다.
+- preserve event type replay: Phase 8부터 dry-run only contract inspection mode입니다. Current app-api actual replay에는 사용하지 않습니다.
+
+## 2.2.1 Phase 8 Native Replay Contract Evidence
+
+V2 Phase 8 keeps the production API enum stable and records PaySim native type semantics in replay/evaluation metadata.
+
+Mapping policy version:
+
+```text
+paysim-native-mapping-v1
+```
+
+Report fields:
+
+```json
+{
+  "mappingPolicyVersion": "paysim-native-mapping-v1",
+  "mappingMetadataPolicy": "required_for_phase8_paysim_native_contract",
+  "missingMappingMetadata": 0,
+  "mappingPolicyVersions": {
+    "paysim-native-mapping-v1": 3
+  },
+  "typeDistributionScope": "split_input_accepted_rejected",
+  "inputNativeTypeDistribution": {
+    "PAYMENT": 1,
+    "TRANSFER": 1,
+    "CASH_OUT": 1,
+    "DEBIT": 1
+  },
+  "acceptedNormalizedTypeDistribution": {
+    "PAYMENT": 1,
+    "TRANSFER": 1,
+    "WITHDRAWAL": 1
+  },
+  "rejectedNativeTypeDistribution": {
+    "DEBIT": 1
+  },
+  "acceptedTypeSupportLevelDistribution": {
+    "production-supported": 2,
+    "replay-supported": 1
+  },
+  "excludedByType": {
+    "DEBIT": 1
+  }
+}
+```
+
+Interpretation:
+
+- `production-supported` means current API/rule semantics already have a clear internal type.
+- `replay-supported` means PaySim replay/evaluation can use the mapping, but production semantics are not claimed.
+- `unsupported` means the type is excluded or rejected explicitly and must not become default low risk.
+- Replay report separates input, accepted, and rejected distributions so unsupported types do not appear as accepted normalized types.
+- If native mapping metadata is present, `typeMappingPolicyVersion` is required. Legacy PaySim rows without mapping metadata are counted in `missingMappingMetadata`.
+- Evaluation report separates `replayNativeTypeDistribution` from `evaluatedNativeTypeDistribution`.
+- Phase 8 fixes `mappingPolicyVersion` and `evaluationContractVersion`. Evaluation metrics are directly comparable only when mapping policy, evaluation contract, denominator policy, rule version, and threshold version are compatible. Phase 8 leaves `ruleVersion` and `thresholdVersion` as null placeholders.
+
+CI-safe verification:
+
+```bash
+make verify-v2-phase8
+```
 
 ## 2.3 Phase 6 Replay Result Evaluation Baseline
 

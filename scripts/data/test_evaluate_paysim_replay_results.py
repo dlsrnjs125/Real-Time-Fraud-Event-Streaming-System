@@ -120,7 +120,10 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
         self.assertEqual("fail_fast_before_report_generation", report["recordFailurePolicy"])
-        self.assertEqual("2026-06-v2-phase7", report["reportSchemaVersion"])
+        self.assertEqual("2026-06-v2-phase8", report["reportSchemaVersion"])
+        self.assertEqual("2026-06-v2-phase8", report["evaluationContractVersion"])
+        self.assertIsNone(report["ruleVersion"])
+        self.assertIsNone(report["thresholdVersion"])
         self.assertFalse(report["replayReportUsed"])
 
     def test_confusion_matrix_counts_tp_fp_tn_fn(self):
@@ -194,7 +197,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
 
     def test_event_id_prefix_is_removed_for_join(self):
         report = self.evaluate_fixture(
-            [self.label("paysim-1", True)],
+            [self.label("paysim-1", True, sourceType="CASH_OUT")],
             [self.result("local-smoke-paysim-1", "HIGH")],
             event_id_prefix="local-smoke",
         )
@@ -270,6 +273,35 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
         self.assertFalse(report["replayRejectedExclusionComplete"])
         self.assertTrue(any("payloadRejected is greater" in warning for warning in report["warnings"]))
+
+    def test_replay_mapping_fields_are_propagated_to_evaluation_report(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True, sourceType="CASH_OUT")],
+            [self.result("paysim-1", "HIGH")],
+            self.replay(
+                mappingPolicyVersion="paysim-native-mapping-v1",
+                mappingPolicyVersions={"paysim-native-mapping-v1": 1},
+                mappingMetadataPolicy="required_for_phase8_paysim_native_contract",
+                missingMappingMetadata=2,
+                inputNativeTypeDistribution={"CASH_OUT": 1, "DEBIT": 1},
+                inputNormalizedTypeDistribution={"WITHDRAWAL": 1, "DEBIT": 1},
+                inputTypeSupportLevelDistribution={"replay-supported": 1, "unsupported": 1},
+                excludedByType={"DEBIT": 1},
+            ),
+        )
+
+        self.assertEqual("paysim-native-mapping-v1", report["mappingPolicyVersion"])
+        self.assertEqual("required_for_phase8_paysim_native_contract", report["mappingMetadataPolicy"])
+        self.assertEqual(2, report["replayMissingMappingMetadata"])
+        self.assertEqual("split_replay_input_and_evaluation_denominator", report["typeDistributionScope"])
+        self.assertEqual("replay_report_input_scope", report["nativeTypeDistributionSource"])
+        self.assertEqual({"CASH_OUT": 1, "DEBIT": 1}, report["nativeTypeDistribution"])
+        self.assertEqual({"DEBIT": 1, "WITHDRAWAL": 1}, report["normalizedTypeDistribution"])
+        self.assertEqual({"CASH_OUT": 1, "DEBIT": 1}, report["replayNativeTypeDistribution"])
+        self.assertEqual({"CASH_OUT": 1}, report["evaluatedNativeTypeDistribution"])
+        self.assertEqual({"WITHDRAWAL": 1}, report["evaluatedNormalizedTypeDistribution"])
+        self.assertEqual({"DEBIT": 1}, report["excludedNativeTypeDistribution"])
+        self.assertEqual({"DEBIT": 1}, report["excludedByType"])
 
     def test_missing_explicit_replay_report_fails(self):
         self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])

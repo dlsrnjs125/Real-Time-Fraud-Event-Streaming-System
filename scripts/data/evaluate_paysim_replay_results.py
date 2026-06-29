@@ -13,9 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from paysim_native_type_mapping import mapping_for
+
 
 SCRIPT_VERSION = "paysim-evaluation-v1"
-REPORT_SCHEMA_VERSION = "2026-06-v2-phase7"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase8"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
@@ -37,6 +39,12 @@ REPLAY_PRE_HTTP_REJECT_PREFIXES = (
     "INVALID_EVENT_ID",
     "INVALID_TRACE_ID",
     "INVALID_EVENT_TYPE",
+    "INVALID_NATIVE_EVENT_TYPE",
+    "UNSUPPORTED_NATIVE_TYPE",
+    "UNSUPPORTED_MAPPING_POLICY_VERSION",
+    "NATIVE_MAPPING_MISMATCH",
+    "NORMALIZED_EVENT_TYPE_MISMATCH",
+    "TYPE_SUPPORT_LEVEL_MISMATCH",
     "INVALID_CURRENCY",
     "INVALID_AMOUNT",
     "INVALID_EVENT_TIME",
@@ -83,6 +91,9 @@ class EvaluationStats:
     fraud_by_risk_level: Counter[str] = field(default_factory=Counter)
     non_fraud_by_risk_level: Counter[str] = field(default_factory=Counter)
     rule_code_counts: Counter[str] = field(default_factory=Counter)
+    evaluated_native_type_distribution: Counter[str] = field(default_factory=Counter)
+    evaluated_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
+    denominator_excluded_native_type_distribution: Counter[str] = field(default_factory=Counter)
     sample_event_ids: list[str] = field(default_factory=list)
 
     def add_sample_event_id(self, event_id: str) -> None:
@@ -262,6 +273,15 @@ def replay_payload_rejected_count(replay_report: dict[str, Any] | None) -> int |
     return count
 
 
+def replay_mapping_value(replay_report: dict[str, Any] | None, key: str, default: Any) -> Any:
+    if not replay_report:
+        return default
+    value = replay_report.get(key, default)
+    if isinstance(default, dict) and not isinstance(value, dict):
+        return default
+    return value
+
+
 def is_predicted_positive(risk_level: str, positive_risk_level: str) -> bool:
     return RISK_RANK[risk_level] >= RISK_RANK[positive_risk_level]
 
@@ -282,6 +302,17 @@ def sorted_counter(counter: Counter[str]) -> dict[str, int]:
     values = {key: counter.get(key, 0) for key in RISK_LEVELS}
     values.update({key: counter[key] for key in sorted(counter) if key not in RISK_RANK})
     return values
+
+
+def sorted_distribution(counter: Counter[str]) -> dict[str, int]:
+    return dict(sorted(counter.items()))
+
+
+def normalized_type_for_source(source_type: str | None) -> str | None:
+    if not source_type:
+        return None
+    mapping = mapping_for(source_type)
+    return mapping.normalized_type
 
 
 def evaluate_rows(
@@ -305,6 +336,8 @@ def evaluate_rows(
         label = labels[event_id]
         if event_id in rejected_event_ids:
             stats.excluded_replay_rejected += 1
+            if label.source_type:
+                stats.denominator_excluded_native_type_distribution[label.source_type] += 1
             continue
         result = results.get(event_id)
         if result is None:
@@ -317,6 +350,11 @@ def evaluate_rows(
                 continue
             stats.evaluated_events += 1
             stats.add_sample_event_id(event_id)
+            if label.source_type:
+                stats.evaluated_native_type_distribution[label.source_type] += 1
+                normalized_type = normalized_type_for_source(label.source_type)
+                if normalized_type:
+                    stats.evaluated_normalized_type_distribution[normalized_type] += 1
             if label.is_fraud:
                 stats.false_negative += 1
             else:
@@ -326,6 +364,11 @@ def evaluate_rows(
         predicted_positive = is_predicted_positive(result.risk_level, positive_risk_level)
         stats.evaluated_events += 1
         stats.add_sample_event_id(event_id)
+        if label.source_type:
+            stats.evaluated_native_type_distribution[label.source_type] += 1
+            normalized_type = normalized_type_for_source(label.source_type)
+            if normalized_type:
+                stats.evaluated_normalized_type_distribution[normalized_type] += 1
         stats.risk_level_counts[result.risk_level] += 1
         if label.is_fraud:
             stats.fraud_by_risk_level[result.risk_level] += 1
@@ -384,6 +427,7 @@ def build_report(
     stats: EvaluationStats,
     replay_payload_rejected: int | None,
     rejected_event_ids: set[str],
+    replay_report: dict[str, Any] | None,
     warnings: list[str],
     started_at: str,
     finished_at: str,
@@ -402,9 +446,28 @@ def build_report(
     unmatched_result_events = stats.unmatched_results
     failed_records = 0
     invalid_records = 0
+    replay_native_distribution = replay_mapping_value(
+        replay_report,
+        "inputNativeTypeDistribution",
+        replay_mapping_value(replay_report, "nativeTypeDistribution", {}),
+    )
+    replay_normalized_distribution = replay_mapping_value(
+        replay_report,
+        "inputNormalizedTypeDistribution",
+        replay_mapping_value(replay_report, "normalizedTypeDistribution", {}),
+    )
+    replay_support_distribution = replay_mapping_value(
+        replay_report,
+        "inputTypeSupportLevelDistribution",
+        replay_mapping_value(replay_report, "typeSupportLevelDistribution", {}),
+    )
+    replay_excluded_by_type = replay_mapping_value(replay_report, "excludedByType", {})
     return {
         "scriptVersion": SCRIPT_VERSION,
         "reportSchemaVersion": REPORT_SCHEMA_VERSION,
+        "evaluationContractVersion": REPORT_SCHEMA_VERSION,
+        "ruleVersion": None,
+        "thresholdVersion": None,
         "labelsPath": str(labels_path),
         "resultsPath": str(results_path),
         "replayReportPath": str(replay_report_path) if replay_report_path else None,
@@ -430,6 +493,26 @@ def build_report(
         "evaluatedEvents": stats.evaluated_events,
         "excludedReplayRejected": stats.excluded_replay_rejected,
         "replayPayloadRejected": replay_payload_rejected,
+        "mappingPolicyVersion": replay_mapping_value(replay_report, "mappingPolicyVersion", None),
+        "mappingPolicyVersions": replay_mapping_value(replay_report, "mappingPolicyVersions", {}),
+        "mappingMetadataPolicy": replay_mapping_value(replay_report, "mappingMetadataPolicy", None),
+        "replayMissingMappingMetadata": replay_mapping_value(replay_report, "missingMappingMetadata", 0),
+        "typeDistributionScope": "split_replay_input_and_evaluation_denominator",
+        "nativeTypeDistributionSource": "replay_report_input_scope",
+        "normalizedTypeDistributionSource": "replay_report_input_scope",
+        "typeSupportLevelDistributionSource": "replay_report_input_scope",
+        "evaluationDenominatorTypeDistributionAvailable": True,
+        "nativeTypeDistribution": replay_native_distribution,
+        "normalizedTypeDistribution": replay_normalized_distribution,
+        "typeSupportLevelDistribution": replay_support_distribution,
+        "excludedByType": replay_excluded_by_type,
+        "replayNativeTypeDistribution": replay_native_distribution,
+        "replayNormalizedTypeDistribution": replay_normalized_distribution,
+        "replayTypeSupportLevelDistribution": replay_support_distribution,
+        "evaluatedNativeTypeDistribution": sorted_distribution(stats.evaluated_native_type_distribution),
+        "evaluatedNormalizedTypeDistribution": sorted_distribution(stats.evaluated_normalized_type_distribution),
+        "excludedNativeTypeDistribution": replay_excluded_by_type,
+        "denominatorExcludedNativeTypeDistribution": sorted_distribution(stats.denominator_excluded_native_type_distribution),
         "replayRejectedEventIdsAvailable": len(rejected_event_ids),
         "replayRejectedExclusionComplete": None
         if replay_payload_rejected is None or not args.exclude_replay_rejected
@@ -515,6 +598,7 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         stats,
         replay_payload_rejected,
         rejected_event_ids,
+        replay_report,
         warnings,
         started_at,
         finished_at,

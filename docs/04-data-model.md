@@ -235,7 +235,7 @@ V2 runtime event는 정답 label을 포함하지 않고, Rule V2에 필요한 ba
 - `paysim-labels.jsonl`에는 `eventId`, `isFraud`, `sourceFlaggedFraud`, `sourceStep`, `sourceType`만 저장하고 identifier는 포함하지 않습니다.
 - normalized runtime event에는 `receivedAt`을 저장하지 않고 app-api가 접수 시 생성합니다.
 - `currency`는 `KRW`로 두고 PaySim 출처는 `source=PAYSIM`으로 표현합니다.
-- PaySim type 보존을 위해 `TransactionEventType`에는 `CASH_OUT`, `CASH_IN`, `DEBIT` 추가를 검토합니다.
+- PaySim native type은 Phase 8 기준 `nativeEventType`/mapping report로 보존합니다. `TransactionEventType` enum에 `CASH_OUT`, `CASH_IN`, `DEBIT`를 추가하는 결정은 production API 의미 확장 검토 이후로 미룹니다.
 
 후보 field:
 

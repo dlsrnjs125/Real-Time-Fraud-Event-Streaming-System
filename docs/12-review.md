@@ -158,7 +158,7 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 `droppedFields`로 집계합니다.
 - dry-run은 payload validation과 report 생성만 수행하고 HTTP를 호출하지 않습니다.
 - current app-api enum에 없는 PaySim native eventType은 기본 `current-api` policy에서 rejected 처리합니다.
-- `preserve` event type policy에서는 unsupported native type을 사전 rejected로 집계하지 않고, current API가 거부하면 HTTP 4xx/client error로 해석합니다.
+- Phase 8부터 `preserve` event type policy는 dry-run only contract inspection mode입니다.
 - invalid JSONL parse failure는 input corruption으로 간주하고, `payloadRejected`는 정상 JSON object row의 replay contract 위반에만 사용한다고 문서화했습니다.
 - retry final outcome counter와 retry attempt counter를 분리했습니다.
 - connection error retry는 `--retry-connection-error` opt-in으로 분리했습니다.
@@ -930,3 +930,54 @@ make generate-paysim-sample-strict
 - Full output validation은 accepted eventId set을 메모리에 보관합니다.
 - Balanced sampling은 deterministic first-N-per-class 방식입니다.
 - eventId prefix/replay 충돌과 stronger salt policy는 후속 Phase에서 다룹니다.
+
+## V2 Phase 8 Review
+
+### 잘한 점
+
+- PaySim native type을 Java production enum에 직접 추가하지 않고 replay/evaluation mapping contract로 분리했습니다.
+- `production-supported`, `replay-supported`, `unsupported`를 명시해 API 의미 확장과 replay 가능성을 구분했습니다.
+- `DEBIT`를 default low risk로 처리하지 않고 explicit exclusion bucket으로 남겼습니다.
+- Replay validation이 `nativeEventType` 기준 mapping policy를 다시 계산해 mismatched `eventType` smuggling을 차단합니다.
+- Native mapping metadata가 있으면 `typeMappingPolicyVersion`을 필수로 요구하고, legacy PaySim metadata 누락은 report count로 드러냅니다.
+- Replay report의 input/accepted/rejected distribution과 evaluation report의 replay/evaluated distribution을 분리했습니다.
+- Replay/evaluation report에 `mappingPolicyVersion`, native/normalized/support-level distribution, `excludedByType`를 추가했습니다.
+- Full PaySim raw data나 local DB export 없이 fixture 기반으로 native replay contract를 검증하는 target을 추가했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] `TransactionEventType` enum이 PaySim native type으로 과도하게 확장되지 않았는가
+- [ ] `CASH_OUT -> WITHDRAWAL`, `CASH_IN -> DEPOSIT` mapping이 replay-supported로만 문서화되었는가
+- [ ] unsupported type이 LOW risk로 조용히 처리되지 않는가
+- [ ] `nativeEventType`, `eventType`, `normalizedEventType`, `typeSupportLevel`이 mapping policy와 일치하는가
+- [ ] Native mapping metadata가 있는 row에서 `typeMappingPolicyVersion` 누락을 거부하는가
+- [ ] PaySim legacy metadata 누락 row가 `missingMappingMetadata`로 집계되는가
+- [ ] Replay input distribution과 evaluation denominator distribution을 구분하는가
+- [ ] `--event-type-policy preserve`가 dry-run only로 유지되는가
+- [ ] Evaluation metric 비교 시 `mappingPolicyVersion`을 확인하는가
+- [ ] Native type distribution과 denominator 변화를 함께 해석하는가
+- [ ] Raw/full PaySim data와 local detection result export가 커밋되지 않는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-v2-phase8
+```
+
+### 의도적으로 제외한 것
+
+- Java production API enum에 `CASH_OUT`, `CASH_IN`, `DEBIT` 추가
+- Rule Engine V2 rule/threshold 구현
+- Full PaySim replay 결과를 repository에 커밋
+- Local DB detection result export 자동화
+
+### 남은 한계
+
+- `CASH_OUT -> WITHDRAWAL` mapping은 semantic loss가 있으므로 Rule V2 결과와 함께 재검토해야 합니다.
+- Mapping version과 rule version을 함께 비교하는 report matrix는 후속 Phase에서 보강합니다.
+- Phase 8 fixture check는 contract 검증이며 full PaySim fraud 성능 검증이 아닙니다.

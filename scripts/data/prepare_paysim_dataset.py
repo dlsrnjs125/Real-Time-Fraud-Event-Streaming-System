@@ -16,8 +16,10 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from paysim_native_type_mapping import MAPPING_POLICY_VERSION, mapping_for, mapping_policy_table
 
-SCRIPT_VERSION = "v2-phase-4"
+
+SCRIPT_VERSION = "v2-phase-8"
 DEFAULT_INPUT = Path("data/raw/PS_20174392719_1491204439457_log.csv")
 DEFAULT_OUTPUT_DIR = Path("data/processed")
 DEFAULT_BASE_TIME = "2026-01-01T00:00:00Z"
@@ -196,6 +198,9 @@ def normalize_row(
     event_type = row.get("type", "")
     if event_type not in VALID_TYPES:
         raise RowRejected("INVALID_TYPE", "type is not supported")
+    type_mapping = mapping_for(event_type)
+    if type_mapping.normalized_type is None:
+        raise RowRejected(type_mapping.excluded_reason or f"UNSUPPORTED_NATIVE_TYPE:{event_type}", "native type is not supported by replay mapping policy")
 
     amount = decimal_from(row, "amount", "INVALID_AMOUNT")
     if amount < Decimal("0"):
@@ -226,7 +231,11 @@ def normalize_row(
         "userId": f"U-{origin_hash}",
         "accountId": f"A-{origin_hash}",
         "destinationAccountId": hashed_id("D", name_dest, salt),
-        "eventType": event_type,
+        "eventType": type_mapping.normalized_type,
+        "nativeEventType": event_type,
+        "normalizedEventType": type_mapping.normalized_type,
+        "typeSupportLevel": type_mapping.support_level,
+        "typeMappingPolicyVersion": MAPPING_POLICY_VERSION,
         "amount": decimal_string(amount),
         "currency": "KRW",
         "eventTime": iso_z(event_time),
@@ -244,6 +253,9 @@ def normalize_row(
         "sourceFlaggedFraud": source_flagged,
         "sourceStep": step,
         "sourceType": event_type,
+        "normalizedType": type_mapping.normalized_type,
+        "typeSupportLevel": type_mapping.support_level,
+        "typeMappingPolicyVersion": MAPPING_POLICY_VERSION,
     }
     return event, label
 
@@ -275,7 +287,10 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
 
     input_sha256 = sha256_file(args.input)
     counters = Counters()
-    type_counts = {event_type: 0 for event_type in sorted(VALID_TYPES)}
+    native_type_counts = {event_type: 0 for event_type in sorted(VALID_TYPES)}
+    normalized_type_counts: dict[str, int] = {}
+    support_level_counts: dict[str, int] = {}
+    excluded_by_type: dict[str, int] = {}
     started_at = iso_z(datetime.now(timezone.utc))
 
     with args.input.open("r", encoding="utf-8-sig", newline="") as input_file:
@@ -296,6 +311,9 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
                     event, label = normalize_row(row, row_number, base_time, salt)
                 except RowRejected as exc:
                     counters.rejected_rows += 1
+                    if exc.reason.startswith("UNSUPPORTED_NATIVE_TYPE:"):
+                        native_type = exc.reason.split(":", 1)[1]
+                        excluded_by_type[native_type] = excluded_by_type.get(native_type, 0) + 1
                     if args.reject_policy == "fail-fast":
                         raise SystemExit(f"ERROR: row {row_number}: {exc.reason}: {exc.message}") from exc
                     write_jsonl(rejected_file, rejected_record(row_number, exc.reason, exc.message, row))
@@ -306,7 +324,9 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
                     counters.fraud_rows += 1
                 if label["sourceFlaggedFraud"]:
                     counters.flagged_fraud_rows += 1
-                type_counts[event["eventType"]] += 1
+                native_type_counts[event["nativeEventType"]] += 1
+                normalized_type_counts[event["normalizedEventType"]] = normalized_type_counts.get(event["normalizedEventType"], 0) + 1
+                support_level_counts[event["typeSupportLevel"]] = support_level_counts.get(event["typeSupportLevel"], 0) + 1
                 write_jsonl(events_file, event)
                 write_jsonl(labels_file, label)
 
@@ -328,7 +348,14 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
         "rejectedRows": counters.rejected_rows,
         "fraudRows": counters.fraud_rows,
         "flaggedFraudRows": counters.flagged_fraud_rows,
-        "eventTypeCounts": type_counts,
+        "eventTypeCounts": native_type_counts,
+        "mappingPolicyVersion": MAPPING_POLICY_VERSION,
+        "typeMappingPolicyVersion": MAPPING_POLICY_VERSION,
+        "typeMappingPolicy": mapping_policy_table(),
+        "nativeTypeDistribution": native_type_counts,
+        "normalizedTypeDistribution": dict(sorted(normalized_type_counts.items())),
+        "typeSupportLevelDistribution": dict(sorted(support_level_counts.items())),
+        "excludedByType": dict(sorted(excluded_by_type.items())),
         "hashAlgorithm": HASH_ALGORITHM,
         "hashIdPrefixLength": HASH_PREFIX_LENGTH,
         "hashSaltSource": salt_source,
