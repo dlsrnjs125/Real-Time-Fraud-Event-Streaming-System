@@ -539,11 +539,21 @@ schemaVersion
 destinationAccountId
 ```
 
+Event type policy:
+
+- 기본값은 `--event-type-policy current-api`입니다.
+- current app-api enum은 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 지원합니다.
+- PaySim native type인 `CASH_OUT`, `CASH_IN`, `DEBIT`은 Phase 5에서 Java DTO를 변경하지 않는다는 범위 때문에 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
+- `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
+
+Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 6 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+
 금지:
 
 - `receivedAt`: app-api가 접수 시각으로 생성합니다.
 - `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`: label leakage입니다.
 - `nameOrig`, `nameDest`, `C12345`, `M12345` 형태 raw identifier: replay payload와 report에 남기지 않습니다.
+- `amount <= 0`: preprocessing validation과 달리 current app-api request contract 기준에서 replay 단계 rejected로 처리될 수 있습니다.
 
 ### 11.2 EventId Collision and Idempotency
 
@@ -571,6 +581,13 @@ data/processed/paysim-replay-report.json
 ```
 
 이 파일은 Git ignore 대상이며 commit하지 않습니다. Report는 success, duplicate/conflict, client error, server error, timeout, connection error, retry attempts, dropped fields, sampled eventIds, bounded failure summary를 기록합니다. Request body, response body, token, label field, raw identifier는 저장하지 않습니다.
+
+Report 해석 기준:
+
+- `httpSuccess`, `httpDuplicateOrConflict`, `httpClientError`, `httpServerError`, `timeout`, `connectionError`는 event-level final outcome입니다.
+- Retry 중간 attempt는 `retryTimeoutAttempts`, `retryServerErrorAttempts`, `retryConnectionErrorAttempts`에 별도로 기록합니다.
+- 기본 retry 대상은 timeout과 5xx입니다. Connection error retry는 `--retry-connection-error`를 명시한 경우에만 수행합니다.
+- `unsupportedEventTypes`는 current app-api enum 기준으로 HTTP 전송 전에 rejected 처리한 PaySim eventType count입니다.
 
 ## 12. Partial Output Safety
 

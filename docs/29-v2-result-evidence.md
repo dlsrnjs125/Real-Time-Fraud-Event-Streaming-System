@@ -141,12 +141,13 @@ Report fields:
   "dryRun": true,
   "idempotencyMode": "preserve",
   "eventIdPrefix": null,
+  "eventTypePolicy": "current-api",
   "maxEvents": 100,
   "ratePerSecond": 10,
   "timeoutSeconds": 3,
   "totalRead": 100,
-  "payloadAccepted": 100,
-  "payloadRejected": 0,
+  "payloadAccepted": 76,
+  "payloadRejected": 24,
   "httpSuccess": 0,
   "httpDuplicateOrConflict": 0,
   "httpClientError": 0,
@@ -154,11 +155,18 @@ Report fields:
   "timeout": 0,
   "connectionError": 0,
   "retryAttempts": 0,
+  "retryTimeoutAttempts": 0,
+  "retryServerErrorAttempts": 0,
+  "retryConnectionErrorAttempts": 0,
   "droppedFields": {
-    "balanceFeatures": 100,
-    "destinationAccountId": 100,
-    "schemaVersion": 100,
-    "source": 100
+    "balanceFeatures": 76,
+    "destinationAccountId": 76,
+    "schemaVersion": 76,
+    "source": 76
+  },
+  "unsupportedEventTypes": {
+    "CASH_OUT": 14,
+    "DEBIT": 10
   }
 }
 ```
@@ -172,6 +180,13 @@ Report fields:
 - timeout: `timeout`
 - connection refused or app-api down: `connectionError`
 
+Retry 해석:
+
+- Final outcome counters are event-level.
+- Retry attempt details are tracked separately.
+- Timeout and 5xx are retry candidates when `--retry-count` is set.
+- Connection errors are not retried unless `--retry-connection-error` is set.
+
 Evidence 구분:
 
 - Dry-run report: app-api 없이 payload validation과 DTO mapping만 확인합니다.
@@ -179,6 +194,7 @@ Evidence 구분:
 - app-api 미기동 expected failure: actual replay를 실행하면 `connectionError`가 증가해야 하며, script는 request body나 token을 report에 저장하지 않아야 합니다.
 - preserve replay: 같은 eventId를 반복 replay해 duplicate/idempotency behavior와 `409` 집계를 확인합니다.
 - prefix replay: `--idempotency-mode prefix --event-id-prefix <prefix>`로 collision 없이 새 eventId를 만드는지 확인합니다.
+- current-api event type dry-run: Phase 5에서는 current app-api enum에 없는 PaySim native types를 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
 
 ## 3. Evidence Tables
 

@@ -312,6 +312,7 @@ Replay 기준:
 - events JSONL만 HTTP replay input으로 사용합니다.
 - labels JSONL은 evaluation join 용도이며 HTTP payload에 넣지 않습니다.
 - app-api request DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 dropped field로 집계합니다.
+- current app-api enum에 없는 PaySim native eventType은 기본 replay policy에서 HTTP 전송 전에 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
 - `traceId`는 body가 아니라 `X-Trace-Id` header로 전달합니다.
 - `eventId`는 preserve mode 또는 prefix mode로 다룹니다.
 - replay report에는 request/response body, token, raw identifier를 저장하지 않습니다.

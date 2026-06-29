@@ -26,7 +26,7 @@ DEFAULT_ENDPOINT = "http://localhost:8080/api/v1/transactions/events"
 DEFAULT_REPORT_OUTPUT = Path("data/processed/paysim-replay-report.json")
 DEFAULT_RATE_PER_SECOND = 10.0
 DEFAULT_TIMEOUT_SECONDS = 3.0
-DEFAULT_ADMIN_TOKEN_ENV = "ADMIN_API_TOKEN"
+DEFAULT_AUTH_TOKEN_ENV = "PAYSIM_REPLAY_AUTH_TOKEN"
 MAX_SAMPLE_EVENT_IDS = 10
 MAX_FAILURES = 50
 
@@ -34,6 +34,7 @@ LABEL_FIELDS = {"isFraud", "isFlaggedFraud", "sourceFlaggedFraud"}
 RAW_FIELDS = {"nameOrig", "nameDest"}
 REQUIRED_FIELDS = {"eventId", "userId", "accountId", "destinationAccountId", "eventType", "amount", "currency", "eventTime", "traceId"}
 REQUEST_FIELDS = {"eventId", "userId", "accountId", "eventType", "amount", "currency", "merchantId", "deviceId", "location", "eventTime"}
+CURRENT_API_EVENT_TYPES = {"PAYMENT", "TRANSFER", "WITHDRAWAL", "DEPOSIT"}
 HASH_ID_PATTERNS = {
     "userId": re.compile(r"^U-[0-9a-f]{16}$"),
     "accountId": re.compile(r"^A-[0-9a-f]{16}$"),
@@ -78,7 +79,11 @@ class ReplayStats:
     timeout: int = 0
     connection_error: int = 0
     retry_attempts: int = 0
+    retry_timeout_attempts: int = 0
+    retry_server_error_attempts: int = 0
+    retry_connection_error_attempts: int = 0
     dropped_fields: Counter[str] = field(default_factory=Counter)
+    unsupported_event_types: Counter[str] = field(default_factory=Counter)
     sample_event_ids: list[str] = field(default_factory=list)
     failures: list[FailureRecord] = field(default_factory=list)
 
@@ -103,10 +108,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--event-id-prefix")
     parser.add_argument("--idempotency-mode", choices=("preserve", "prefix"), default="preserve")
+    parser.add_argument("--event-type-policy", choices=("current-api", "preserve"), default="current-api")
     parser.add_argument("--retry-count", type=int, default=0)
+    parser.add_argument("--retry-connection-error", action="store_true")
     parser.add_argument("--stop-on-error", action="store_true")
-    parser.add_argument("--admin-token")
-    parser.add_argument("--admin-token-env", default=DEFAULT_ADMIN_TOKEN_ENV)
+    parser.add_argument("--auth-token")
+    parser.add_argument("--auth-token-env", default=DEFAULT_AUTH_TOKEN_ENV)
     return parser.parse_args()
 
 
@@ -172,7 +179,7 @@ def event_id_from(value: Any) -> str | None:
     return None
 
 
-def validate_event(event: dict[str, Any]) -> None:
+def validate_event(event: dict[str, Any], event_type_policy: str = "current-api") -> None:
     event_id = event_id_from(event)
     scan_forbidden(event)
     missing = sorted(REQUIRED_FIELDS - event.keys())
@@ -189,6 +196,8 @@ def validate_event(event: dict[str, Any]) -> None:
         raise PayloadValidationError("INVALID_TRACE_ID", event_id=event_id)
     if not isinstance(event["eventType"], str) or not event["eventType"]:
         raise PayloadValidationError("INVALID_EVENT_TYPE", event_id=event_id)
+    if event_type_policy == "current-api" and event["eventType"] not in CURRENT_API_EVENT_TYPES:
+        raise PayloadValidationError(f"UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:{event['eventType']}", event_id=event_id)
     if event["currency"] != "KRW":
         raise PayloadValidationError("INVALID_CURRENCY", event_id=event_id)
     try:
@@ -210,7 +219,7 @@ def replay_event_id(event_id: str, idempotency_mode: str, event_id_prefix: str |
 
 
 def to_api_request(event: dict[str, Any], args: argparse.Namespace, dropped_fields: Counter[str]) -> tuple[dict[str, Any], str]:
-    validate_event(event)
+    validate_event(event, args.event_type_policy)
     request: dict[str, Any] = {}
     for key, value in event.items():
         if key == "traceId":
@@ -223,10 +232,10 @@ def to_api_request(event: dict[str, Any], args: argparse.Namespace, dropped_fiel
     return request, event["traceId"]
 
 
-def resolve_admin_token(args: argparse.Namespace) -> tuple[str | None, bool]:
-    if args.admin_token:
-        return args.admin_token, True
-    env_value = os.getenv(args.admin_token_env)
+def resolve_auth_token(args: argparse.Namespace) -> tuple[str | None, bool]:
+    if args.auth_token:
+        return args.auth_token, True
+    env_value = os.getenv(args.auth_token_env)
     if env_value:
         return env_value, True
     return None, False
@@ -281,40 +290,48 @@ def send_with_retry(
     token: str | None,
     timeout_seconds: float,
     retry_count: int,
+    retry_connection_error: bool,
     stats: ReplayStats,
 ) -> str:
     attempts = retry_count + 1
     for attempt in range(attempts):
         try:
             status = make_http_request(endpoint, payload, trace_id, token, timeout_seconds)
-            category = record_status(stats, status)
+            category = classify_http_status(status)
             if category == "serverError" and attempt < retry_count:
                 stats.retry_attempts += 1
+                stats.retry_server_error_attempts += 1
                 continue
+            record_status(stats, status)
             return f"HTTP_{status}"
         except urllib.error.HTTPError as exc:
-            category = record_status(stats, exc.code)
+            category = classify_http_status(exc.code)
             if category == "serverError" and attempt < retry_count:
                 stats.retry_attempts += 1
+                stats.retry_server_error_attempts += 1
                 continue
+            record_status(stats, exc.code)
             return f"HTTP_{exc.code}"
         except TimeoutError:
-            stats.timeout += 1
             if attempt < retry_count:
                 stats.retry_attempts += 1
+                stats.retry_timeout_attempts += 1
                 continue
+            stats.timeout += 1
             return "TIMEOUT"
         except (socket.timeout, urllib.error.URLError) as exc:
             if isinstance(getattr(exc, "reason", None), socket.timeout):
-                stats.timeout += 1
                 if attempt < retry_count:
                     stats.retry_attempts += 1
+                    stats.retry_timeout_attempts += 1
                     continue
+                stats.timeout += 1
                 return "TIMEOUT"
-            stats.connection_error += 1
-            if attempt < retry_count:
+            if retry_connection_error and attempt < retry_count:
                 stats.retry_attempts += 1
+                stats.retry_connection_error_attempts += 1
                 continue
+            stats.connection_error += 1
             return "CONNECTION_ERROR"
 
 
@@ -343,10 +360,12 @@ def build_report(args: argparse.Namespace, stats: ReplayStats, started_at: str, 
         "dryRun": args.dry_run,
         "idempotencyMode": args.idempotency_mode,
         "eventIdPrefix": args.event_id_prefix,
+        "eventTypePolicy": args.event_type_policy,
         "maxEvents": args.max_events,
         "ratePerSecond": args.rate_per_second,
         "timeoutSeconds": args.timeout_seconds,
         "retryCount": args.retry_count,
+        "retryConnectionError": args.retry_connection_error,
         "stopOnError": args.stop_on_error,
         "authUsed": auth_used,
         "totalRead": stats.total_read,
@@ -359,9 +378,13 @@ def build_report(args: argparse.Namespace, stats: ReplayStats, started_at: str, 
         "timeout": stats.timeout,
         "connectionError": stats.connection_error,
         "retryAttempts": stats.retry_attempts,
+        "retryTimeoutAttempts": stats.retry_timeout_attempts,
+        "retryServerErrorAttempts": stats.retry_server_error_attempts,
+        "retryConnectionErrorAttempts": stats.retry_connection_error_attempts,
         "durationSeconds": round(duration_seconds, 6),
         "eventsPerSecond": round(events_per_second, 6),
         "droppedFields": dict(sorted(stats.dropped_fields.items())),
+        "unsupportedEventTypes": dict(sorted(stats.unsupported_event_types.items())),
         "sampleEventIds": stats.sample_event_ids,
         "failures": [failure.as_dict() for failure in stats.failures],
     }
@@ -377,7 +400,7 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
     if not args.input.exists():
         raise FileNotFoundError(str(args.input))
 
-    token, auth_used = resolve_admin_token(args)
+    token, auth_used = resolve_auth_token(args)
     stats = ReplayStats()
     started_at = iso_now()
     last_sent_at: float | None = None
@@ -391,6 +414,9 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
             payload, trace_id = to_api_request(event, args, stats.dropped_fields)
         except PayloadValidationError as exc:
             stats.payload_rejected += 1
+            if exc.reason.startswith("UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:"):
+                event_type = exc.reason.split(":", 1)[1]
+                stats.unsupported_event_types[event_type] += 1
             stats.add_failure(row_number, exc.reason, exc.event_id or event_id)
             if args.stop_on_error:
                 break
@@ -402,7 +428,16 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
             continue
 
         last_sent_at = maybe_sleep(last_sent_at, args.rate_per_second)
-        reason = send_with_retry(args.endpoint, payload, trace_id, token, args.timeout_seconds, args.retry_count, stats)
+        reason = send_with_retry(
+            args.endpoint,
+            payload,
+            trace_id,
+            token,
+            args.timeout_seconds,
+            args.retry_count,
+            args.retry_connection_error,
+            stats,
+        )
         if reason != "HTTP_202" and not reason.startswith("HTTP_2"):
             stats.add_failure(row_number, reason, payload["eventId"])
             if args.stop_on_error:

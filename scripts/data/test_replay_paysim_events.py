@@ -66,10 +66,12 @@ class ReplayPaySimEventsTest(unittest.TestCase):
             "force": True,
             "event_id_prefix": None,
             "idempotency_mode": "preserve",
+            "event_type_policy": "current-api",
             "retry_count": 0,
+            "retry_connection_error": False,
             "stop_on_error": False,
-            "admin_token": None,
-            "admin_token_env": "ADMIN_API_TOKEN",
+            "auth_token": None,
+            "auth_token_env": "PAYSIM_REPLAY_AUTH_TOKEN",
         }
         value.update(overrides)
         return SimpleNamespace(**value)
@@ -111,6 +113,17 @@ class ReplayPaySimEventsTest(unittest.TestCase):
 
     def test_invalid_hash_id_format_fails_validation(self):
         self.assert_validation_fails(self.event(userId="U-ABCDEF1234567890"), "INVALID_HASH_ID:userId")
+
+    def test_unsupported_current_api_event_type_fails_before_http(self):
+        self.assert_validation_fails(self.event(eventType="CASH_OUT"), "UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API")
+
+    def test_event_type_policy_preserve_allows_native_paysim_type(self):
+        payload, _trace_id = replay.to_api_request(
+            self.event(eventType="CASH_OUT"),
+            self.args(event_type_policy="preserve"),
+            replay.Counter(),
+        )
+        self.assertEqual("CASH_OUT", payload["eventType"])
 
     def test_idempotency_preserve_keeps_event_id(self):
         payload, _trace_id = replay.to_api_request(self.event(), self.args(idempotency_mode="preserve"), replay.Counter())
@@ -167,7 +180,7 @@ class ReplayPaySimEventsTest(unittest.TestCase):
 
     def test_report_does_not_store_token_request_body_or_raw_identifier(self):
         write_jsonl(self.input, [self.event(userId="U-C12345")])
-        report = replay.replay(self.args(dry_run=True, admin_token="secret-token"))
+        report = replay.replay(self.args(dry_run=True, auth_token="secret-token"))
         text = json.dumps(report, sort_keys=True)
 
         self.assertNotIn("secret-token", text)
@@ -175,6 +188,38 @@ class ReplayPaySimEventsTest(unittest.TestCase):
         self.assertNotIn("requestBody", text)
         self.assertEqual(1, report["payloadRejected"])
         self.assertTrue(report["authUsed"])
+
+    def test_unsupported_event_type_is_counted_in_report(self):
+        write_jsonl(self.input, [self.event(eventType="CASH_OUT")])
+        report = replay.replay(self.args(dry_run=True))
+        self.assertEqual(1, report["payloadRejected"])
+        self.assertEqual({"CASH_OUT": 1}, report["unsupportedEventTypes"])
+
+    def test_retry_success_keeps_final_outcome_event_level(self):
+        write_jsonl(self.input, [self.event()])
+        with mock.patch.object(replay, "make_http_request", side_effect=[500, 202]):
+            report = replay.replay(self.args(retry_count=1))
+        self.assertEqual(1, report["httpSuccess"])
+        self.assertEqual(0, report["httpServerError"])
+        self.assertEqual(1, report["retryAttempts"])
+        self.assertEqual(1, report["retryServerErrorAttempts"])
+
+    def test_connection_error_is_not_retried_by_default(self):
+        write_jsonl(self.input, [self.event()])
+        with mock.patch.object(replay, "make_http_request", side_effect=replay.urllib.error.URLError("refused")) as http:
+            report = replay.replay(self.args(retry_count=2))
+        self.assertEqual(1, http.call_count)
+        self.assertEqual(1, report["connectionError"])
+        self.assertEqual(0, report["retryConnectionErrorAttempts"])
+
+    def test_connection_error_retry_requires_flag(self):
+        write_jsonl(self.input, [self.event()])
+        with mock.patch.object(replay, "make_http_request", side_effect=[replay.urllib.error.URLError("refused"), 202]) as http:
+            report = replay.replay(self.args(retry_count=1, retry_connection_error=True))
+        self.assertEqual(2, http.call_count)
+        self.assertEqual(1, report["httpSuccess"])
+        self.assertEqual(0, report["connectionError"])
+        self.assertEqual(1, report["retryConnectionErrorAttempts"])
 
     def test_max_events_is_applied(self):
         write_jsonl(

@@ -354,6 +354,46 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 검증: non-positive rate fixture test.
 - 남은 한계: rate limit은 단일 process 기준이며 distributed replay coordination은 제공하지 않습니다.
 
+## V2 Phase 5. PaySim native eventType이 current app-api enum과 충돌하는 문제
+
+- 문제: PaySim sample에는 `CASH_OUT`, `CASH_IN`, `DEBIT`이 포함될 수 있지만 current app-api enum은 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 지원합니다.
+- 원인: Phase 5에서는 Java DTO/API enum을 변경하지 않고 replay pipeline만 구현하기로 했습니다.
+- 대응: replay script 기본값은 `--event-type-policy current-api`이며 unsupported native type을 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
+- 검증: dry-run에서 first 100 sample 기준 `CASH_OUT=14`, `DEBIT=10`이 `unsupportedEventTypes`에 집계되었습니다.
+- 남은 한계: PaySim native type 의미를 보존한 actual replay는 Phase 6 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
+
+## V2 Phase 5. Retry outcome count 해석이 모호해지는 문제
+
+- 문제: retry 중간 timeout/5xx를 final outcome counter에 함께 누적하면 한 이벤트가 timeout과 success에 동시에 잡힌 것처럼 보일 수 있습니다.
+- 원인: attempt-level count와 event-level final outcome count가 섞일 수 있습니다.
+- 대응: `httpSuccess`, `timeout`, `connectionError` 등은 final outcome으로 유지하고, retry attempt는 `retryTimeoutAttempts`, `retryServerErrorAttempts`, `retryConnectionErrorAttempts`로 분리했습니다.
+- 검증: 5xx 후 retry success fixture에서 final success만 증가하고 serverError final count는 증가하지 않습니다.
+- 남은 한계: retry latency 분포는 Phase 5 report에 포함하지 않습니다.
+
+## V2 Phase 5. Connection error retry 정책
+
+- 문제: app-api가 꺼져 있을 때 connection error를 기본 retry하면 replay가 느려지고 expected failure evidence가 흐려질 수 있습니다.
+- 원인: connection refused는 일시 네트워크 오류일 수도 있지만 대부분 local app-api 미기동입니다.
+- 대응: 기본 retry는 timeout/5xx에만 적용하고 connection error retry는 `--retry-connection-error`를 명시한 경우에만 수행합니다.
+- 검증: connection error no-retry와 opt-in retry fixture test를 추가했습니다.
+- 남은 한계: app-api startup 대기 기능은 별도 health wait script가 더 적절합니다.
+
+## V2 Phase 5. Replay token 옵션과 Admin token 정책 혼동
+
+- 문제: replay 대상은 일반 transaction ingest API인데 `admin-token`이라는 이름을 쓰면 Phase 14의 `X-Admin-Token` 정책과 혼동될 수 있습니다.
+- 원인: 인증 옵션이 필요한 배포 환경 후보와 current local ingest API 정책이 섞였습니다.
+- 대응: 옵션을 `--auth-token`, `--auth-token-env`로 일반화하고 Authorization bearer header 사용 여부만 `authUsed`로 기록합니다. Local ingest API는 token 없이 동작합니다.
+- 검증: token value가 report에 남지 않는 fixture test.
+- 남은 한계: 운영 인증 방식이 생기면 replay auth option은 해당 gateway/API policy에 맞춰 다시 조정해야 합니다.
+
+## V2 Phase 5. Dataset validation과 replay validation 기준 차이
+
+- 문제: Phase 2/3 processed validation을 통과한 row가 replay 단계에서 reject될 수 있습니다.
+- 원인: dataset normalization 기준과 current app-api request contract가 다릅니다. 예를 들어 preprocessing은 PaySim amount `>= 0`을 허용할 수 있지만 app-api는 `amount > 0`을 요구합니다.
+- 대응: replay validation은 current app-api contract 기준으로 `amount <= 0`을 rejected 처리한다고 문서화했습니다.
+- 검증: replay script amount validation과 app-api DTO contract 확인.
+- 남은 한계: API DTO가 V2 native PaySim fields를 받도록 확장되면 replay validation 기준도 함께 갱신해야 합니다.
+
 ### 문제 상황
 
 로컬 Docker Compose 기반 k6 결과는 노트북 CPU, 메모리, Docker resource limit, JVM warmup, Kafka/DB/Redis container 상태에 크게 영향을 받습니다.

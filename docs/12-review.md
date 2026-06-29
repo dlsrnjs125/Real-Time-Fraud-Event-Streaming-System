@@ -145,6 +145,8 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - dry-run은 실제 HTTP 요청을 보내지 않는가
 - report에 token/request body/raw identifier가 저장되지 않는가
 - timeout/409/5xx 집계가 구분되는가
+- retry final outcome과 retry attempt count가 분리되는가
+- current app-api enum에 없는 PaySim native eventType을 HTTP 전송 전에 rejected 처리하는가
 - CI에서 실제 HTTP replay를 실행하지 않는가
 - mock/fixture 기반 replay test는 CI에서 실행되는가
 
@@ -154,6 +156,9 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - `traceId`는 `X-Trace-Id` header로 전달하고 body에서는 제외합니다.
 - DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 `droppedFields`로 집계합니다.
 - dry-run은 payload validation과 report 생성만 수행하고 HTTP를 호출하지 않습니다.
+- current app-api enum에 없는 PaySim native eventType은 기본 `current-api` policy에서 rejected 처리합니다.
+- retry final outcome counter와 retry attempt counter를 분리했습니다.
+- connection error retry는 `--retry-connection-error` opt-in으로 분리했습니다.
 - actual replay는 Makefile target으로 제공하지만 CI/final-check에는 넣지 않았습니다.
 - replay report는 `data/processed` 아래 생성되며 Git ignore 대상입니다.
 

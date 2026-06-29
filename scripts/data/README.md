@@ -263,11 +263,17 @@ Replay rules:
 - Replay payloads never include `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`.
 - `X-Trace-Id` is populated from the PaySim event `traceId`.
 - Fields not accepted by the current app-api DTO, such as `balanceFeatures`, `source`, `schemaVersion`, and `destinationAccountId`, are omitted and counted in `droppedFields`.
+- The default `--event-type-policy current-api` rejects PaySim native types that the current app-api enum does not support, such as `CASH_OUT`, `CASH_IN`, and `DEBIT`, before HTTP requests are sent.
+- `--event-type-policy preserve` keeps native PaySim event types for future API/Rule V2 compatibility checks, but current app-api actual replay may return validation errors for unsupported types.
 - `idempotency-mode=preserve` keeps original `eventId` values and is useful for duplicate/idempotency checks.
 - `idempotency-mode=prefix` requires `--event-id-prefix` and avoids collisions when mixing datasets or replaying into the same API/database repeatedly.
 - `--rate-per-second` limits request pace; avoid unbounded replay against local Kafka/PostgreSQL.
+- `--retry-count` retries timeout and 5xx attempts. Connection errors are not retried unless `--retry-connection-error` is explicitly set.
+- Final outcome counters such as `httpSuccess`, `timeout`, and `connectionError` are event-level final outcomes. Retry attempt details are recorded separately as `retryTimeoutAttempts`, `retryServerErrorAttempts`, and `retryConnectionErrorAttempts`.
+- `--auth-token` and `--auth-token-env` can send an `Authorization: Bearer ...` header for non-default deployments. The normal local transaction ingest API does not require it, and token values are not written to reports.
 - Replay reports are written under `data/processed`, defaulting to `data/processed/paysim-replay-report.json`, and must not be committed.
 - Reports store counts and sampled eventIds only. They do not store request bodies, response bodies, tokens, labels, or raw identifiers.
+- Phase 2/3 validation is dataset-oriented, while Phase 5 replay validation follows the current app-api request contract. For example, an amount that normalized successfully can still be rejected during replay if the app-api contract disallows it.
 
 Direct dry-run example:
 
