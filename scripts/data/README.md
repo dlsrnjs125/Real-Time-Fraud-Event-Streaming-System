@@ -302,6 +302,8 @@ make evaluate-paysim-sample
 make evaluate-paysim-replay
 ```
 
+`make evaluate-paysim-replay` evaluates an existing PaySim label sidecar and local detection result export. It does not run app-api replay by itself.
+
 The default Make target runs with `--strict`, so duplicate label/result eventIds, unsupported risk levels, label leakage, raw identifier leakage, and invalid label sidecar metadata fail the evaluation.
 
 If no replay report is available, evaluate labels and results only:
@@ -318,6 +320,8 @@ For Phase 7 evidence checks that do not require full PaySim raw data, local DB e
 make verify-v2-phase7
 ```
 
+This target runs fixture-based data script tests, data policy checks, and `verify_paysim_evaluation_report_contract.py`, which creates a temporary report and verifies required Phase 7 report fields.
+
 Detection result export contract:
 
 ```json
@@ -329,10 +333,11 @@ Evaluation rules:
 - Labels JSONL is evaluation input only. It is never replay payload.
 - Join key is `eventId`. If replay used an eventId prefix, pass `--event-id-prefix` so detection result ids can be normalized back to original PaySim ids.
 - `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
-- Missing detection results are included by default. Fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
-- The report records `missingResultTreatment=fraud_missing_as_FN_non_fraud_missing_as_TN` by default and emits a warning when missing results affect metrics.
+- Missing detection results are excluded from denominator metrics by default. The report records `missingResultTreatment=missing_results_excluded_from_denominator`.
+- Use `--include-missing-results` only for explicit sensitivity checks. In that mode, fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
 - With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
 - Detection results that do not match any label eventId are not used in metrics. The report records `matchedResults` and `unmatchedResults`, and warns when result ids appear mismatched.
 - Evaluation reports are written under `data/processed`, defaulting to `data/processed/paysim-evaluation-report.json`, and must not be committed.
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
+- `misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means result rows that do not join to a label. `failedRecords` and `invalidRecords` are reserved for pipeline/schema failures and remain separate from detection quality mismatches.
 - CI runs fixture tests only. Actual DB/API export evaluation is local-only and requires a prepared `data/processed/paysim-detection-results.jsonl`.

@@ -53,3 +53,5 @@
 - Detection quality vs operation metrics: `docs/11-troubleshooting-log.md#v2-phase-7-평가-지표와-운영-지표의-혼동`
 - Raw/full processed PaySim commit risk: `docs/11-troubleshooting-log.md#v2-phase-7-대용량-paySim-결과-커밋-위험`
 - Threshold tuning workload trade-off: `docs/11-troubleshooting-log.md#v2-phase-7-threshold-조정과-false-positive-증가`
+- Evaluation field naming risk: `docs/11-troubleshooting-log.md#v2-phase-7-evaluation-report-field-이름이-운영-실패처럼-읽힐-위험`
+- Missing result denominator risk: `docs/11-troubleshooting-log.md#v2-phase-7-missing-result를-true-negative로-세면-accuracy가-과대평가될-위험`

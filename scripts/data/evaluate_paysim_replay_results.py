@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any
 
 
-SCRIPT_VERSION = "v2-phase-6"
+SCRIPT_VERSION = "paysim-evaluation-v1"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase7"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
@@ -95,7 +96,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--event-id-prefix")
     parser.add_argument("--exclude-replay-rejected", dest="exclude_replay_rejected", action="store_true", default=True)
     parser.add_argument("--include-replay-rejected", dest="exclude_replay_rejected", action="store_false")
-    parser.add_argument("--include-missing-results", dest="include_missing_results", action="store_true", default=True)
+    parser.add_argument("--include-missing-results", dest="include_missing_results", action="store_true", default=False)
     parser.add_argument("--exclude-missing-results", dest="include_missing_results", action="store_false")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--strict", action="store_true")
@@ -338,6 +339,7 @@ def build_warnings(
     stats: EvaluationStats,
     replay_payload_rejected: int | None,
     rejected_event_ids: set[str],
+    include_missing_results: bool,
 ) -> list[str]:
     warnings = list(base_warnings)
     if stats.true_positive + stats.false_positive == 0:
@@ -349,11 +351,13 @@ def build_warnings(
             "Replay report payloadRejected is greater than available rejected eventIds; "
             "evaluation denominator may include replay-rejected events."
         )
-    if stats.missing_results > 0:
+    if stats.missing_results > 0 and include_missing_results:
         warnings.append(
             "Missing detection results are included in metrics; "
             "non-fraud missing results are counted as true negatives by policy."
         )
+    elif stats.missing_results > 0:
+        warnings.append("Missing detection results are excluded from denominator metrics by default.")
     if stats.total_results > 0 and stats.matched_results == 0:
         warnings.append("Detection results exist but do not match any label eventId. Check --event-id-prefix or result export source.")
     elif stats.unmatched_results > 0:
@@ -384,10 +388,13 @@ def build_report(
     false_negative_rate = safe_ratio(fn, fn + tp)
     accuracy = safe_ratio(tp + tn, stats.evaluated_events)
     f1 = f1_score(precision, recall)
-    failed_records = fp + fn + stats.unmatched_results
-    invalid_records = stats.excluded_replay_rejected
+    misclassified_events = fp + fn
+    unmatched_result_events = stats.unmatched_results
+    failed_records = 0
+    invalid_records = 0
     return {
         "scriptVersion": SCRIPT_VERSION,
+        "reportSchemaVersion": REPORT_SCHEMA_VERSION,
         "labelsPath": str(labels_path),
         "resultsPath": str(results_path),
         "replayReportPath": str(replay_report_path) if replay_report_path else None,
@@ -420,6 +427,9 @@ def build_report(
         "falsePositiveEvents": fp,
         "truePositiveEvents": tp,
         "trueNegativeEvents": tn,
+        "misclassifiedEvents": misclassified_events,
+        "unmatchedResultEvents": unmatched_result_events,
+        "evaluationExcludedRecords": stats.excluded_replay_rejected,
         "failedRecords": failed_records,
         "invalidRecords": invalid_records,
         "confusionMatrix": {
@@ -469,7 +479,13 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     rejected_event_ids = replay_rejected_event_ids(replay_report, event_id_prefix) if args.exclude_replay_rejected else set()
     replay_payload_rejected = replay_payload_rejected_count(replay_report)
     stats = evaluate_rows(labels, results, rejected_event_ids, args.positive_risk_level, args.include_missing_results)
-    warnings = build_warnings(label_warnings + result_warnings, stats, replay_payload_rejected, rejected_event_ids)
+    warnings = build_warnings(
+        label_warnings + result_warnings,
+        stats,
+        replay_payload_rejected,
+        rejected_event_ids,
+        args.include_missing_results,
+    )
     finished_at = iso_now()
     report = build_report(
         args,

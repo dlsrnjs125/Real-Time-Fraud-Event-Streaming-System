@@ -88,7 +88,7 @@ make replay-paysim-sample
 make evaluate-paysim-replay
 ```
 
-`make evaluate-paysim-replay` is an alias for the existing sample evaluation command. It expects:
+`make evaluate-paysim-replay` evaluates existing PaySim labels and a local detection result export. It does not execute app-api replay by itself. It expects:
 
 - labels: `data/samples/paysim-labels-sample.jsonl`
 - detection results: `data/processed/paysim-detection-results.jsonl`
@@ -96,6 +96,8 @@ make evaluate-paysim-replay
 - output: `data/processed/paysim-evaluation-report.json`
 
 `data/processed/*` remains local evidence and is intentionally ignored by Git.
+
+`make verify-v2-phase7` is CI-safe because it uses fixture data for report contract validation. It verifies that a report can be generated, required fields exist, sensitive fields are absent, and missing results are excluded from denominator metrics by default.
 
 ## 5. Current Report Metrics
 
@@ -115,8 +117,13 @@ make evaluate-paysim-replay
 | `metrics.f1Score` | precision/recall | harmonic mean of precision and recall |
 | `riskLevelCounts` | detection results | risk distribution |
 | `ruleCodeCounts` | detection results | rule hit distribution |
-| `failedRecords` | report sanity signal | `FP + FN + unmatchedResults` |
-| `invalidRecords` | replay exclusion signal | replay-rejected events excluded from evaluation |
+| `misclassifiedEvents` | confusion matrix | `FP + FN` |
+| `unmatchedResultEvents` | join sanity signal | result rows that did not join to a label |
+| `evaluationExcludedRecords` | replay exclusion signal | replay-rejected events excluded from evaluation |
+| `failedRecords` | pipeline failure signal | reserved for parse/schema/report failures; not rule mismatch |
+| `invalidRecords` | invalid input signal | reserved for malformed input records; not unsupported PaySim event type |
+
+Missing detection results are excluded from denominator metrics by default. `--include-missing-results` is available only for explicit sensitivity checks because counting missing non-fraud rows as true negatives can inflate accuracy on sparse-fraud datasets.
 
 The replay report separately provides:
 
@@ -166,7 +173,8 @@ Gate candidates:
 - report file is created
 - required report fields exist
 - strict label/result contract validation passes
-- `invalidRecords` and replay rejected counts are reviewed
+- `misclassifiedEvents`, `unmatchedResultEvents`, and replay rejected counts are reviewed
+- `failedRecords=0` and `invalidRecords=0` for fixture-based report contract checks
 - raw/full processed PaySim files remain out of Git
 
 Not gate candidates yet:

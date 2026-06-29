@@ -551,6 +551,8 @@ Event type policy:
 
 Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 V2 Phase 8 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
 
+Native PaySim event type replay is postponed because V2 Phase 7 focuses on evaluation report evidence, not API DTO expansion. Accepting native event types changes the API contract and rule semantics, so it should be reviewed as a separate phase.
+
 금지:
 
 - `receivedAt`: app-api가 접수 시각으로 생성합니다.

@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay verify-v2-phase7 v2-phase7-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay verify-paysim-evaluation-report-contract verify-v2-phase7 v2-phase7-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -35,7 +35,8 @@ help:
 	@echo "  make replay-paysim-sample-dry-run - Validate replay payloads without HTTP"
 	@echo "  make replay-paysim-sample - Replay committed PaySim sample into local app-api"
 	@echo "  make evaluate-paysim-sample - Evaluate local PaySim detection result export"
-	@echo "  make evaluate-paysim-replay - Alias for V2 replay evaluation evidence"
+	@echo "  make evaluate-paysim-replay - Evaluate existing PaySim labels and local detection result export"
+	@echo "  make verify-paysim-evaluation-report-contract - Verify Phase 7 report schema with fixtures"
 	@echo "  make verify-v2-phase7 - Run CI-safe V2 Phase 7 evidence checks"
 	@echo "  make test-data-scripts - Run Python data script tests"
 	@echo "  make topics         - Create Kafka topics"
@@ -170,7 +171,10 @@ evaluate-paysim-sample-no-replay-report: data-env
 
 evaluate-paysim-replay: evaluate-paysim-sample
 
-verify-v2-phase7: test-data-scripts data-policy-check
+verify-paysim-evaluation-report-contract: data-env
+	$(DATA_PYTHON) scripts/data/verify_paysim_evaluation_report_contract.py
+
+verify-v2-phase7: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract
 
 v2-phase7-evidence: evaluate-paysim-replay
 
@@ -202,4 +206,4 @@ k6-duplicate-check:
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
-final-check: build infra-config scripts-check test-data-scripts data-policy-check
+final-check: build infra-config scripts-check verify-v2-phase7

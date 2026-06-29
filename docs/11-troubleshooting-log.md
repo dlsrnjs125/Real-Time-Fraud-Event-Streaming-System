@@ -1993,3 +1993,39 @@ Rule threshold changes are reviewed with precision, recall, and operator workloa
 ### 남은 한계
 
 `action_decision_distribution`은 ActionDecision 구현 이후 자동 산출 가능합니다. Phase 7에서는 향후 확장 지표로 분리했습니다.
+
+## V2 Phase 7. Evaluation report field 이름이 운영 실패처럼 읽힐 위험
+
+### 문제
+
+`failedRecords`를 `FP + FN + unmatchedResults`로 쓰면 탐지 오분류와 replay/API/schema 실패가 섞여 보입니다. `invalidRecords`를 replay rejected exclusion과 동일하게 쓰는 것도 malformed input처럼 오해될 수 있습니다.
+
+### 판단
+
+Detection quality mismatch와 data/replay pipeline failure는 분리해야 합니다. False positive/false negative는 평가 결과이고, parsing/schema/replay failure는 처리 실패입니다.
+
+### 대응
+
+Report에 `misclassifiedEvents`, `unmatchedResultEvents`, `evaluationExcludedRecords`를 추가했습니다. `failedRecords`와 `invalidRecords`는 pipeline/schema failure 의미로 남기고, Phase 7 fixture contract에서는 0이어야 합니다.
+
+### 남은 한계
+
+Replay/API failure는 evaluation report가 아니라 replay report에서 해석합니다.
+
+## V2 Phase 7. Missing result를 true negative로 세면 accuracy가 과대평가될 위험
+
+### 문제
+
+PaySim은 fraud label 비율이 낮습니다. Detection result export가 누락된 non-fraud row를 true negative로 계산하면 accuracy가 좋아 보일 수 있습니다.
+
+### 판단
+
+Missing result는 실제로 Consumer가 처리하지 못했거나 export가 누락됐다는 뜻일 수 있습니다. 기본 평가 denominator에 넣기보다 별도 bucket으로 드러내는 편이 안전합니다.
+
+### 대응
+
+Evaluator 기본값을 missing result denominator 제외로 변경했습니다. `--include-missing-results`를 명시한 경우에만 fraud missing은 FN, non-fraud missing은 TN으로 계산합니다.
+
+### 남은 한계
+
+Missing result 원인이 replay rejected, Consumer lag, export 누락, DB query 조건 문제 중 무엇인지는 별도 operational evidence로 확인해야 합니다.

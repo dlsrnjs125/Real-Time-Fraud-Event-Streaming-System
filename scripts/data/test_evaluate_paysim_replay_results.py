@@ -73,7 +73,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             "positive_risk_level": "MEDIUM",
             "event_id_prefix": None,
             "exclude_replay_rejected": True,
-            "include_missing_results": True,
+            "include_missing_results": False,
             "force": True,
             "strict": True,
         }
@@ -108,8 +108,12 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0, report["falsePositiveEvents"])
         self.assertEqual(1, report["truePositiveEvents"])
         self.assertEqual(1, report["trueNegativeEvents"])
+        self.assertEqual(0, report["misclassifiedEvents"])
+        self.assertEqual(0, report["unmatchedResultEvents"])
+        self.assertEqual(0, report["evaluationExcludedRecords"])
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
+        self.assertEqual("2026-06-v2-phase7", report["reportSchemaVersion"])
         self.assertFalse(report["replayReportUsed"])
 
     def test_confusion_matrix_counts_tp_fp_tn_fn(self):
@@ -134,7 +138,8 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0.5, report["metrics"]["precision"])
         self.assertEqual(0.5, report["metrics"]["recall"])
         self.assertEqual(0.5, report["metrics"]["f1Score"])
-        self.assertEqual(2, report["failedRecords"])
+        self.assertEqual(2, report["misclassifiedEvents"])
+        self.assertEqual(0, report["failedRecords"])
 
     def test_medium_or_higher_is_positive_by_default(self):
         report = self.evaluate_fixture(
@@ -152,13 +157,19 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1, report["confusionMatrix"]["truePositive"])
         self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
 
-    def test_missing_fraud_result_is_false_negative_when_included(self):
+    def test_missing_fraud_result_is_excluded_by_default(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [])
+        self.assertEqual(1, report["missingResults"])
+        self.assertEqual(0, report["evaluatedEvents"])
+        self.assertEqual(0, report["confusionMatrix"]["falseNegative"])
+
+    def test_missing_fraud_result_is_false_negative_when_included(self):
+        report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=True)
         self.assertEqual(1, report["missingResults"])
         self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
 
     def test_missing_non_fraud_result_is_true_negative_when_included(self):
-        report = self.evaluate_fixture([self.label("paysim-1", False)], [])
+        report = self.evaluate_fixture([self.label("paysim-1", False)], [], include_missing_results=True)
         self.assertEqual(1, report["missingResults"])
         self.assertEqual(1, report["confusionMatrix"]["trueNegative"])
 
@@ -223,6 +234,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1, report["replayPayloadRejected"])
         self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
         self.assertTrue(report["replayRejectedExclusionComplete"])
+        self.assertEqual(1, report["evaluationExcludedRecords"])
         self.assertEqual(1, report["evaluatedEvents"])
         self.assertEqual(1, report["confusionMatrix"]["truePositive"])
 
@@ -273,6 +285,11 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
 
     def test_missing_result_warning_and_treatment_are_reported(self):
         report = self.evaluate_fixture([self.label("paysim-1", False)], [])
+        self.assertEqual("missing_results_excluded_from_denominator", report["missingResultTreatment"])
+        self.assertTrue(any("excluded from denominator" in warning for warning in report["warnings"]))
+
+    def test_missing_result_include_policy_is_reported(self):
+        report = self.evaluate_fixture([self.label("paysim-1", False)], [], include_missing_results=True)
         self.assertEqual("fraud_missing_as_FN_non_fraud_missing_as_TN", report["missingResultTreatment"])
         self.assertTrue(any("Missing detection results are included" in warning for warning in report["warnings"]))
 
@@ -283,6 +300,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         )
         self.assertEqual(0, report["matchedResults"])
         self.assertEqual(1, report["unmatchedResults"])
+        self.assertEqual(1, report["unmatchedResultEvents"])
         self.assertTrue(any("do not match any label" in warning for warning in report["warnings"]))
 
     def test_strict_label_contract_checks_sidecar_fields(self):
