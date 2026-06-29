@@ -8,6 +8,8 @@ It does not add a new fraud detection model or claim better detection performanc
 
 ## 2. V2 Phase Summary
 
+Phase labels summarize the final V2 responsibility boundaries. Some earlier PR titles may use narrower implementation names, but this table reflects the stabilized readiness view.
+
 | Phase | Goal | Main Output | Verification | Evidence Location | Status | Limitations |
 |---|---|---|---|---|---|---|
 | V2 Phase 1 | Data provenance and raw data protection | `data/` guardrails and policy check | `make data-policy-check` | `docs/24-kaggle-paysim-data-provenance.md` | Done | raw PaySim is local-only |
@@ -48,6 +50,8 @@ It does not add a new fraud detection model or claim better detection performanc
 - current `ruleVersion` is an evaluation evidence policy value unless directly integrated with the app-consumer Rule Engine.
 
 ## 5. Verification Matrix
+
+CI-safe means the command does not require raw PaySim data, local app-api, or detection result export. It may still require repository tooling such as Java, Python, and Docker Compose CLI.
 
 | Command | Scope | CI-safe | Requires local infra | Requires raw/full PaySim | Requires detection result export | Pass Criteria | Notes |
 |---|---|---:|---:|---:|---:|---|---|

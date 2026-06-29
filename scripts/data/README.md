@@ -1,10 +1,8 @@
 # PaySim Data Scripts
 
-This directory contains V2 PaySim data workflow helpers.
+This directory contains V2 PaySim data workflow helpers for local dataset acquisition, preprocessing normalization, replay payload validation, replay result evaluation, native type contract checks, and rule/threshold regression evidence.
 
-V2 Phase 2 adds local dataset acquisition and preprocessing normalization. V2 Phase 4 hardens identifier hashing and salt policy before replay is implemented. It does not implement replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
-
-This repository is primarily a Java/Spring Boot project. Python is used only for V2 PaySim data acquisition and preprocessing helpers. To avoid global `pip install` and local environment drift, data scripts run inside a repository-local virtual environment at `.venv-data`.
+This repository is primarily a Java/Spring Boot project. Python is used only for PaySim data, replay, and evaluation helper workflows. These scripts do not claim production fraud model performance and do not replace the Java app-consumer Rule Engine. To avoid global `pip install` and local environment drift, data scripts run inside a repository-local virtual environment at `.venv-data`.
 
 Create or refresh the data Python environment with:
 
