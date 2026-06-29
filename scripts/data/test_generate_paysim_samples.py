@@ -69,6 +69,8 @@ class GeneratePaySimSamplesTest(unittest.TestCase):
             "datasetSlug": "ealaxi/paysim1",
             "rawFileName": "PS_20174392719_1491204439457_log.csv",
             "inputSha256": "a" * 64,
+            "hashAlgorithm": "HMAC-SHA256",
+            "hashIdPrefixLength": 16,
             "hashSaltSource": "env:PAYSIM_HASH_SALT",
         }
         value.update(overrides)
@@ -120,6 +122,9 @@ class GeneratePaySimSamplesTest(unittest.TestCase):
         self.assertEqual({row["eventId"] for row in events}, {row["eventId"] for row in labels})
         self.assertEqual(3, manifest["sampleEvents"])
         self.assertEqual(3, manifest["sampleLabels"])
+        self.assertEqual("HMAC-SHA256", manifest["hashAlgorithm"])
+        self.assertEqual(16, manifest["hashIdPrefixLength"])
+        self.assertEqual("row-number-deterministic", manifest["eventIdPolicy"])
 
     def test_sample_size_over_limit_fails(self):
         result = self.run_generate("--sample-size", "1001", "--force")
@@ -154,6 +159,8 @@ class GeneratePaySimSamplesTest(unittest.TestCase):
         manifest = json.loads((self.output_dir / "paysim-sample-manifest.json").read_text())
         self.assertIn("hashSaltSource", manifest)
         self.assertNotIn("hashSaltValue", manifest)
+        self.assertNotIn("saltValue", manifest)
+        self.assertNotIn("unit-test-salt", json.dumps(manifest))
         self.assertFalse(manifest["containsRuntimeLabels"])
         self.assertFalse(manifest["containsRawIdentifiers"])
 
@@ -169,6 +176,27 @@ class GeneratePaySimSamplesTest(unittest.TestCase):
         result = self.run_generate("--sample-size", "2", "--require-non-default-salt", "--force")
         self.assertNotEqual(0, result.returncode)
         self.assertIn("non-default", result.stderr)
+
+    def test_require_non_default_salt_passes_for_env_source(self):
+        self.write_fixture(report=self.report(hashSaltSource="env:PAYSIM_HASH_SALT"))
+        result = self.run_generate("--sample-size", "2", "--require-non-default-salt", "--force")
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_report_hash_metadata_is_required(self):
+        self.write_fixture(report=self.report(hashAlgorithm="SHA-256"))
+        result = self.run_generate("--sample-size", "2", "--force")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("hashAlgorithm", result.stderr)
+        self.write_fixture(report=self.report(hashIdPrefixLength=12))
+        result = self.run_generate("--sample-size", "2", "--force")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("hashIdPrefixLength", result.stderr)
+
+    def test_invalid_sample_hash_id_format_fails(self):
+        self.write_fixture(events=[self.event(1, destinationAccountId="D-ABCDEF1234567890")], labels=[self.label(1)])
+        result = self.run_generate("--sample-size", "1", "--force")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("destinationAccountId must match", result.stderr)
 
     def test_generated_files_are_under_one_mb(self):
         result = self.run_generate("--sample-size", "5", "--force")

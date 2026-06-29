@@ -88,6 +88,8 @@ class ValidatePaySimOutputsTest(unittest.TestCase):
             "fraudRows": 1,
             "flaggedFraudRows": 0,
             "eventTypeCounts": {"TRANSFER": 1, "CASH_OUT": 0, "PAYMENT": 0, "CASH_IN": 0, "DEBIT": 0},
+            "hashAlgorithm": "HMAC-SHA256",
+            "hashIdPrefixLength": 16,
             "outputFiles": {
                 "events": str(self.events_path),
                 "labels": str(self.labels_path),
@@ -147,6 +149,14 @@ class ValidatePaySimOutputsTest(unittest.TestCase):
         self.write_fixture(labels=[self.label(sourceType="M12345")])
         self.assert_fails_with("raw PaySim identifiers")
 
+    def test_hash_identifier_format_failures(self):
+        self.write_fixture(events=[self.event(userId="X-abcdef1234567890")])
+        self.assert_fails_with("userId must match")
+        self.write_fixture(events=[self.event(accountId="A-abcdef123456789")])
+        self.assert_fails_with("accountId must match")
+        self.write_fixture(events=[self.event(destinationAccountId="D-FEDCBA0987654321")])
+        self.assert_fails_with("destinationAccountId must match")
+
     def test_event_label_count_mismatch_fails(self):
         self.write_fixture(labels=[])
         self.assert_fails_with("labels are missing eventIds")
@@ -196,6 +206,25 @@ class ValidatePaySimOutputsTest(unittest.TestCase):
         self.assert_fails_with("salt values")
         self.write_fixture(report=self.report(inputSha256="bad"))
         self.assert_fails_with("64 hex")
+
+    def test_report_hash_metadata_is_required(self):
+        report = self.report()
+        del report["hashAlgorithm"]
+        self.write_fixture(report=report)
+        self.assert_fails_with("report missing fields")
+        self.write_fixture(report=self.report(hashAlgorithm="SHA-256"))
+        self.assert_fails_with("hashAlgorithm")
+        self.write_fixture(report=self.report(hashIdPrefixLength=12))
+        self.assert_fails_with("hashIdPrefixLength")
+
+    def test_require_non_default_salt_policy(self):
+        self.write_fixture(report=self.report(hashSaltSource="default-local"))
+        result = self.run_validate("--require-non-default-salt")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("non-default", result.stderr)
+        self.write_fixture(report=self.report(hashSaltSource="env:PAYSIM_HASH_SALT"))
+        result = self.run_validate("--require-non-default-salt")
+        self.assertEqual(0, result.returncode, result.stderr)
 
 
 if __name__ == "__main__":

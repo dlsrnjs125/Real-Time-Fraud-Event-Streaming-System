@@ -63,7 +63,7 @@ scripts/
     generate_paysim_samples.py
 ```
 
-V2 Phase 3에서 validation과 safe sampling script를 추가했습니다. Replay script는 후속 Phase에서 추가합니다.
+V2 Phase 3에서 validation과 safe sampling script를 추가했습니다. V2 Phase 4에서는 identifier hashing enforcement와 salt policy hardening을 추가했습니다. Replay script는 후속 Phase에서 추가합니다.
 
 `.gitignore` policy:
 
@@ -85,12 +85,20 @@ data/samples/*
 - `data/processed`: 전처리 전체 산출물 위치. `.gitkeep` 외 커밋 금지.
 - `data/samples`: 검증된 작은 JSONL sample과 sample manifest만 제한적으로 커밋 가능.
 - sample은 100~1,000건 이하, raw identifier 미포함, 지정된 sample JSONL/manifest 파일명, 1MB 이하를 기준으로 둡니다.
+- committed sample manifest는 `hashSaltSource=default-local`을 허용하지 않습니다.
+- sample manifest에는 `hashSaltSource`만 기록하고 salt 값 자체는 기록하지 않습니다.
 
 `scripts/data/check-data-policy.sh`는 tracked 또는 staged 상태의 `data/` 파일을 검사합니다.
 
 ```bash
 make data-policy-check
 ```
+
+V2 Phase 4 guardrail:
+
+- `check-data-policy.sh`는 sample manifest의 `default-local` salt source를 차단합니다.
+- `check-data-policy.sh`는 `hashSaltValue`, `saltValue`, `salt`, `rawSalt` 같은 salt value field를 차단합니다.
+- `hashSaltSource` field name은 salt 값을 담지 않는 provenance 정보이므로 허용합니다.
 
 한계:
 
@@ -136,7 +144,11 @@ make prepare-paysim
 make prepare-paysim-smoke
 ```
 
-3. 후속 V2 Phase 3에서 작은 sample을 생성합니다.
+3. 작은 sample을 생성합니다. 공유 또는 커밋 목적이면 strict target을 사용합니다.
+
+```bash
+make generate-paysim-sample-strict
+```
 
 4. 후속 V2 Phase 5에서 Replay script로 app-api에 이벤트를 주입합니다.
 
@@ -154,25 +166,28 @@ V2 문서와 구현에서는 다음 표현을 유지합니다.
 - Kaggle 원본 CSV를 repository에 커밋하지 않습니다.
 - `data/processed`의 normalized 전체 결과를 repository에 커밋하지 않습니다.
 - raw payload나 전체 account-like identifier를 운영 log, metric tag, audit metadata에 남기지 않습니다.
+- raw `nameOrig`, `nameDest`는 raw 로컬 CSV 외의 processed event, label, rejected row, validation report, sample manifest, committed sample, log, docs에 남기지 않습니다.
+- `default-local` salt는 로컬 smoke/debug 용도로만 허용하며, 공유/커밋 sample에는 사용하지 않습니다.
 
 ## 7. Identifier Hashing Policy
 
 PaySim은 synthetic dataset이지만 `nameOrig`, `nameDest`는 계좌형 식별자처럼 보입니다. V2에서는 raw identifier를 API, log, sample, result에 노출하지 않는 방향을 기본으로 둡니다.
 
-전처리 script 옵션 후보:
+전처리 script 옵션:
 
 ```bash
 python scripts/data/prepare_paysim_dataset.py \
   --input data/raw/PS_20174392719_1491204439457_log.csv \
-  --events-output data/processed/paysim-events.jsonl \
-  --labels-output data/processed/paysim-labels.jsonl \
-  --hash-identifiers \
-  --hash-salt local-dev-salt
+  --output-dir data/processed \
+  --hash-salt-env PAYSIM_HASH_SALT \
+  --require-non-default-salt
 ```
 
 Hashing 규칙:
 
 ```text
+algorithm = HMAC-SHA256
+hashIdPrefixLength = 16 lowercase hex characters
 userId = U-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
 accountId = A-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
 destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
@@ -184,7 +199,9 @@ destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 - 사용자별 Redis Sliding Window 계산이 가능해야 합니다.
 - sample data에는 raw `nameOrig`, `nameDest`를 포함하지 않습니다.
 - salt는 운영 환경에서 secret으로 관리해야 합니다.
-- local 문서 예시는 `local-dev-salt`를 사용할 수 있지만 운영용 값으로 간주하지 않습니다.
+- report와 manifest에는 salt 값 자체를 기록하지 않고 `hashSaltSource`, `hashAlgorithm`, `hashIdPrefixLength`만 기록합니다.
+- `default-local` salt는 로컬 smoke/debug 용도이며 committed/shared sample에는 사용할 수 없습니다.
+- 공유/커밋 sample 재생성에는 `PAYSIM_HASH_SALT` 환경 변수와 `make generate-paysim-sample-strict`를 사용합니다.
 
 ## 8. V2 Phase 1 Completion Criteria
 
@@ -254,3 +271,16 @@ V2 Phase 3 검증 결과:
 - `make validate-paysim`: events=1000, labels=1000, rejected=0, fraud=9, flagged=0, rejectRatio=0.0000
 - `make generate-paysim-sample-strict`: events=1000, labels=1000, fraud=9
 - `make data-policy-check`: PASS
+
+## 12. V2 Phase 4 Identifier Hash and Salt Enforcement
+
+V2 Phase 4에서 추가한 구현:
+
+- `prepare_paysim_dataset.py` report에 `hashAlgorithm=HMAC-SHA256`, `hashIdPrefixLength=16`, `hashSaltSource`를 기록합니다.
+- `validate_paysim_outputs.py`가 `userId`, `accountId`, `destinationAccountId`의 `U-`/`A-`/`D-` + 16 lowercase hex 형식을 검증합니다.
+- `validate_paysim_outputs.py --require-non-default-salt`는 `hashSaltSource=default-local` report를 실패시킵니다.
+- `generate_paysim_samples.py --require-non-default-salt`는 committed/shared sample 생성 전 non-default salt source를 강제합니다.
+- sample manifest에는 hash metadata와 replay collision note를 남기지만 salt 값 자체는 남기지 않습니다.
+- `check-data-policy.sh`는 committed sample manifest의 `default-local` salt source와 salt value field를 차단합니다.
+
+Phase 4는 replay script, app-api 주입, Java Rule Engine V2, DB migration, Kafka topic/schema 변경을 구현하지 않습니다.

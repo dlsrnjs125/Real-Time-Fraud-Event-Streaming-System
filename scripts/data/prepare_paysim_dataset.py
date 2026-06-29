@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCRIPT_VERSION = "v2-phase-2"
+SCRIPT_VERSION = "v2-phase-4"
 DEFAULT_INPUT = Path("data/raw/PS_20174392719_1491204439457_log.csv")
 DEFAULT_OUTPUT_DIR = Path("data/processed")
 DEFAULT_BASE_TIME = "2026-01-01T00:00:00Z"
@@ -25,6 +25,7 @@ DEFAULT_DATASET_SLUG = "ealaxi/paysim1"
 DEFAULT_HASH_SALT_ENV = "PAYSIM_HASH_SALT"
 DEFAULT_LOCAL_SALT = "local-dev-paysim-salt"
 HASH_PREFIX_LENGTH = 16
+HASH_ALGORITHM = "HMAC-SHA256"
 VALID_TYPES = {"PAYMENT", "TRANSFER", "CASH_OUT", "CASH_IN", "DEBIT"}
 REQUIRED_COLUMNS = {
     "step",
@@ -75,6 +76,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reject-policy", choices=("row-level", "fail-fast"), default="row-level")
     parser.add_argument("--hash-salt")
     parser.add_argument("--hash-salt-env", default=DEFAULT_HASH_SALT_ENV)
+    parser.add_argument("--require-non-default-salt", action="store_true")
     parser.add_argument("--force", action="store_true")
     return parser.parse_args()
 
@@ -146,6 +148,8 @@ def resolve_salt(args: argparse.Namespace) -> tuple[str, str]:
     env_value = os.getenv(args.hash_salt_env)
     if env_value:
         return env_value, f"env:{args.hash_salt_env}"
+    if args.require_non_default_salt:
+        raise SystemExit("ERROR: --require-non-default-salt requires --hash-salt or a hash salt environment variable")
     return DEFAULT_LOCAL_SALT, "default-local"
 
 
@@ -325,6 +329,8 @@ def process(args: argparse.Namespace) -> dict[str, Any]:
         "fraudRows": counters.fraud_rows,
         "flaggedFraudRows": counters.flagged_fraud_rows,
         "eventTypeCounts": type_counts,
+        "hashAlgorithm": HASH_ALGORITHM,
+        "hashIdPrefixLength": HASH_PREFIX_LENGTH,
         "hashSaltSource": salt_source,
         "outputFiles": {
             "events": str(paths.events),

@@ -258,6 +258,46 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 
 ## Phase 12. 로컬 부하 테스트 결과 해석 한계
 
+## V2 Phase 4. PaySim committed sample이 default-local salt로 생성될 수 있는 문제
+
+- 문제: shared/committed sample manifest가 `hashSaltSource=default-local`로 남으면 누구나 같은 repository-local salt로 pseudonym을 재생성할 수 있습니다.
+- 원인: Phase 3에서는 strict sample target을 권장했지만 committed manifest를 shell data policy에서 직접 차단하지 않았습니다.
+- 대응: `generate_paysim_samples.py --require-non-default-salt`, `make generate-paysim-sample-strict`, `validate_paysim_outputs.py --require-non-default-salt`, `make validate-paysim-strict`를 유지하고 `check-data-policy.sh`가 committed sample manifest의 default-local salt source를 실패시킵니다.
+- 검증: strict option fixture test와 `make data-policy-check`로 확인합니다.
+- 남은 한계: full processed output이 없는 CI에서는 strict full validation/sample generation을 실행하지 않습니다.
+
+## V2 Phase 4. Manifest 또는 report에 salt 값 자체가 기록될 수 있는 문제
+
+- 문제: `hashSaltValue`, `saltValue`, `salt`, `rawSalt` 같은 field가 report/manifest에 들어가면 pseudonymization secret이 repository나 logs에 남을 수 있습니다.
+- 원인: salt source와 salt value의 경계가 명확하지 않으면 metadata 확장 중 secret field가 추가될 수 있습니다.
+- 대응: Python validator/sampler의 forbidden salt field scan을 강화하고, data policy check가 sample manifest의 salt value field를 차단합니다. 허용 metadata는 `hashSaltSource`, `hashAlgorithm`, `hashIdPrefixLength`로 제한합니다.
+- 검증: `test_validate_paysim_outputs.py`, `test_generate_paysim_samples.py`, `make data-policy-check`.
+- 남은 한계: Git에 이미 들어간 secret은 이 check만으로 제거되지 않으므로 별도 secret rotation과 history cleanup이 필요합니다.
+
+## V2 Phase 4. Hash ID format이 느슨하면 downstream grouping이 깨질 수 있는 문제
+
+- 문제: `userId`, `accountId`, `destinationAccountId`가 prefix만 맞고 hash 길이/문자 집합이 흔들리면 replay, Kafka key, user grouping, Rule V2 검증이 같은 기준을 공유하지 못합니다.
+- 원인: Phase 3 validator는 `U-`, `A-`, `D-` prefix만 확인했습니다.
+- 대응: validator와 sampler가 `^U-[0-9a-f]{16}$`, `^A-[0-9a-f]{16}$`, `^D-[0-9a-f]{16}$`를 검증하고 preprocessing report에 `HMAC-SHA256`과 prefix length 16을 기록합니다.
+- 검증: invalid prefix, short hash, uppercase hex fixture test를 추가했습니다.
+- 남은 한계: 16 hex prefix는 collision 가능성이 0이 아니므로 Phase 5 replay와 full dataset 검증에서 collision evidence를 별도로 확인합니다.
+
+## V2 Phase 4. Shell data policy가 hashSaltSource까지 막을 수 있는 문제
+
+- 문제: salt leakage scan을 너무 넓게 만들면 정상 manifest field인 `hashSaltSource`까지 차단해 committed sample policy가 실행 불가능해질 수 있습니다.
+- 원인: field name에 `salt`가 포함되어 있다는 이유만으로 모든 salt 관련 key를 차단하면 source metadata와 secret value를 구분하지 못합니다.
+- 대응: shell check는 `hashSaltValue`, `saltValue`, `salt`, `rawSalt` 같은 value field만 차단하고 `hashSaltSource`는 허용합니다. 별도 check로 `hashSaltSource=default-local`만 차단합니다.
+- 검증: committed sample manifest에 `hashSaltSource=env:PAYSIM_HASH_SALT`가 있는 상태에서 `make data-policy-check`를 통과해야 합니다.
+- 남은 한계: shell check는 JSON schema validator가 아니므로 정밀 검증은 Python scripts가 담당합니다.
+
+## V2 Phase 4. Raw identifier leakage regex 오탐 위험
+
+- 문제: raw identifier leakage regex가 너무 넓으면 정상 `trace-paysim-000001`이나 deterministic `eventId`를 raw PaySim identifier로 오탐할 수 있습니다.
+- 원인: 단순 숫자 포함 문자열 또는 모든 대문자/숫자 조합을 차단하면 정상 synthetic event metadata와 충돌합니다.
+- 대응: raw PaySim identifier pattern을 `[CM][0-9]{3,}` 계열로 제한하고, shell check는 주변 문자를 함께 보는 portable regex를 사용합니다.
+- 검증: validation/sample fixture와 committed sample policy check로 정상 eventId/traceId를 허용하면서 `C12345`, `M12345`, `U-C12345`는 차단합니다.
+- 남은 한계: raw identifier와 같은 모양의 다른 텍스트도 차단될 수 있으므로 sample/manifest에는 불필요한 free-form text를 넣지 않습니다.
+
 ### 문제 상황
 
 로컬 Docker Compose 기반 k6 결과는 노트북 CPU, 메모리, Docker resource limit, JVM warmup, Kafka/DB/Redis container 상태에 크게 영향을 받습니다.

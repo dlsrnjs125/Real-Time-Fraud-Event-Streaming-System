@@ -2,7 +2,7 @@
 
 This directory contains V2 PaySim data workflow helpers.
 
-V2 Phase 2 adds local dataset acquisition and preprocessing normalization. It does not implement sampling, replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
+V2 Phase 2 adds local dataset acquisition and preprocessing normalization. V2 Phase 4 hardens identifier hashing and salt policy before replay is implemented. It does not implement replay, Java Rule Engine V2, schema changes, database migrations, or fraud action/case logic.
 
 This repository is primarily a Java/Spring Boot project. Python is used only for V2 PaySim data acquisition and preprocessing helpers. To avoid global `pip install` and local environment drift, data scripts run inside a repository-local virtual environment at `.venv-data`.
 
@@ -79,19 +79,25 @@ Phase 3 does not generate CSV samples because CSV can accidentally preserve raw 
 
 `check-data-policy.sh` also performs lightweight grep-based sample content scans against staged files. This is a Git commit guardrail for common mistakes, not a full JSON schema validator. Structural validation remains the responsibility of `validate_paysim_outputs.py` and `generate_paysim_samples.py`.
 
+Phase 4 additionally blocks a committed `data/samples/paysim-sample-manifest.json` that uses `hashSaltSource=default-local` or salt value fields such as `hashSaltValue`, `saltValue`, `salt`, or `rawSalt`. The field name `hashSaltSource` is allowed because it records provenance without exposing the secret.
+
 ## Identifier Hashing
 
 PaySim is synthetic, but `nameOrig` and `nameDest` look like account identifiers. Treat them as sensitive for repository and logging purposes.
 
-The preprocessing script hashes identifiers before writing replayable events:
+The preprocessing script hashes identifiers before writing replayable events. V2 Phase 4 treats this as a contract, not a best-effort transformation:
 
 ```text
+algorithm = HMAC-SHA256
+hashIdPrefixLength = 16 lowercase hex characters
 userId = U-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
 accountId = A-{hmac_sha256(raw=nameOrig, key=salt).substring(0, 16)}
 destinationAccountId = D-{hmac_sha256(raw=nameDest, key=salt).substring(0, 16)}
 ```
 
-Do not commit a production salt or `.env` file.
+Use the `PAYSIM_HASH_SALT` environment variable for shared or committed sample regeneration. `--hash-salt` exists for local reproducibility, but it can be captured in shell history. `default-local` salt is allowed only for local smoke/debug output.
+
+Do not commit a production salt, local private salt, `.env` file, or report/manifest field that contains the salt value itself. Reports and manifests may record only `hashSaltSource`, `hashAlgorithm`, and `hashIdPrefixLength`.
 
 ## Phase Responsibilities
 
@@ -131,6 +137,7 @@ Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`
 Phase 2 writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay processed output until Phase 5 adds replay-specific safety checks. Atomic temp-file writes are a Phase 5 follow-up.
 
 Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
+Phase 4 enforces this more strongly with `--require-non-default-salt`, `make validate-paysim-strict`, `make generate-paysim-sample-strict`, fixture tests, and data policy checks against committed sample manifests.
 
 ## Validation and Sampling
 
@@ -140,12 +147,21 @@ Validate processed outputs after preprocessing:
 make validate-paysim
 ```
 
+For shared or committed processed outputs, require a non-default salt source:
+
+```bash
+make validate-paysim-strict
+```
+
 The validator checks:
 
 - event/label/rejected/report count consistency
 - eventId join consistency between runtime events and label sidecar
 - label leakage in runtime events
 - raw `nameOrig`, `nameDest`, and PaySim identifier pattern leakage
+- `userId`, `accountId`, and `destinationAccountId` hash ID format
+- report `hashAlgorithm=HMAC-SHA256`, `hashIdPrefixLength=16`, and `hashSaltSource`
+- optional non-default salt policy when `--require-non-default-salt` is used
 - rejected reason allowlist
 - reject ratio threshold
 - report provenance and count fields
@@ -162,13 +178,23 @@ For shared or committed samples, prefer strict salt-source enforcement:
 make generate-paysim-sample-strict
 ```
 
+Strict local regeneration example:
+
+```bash
+export PAYSIM_HASH_SALT="<local-private-salt-for-sample-regeneration>"
+make prepare-paysim-smoke
+make validate-paysim-strict
+make generate-paysim-sample-strict
+make data-policy-check
+```
+
 Generated sample files:
 
 - `data/samples/paysim-events-sample.jsonl`
 - `data/samples/paysim-labels-sample.jsonl`
 - `data/samples/paysim-sample-manifest.json`
 
-The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, and `hashSaltSource`. It must not contain raw identifiers or the salt value itself.
+The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`, and replay collision notes. It must not contain raw identifiers or the salt value itself.
 
 Committed samples prioritize not exposing raw identifiers or salt values. Without the same private salt, byte-for-byte regeneration of the pseudonymized sample is not guaranteed; reproducibility is described through `sourceInputSha256`, the sample manifest, and the generation/validation scripts.
 

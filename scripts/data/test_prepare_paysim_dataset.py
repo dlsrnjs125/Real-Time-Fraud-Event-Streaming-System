@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -69,6 +70,24 @@ class PreparePaySimDatasetTest(unittest.TestCase):
             *extra_args,
         ]
         return subprocess.run(command, text=True, capture_output=True, check=False)
+
+    def run_prepare_without_cli_salt(self, rows, *extra_args, env=None):
+        write_csv(self.input, rows)
+        command = [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--input",
+            str(self.input),
+            "--output-dir",
+            str(self.output_dir),
+            "--force",
+            *extra_args,
+        ]
+        run_env = os.environ.copy()
+        run_env.pop("PAYSIM_HASH_SALT", None)
+        if env:
+            run_env.update(env)
+        return subprocess.run(command, text=True, capture_output=True, check=False, env=run_env)
 
     def base_row(self, **overrides):
         row = {
@@ -140,6 +159,9 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         self.assertEqual(1, report["flaggedFraudRows"])
         self.assertIn("inputSha256", report)
         self.assertIn("events", report["outputFiles"])
+        self.assertEqual("HMAC-SHA256", report["hashAlgorithm"])
+        self.assertEqual(16, report["hashIdPrefixLength"])
+        self.assertEqual("cli", report["hashSaltSource"])
 
     def test_invalid_amount_is_rejected_with_safe_record(self):
         result = self.run_prepare(
@@ -186,6 +208,51 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         event = read_jsonl(self.output_dir / "paysim-events.jsonl")[0]
         self.assertEqual(f"U-{expected}", event["userId"])
         self.assertEqual(f"A-{expected}", event["accountId"])
+        self.assertRegex(event["userId"], r"^U-[0-9a-f]{16}$")
+        self.assertRegex(event["accountId"], r"^A-[0-9a-f]{16}$")
+        self.assertRegex(event["destinationAccountId"], r"^D-[0-9a-f]{16}$")
+
+    def test_hash_ids_are_stable_and_distinguish_different_raw_identifiers(self):
+        result = self.run_prepare(
+            [
+                self.base_row(nameOrig="C123", nameDest="M456"),
+                self.base_row(nameOrig="C123", nameDest="M789", isFraud="0"),
+                self.base_row(nameOrig="C999", nameDest="M456", isFraud="0"),
+            ]
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        events = read_jsonl(self.output_dir / "paysim-events.jsonl")
+        self.assertEqual(events[0]["userId"], events[1]["userId"])
+        self.assertEqual(events[0]["accountId"], events[1]["accountId"])
+        self.assertNotEqual(events[0]["userId"], events[2]["userId"])
+        self.assertEqual(events[0]["destinationAccountId"], events[2]["destinationAccountId"])
+
+    def test_default_local_salt_is_allowed_without_strict_flag(self):
+        result = self.run_prepare_without_cli_salt([self.base_row()])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        report = json.loads((self.output_dir / "paysim-validation-report.json").read_text())
+        self.assertEqual("default-local", report["hashSaltSource"])
+
+    def test_require_non_default_salt_fails_without_salt(self):
+        result = self.run_prepare_without_cli_salt([self.base_row()], "--require-non-default-salt")
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("require-non-default-salt", result.stderr)
+
+    def test_env_salt_source_is_recorded_without_leaking_value(self):
+        result = self.run_prepare_without_cli_salt(
+            [self.base_row()],
+            "--require-non-default-salt",
+            env={"PAYSIM_HASH_SALT": "private-unit-test-salt"},
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        report_text = (self.output_dir / "paysim-validation-report.json").read_text()
+        report = json.loads(report_text)
+        self.assertEqual("env:PAYSIM_HASH_SALT", report["hashSaltSource"])
+        self.assertNotIn("private-unit-test-salt", report_text)
 
     def test_missing_required_column_fails(self):
         with self.input.open("w", encoding="utf-8", newline="") as file:

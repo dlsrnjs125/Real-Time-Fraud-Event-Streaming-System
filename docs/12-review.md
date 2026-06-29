@@ -93,6 +93,45 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - DLT pending/reprocess/discard metric 보강
 - 반복 가능한 scheduled load test 또는 수동 evidence capture 절차 정리
 
+## V2 Phase 4 Review
+
+### 검토한 기준
+
+- generated IDs가 `U-`/`A-`/`D-` + 16 lowercase hex 형식인가
+- 동일 raw identifier는 동일 pseudonym으로 변환되는가
+- 서로 다른 raw identifier는 다른 pseudonym으로 변환되는가
+- report/manifest에 `hashAlgorithm`, `hashIdPrefixLength`가 있는가
+- report/manifest에 salt 값 자체가 없는가
+- committed sample manifest가 `default-local` salt를 사용하지 않는가
+- `data-policy-check`가 default-local sample manifest를 차단하는가
+- `data-policy-check`가 `saltValue`/`hashSaltValue` field를 차단하는가
+- `validate-paysim-strict`가 default-local report를 실패시키는가
+- `generate-paysim-sample-strict`가 default-local report를 실패시키는가
+- CI에서 full preprocessing/replay를 실행하지 않는가
+
+### 반영한 내용
+
+- preprocessing report에 `HMAC-SHA256`, prefix length 16, salt source metadata를 기록하도록 했습니다.
+- validation script가 hash ID format, report hash metadata, strict salt policy를 검증하도록 했습니다.
+- sampling script가 report hash metadata와 sample event hash ID format을 검증하고 manifest에 replay collision note를 남기도록 했습니다.
+- data policy check가 committed sample manifest의 `default-local` salt source와 salt value field를 차단하도록 했습니다.
+- committed sample manifest는 재생성하지 않고 policy metadata만 추가했습니다. event/label sample JSONL은 변경하지 않았습니다.
+
+### 의도적으로 제외한 것
+
+- Kafka replay script 구현
+- app-api 실제 이벤트 주입
+- Java Rule Engine V2 구현
+- DB migration 또는 Kafka topic/schema 변경
+- full Kaggle download/preprocessing을 CI에 추가
+
+### Negative Test 기록
+
+- sample manifest에 `"hashSaltSource": "default-local"` 강제 add 시 `data-policy-check` 실패해야 합니다.
+- sample manifest에 `"saltValue": "..."` 강제 add 시 `data-policy-check` 실패해야 합니다.
+- sample event에 `"isFraud"` 강제 add 시 `data-policy-check` 실패해야 합니다.
+- sample event에 `"nameOrig"` 강제 add 시 `data-policy-check` 실패해야 합니다.
+
 ## 3. 리뷰 질문
 
 1. `userId` partition key로 사용자별 순서가 충분히 보장되는가?

@@ -30,6 +30,7 @@
 19. [V2 PaySim CSV를 replay 가능한 runtime event로 정규화하기](19-v2-paysim-preprocessing-normalization.md)
 20. [V2 PaySim 데이터 Python Toolchain 분리하기](20-v2-data-python-toolchain-bootstrap.md)
 21. [V2 PaySim validation, rejected analysis, safe sampling](21-v2-paysim-validation-rejected-sampling.md)
+22. [V2 PaySim identifier hash policy](22-v2-paysim-identifier-hash-policy.md)
 
 ## 글 구조
 

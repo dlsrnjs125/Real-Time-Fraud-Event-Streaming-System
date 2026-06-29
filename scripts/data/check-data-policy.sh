@@ -48,13 +48,14 @@ check_sample_content() {
 
   case "$file" in
     data/samples/paysim-events-sample.jsonl)
-      check_staged_content "$file" '"(isFraud|isFlaggedFraud|sourceFlaggedFraud|nameOrig|nameDest)"|[CM][0-9]+' "sample event file contains label or raw identifier leakage"
+      check_staged_content "$file" '"(isFraud|isFlaggedFraud|sourceFlaggedFraud|nameOrig|nameDest)"|"[UAD]-[CM][0-9]{3,}"|(^|[^A-Za-z0-9_])[CM][0-9]{3,}([^A-Za-z0-9_]|$)' "sample event file contains label or raw identifier leakage"
       ;;
     data/samples/paysim-labels-sample.jsonl)
-      check_staged_content "$file" '"(nameOrig|nameDest)"|[CM][0-9]+' "sample label file contains raw identifier leakage"
+      check_staged_content "$file" '"(nameOrig|nameDest)"|(^|[^A-Za-z0-9_])[CM][0-9]{3,}([^A-Za-z0-9_]|$)' "sample label file contains raw identifier leakage"
       ;;
     data/samples/paysim-sample-manifest.json)
-      check_staged_content "$file" '"(hashSaltValue|saltValue|nameOrig|nameDest)"|[CM][0-9]+' "sample manifest contains raw identifier or salt leakage"
+      check_staged_content "$file" '"(hashSaltValue|saltValue|salt|rawSalt|nameOrig|nameDest)"|(^|[^A-Za-z0-9_])[CM][0-9]{3,}([^A-Za-z0-9_]|$)' "sample manifest contains raw identifier or salt leakage"
+      check_staged_content "$file" '"hashSaltSource"[[:space:]]*:[[:space:]]*"default-local"' "committed sample manifest must not use default-local salt"
       ;;
   esac
 }

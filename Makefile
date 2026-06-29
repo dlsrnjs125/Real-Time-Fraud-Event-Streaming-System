@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim generate-paysim-sample generate-paysim-sample-strict test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -30,6 +30,7 @@ help:
 	@echo "  make prepare-paysim - Normalize PaySim CSV into processed JSONL"
 	@echo "  make prepare-paysim-smoke - Normalize a limited PaySim subset"
 	@echo "  make validate-paysim - Validate processed PaySim outputs"
+	@echo "  make validate-paysim-strict - Validate PaySim outputs with non-default salt policy"
 	@echo "  make generate-paysim-sample - Generate safe PaySim JSONL samples"
 	@echo "  make test-data-scripts - Run Python data script tests"
 	@echo "  make topics         - Create Kafka topics"
@@ -137,6 +138,9 @@ prepare-paysim-smoke: data-env
 
 validate-paysim: data-env
 	$(DATA_PYTHON) scripts/data/validate_paysim_outputs.py
+
+validate-paysim-strict: data-env
+	$(DATA_PYTHON) scripts/data/validate_paysim_outputs.py --require-non-default-salt
 
 generate-paysim-sample: data-env
 	$(DATA_PYTHON) scripts/data/generate_paysim_samples.py --sample-size 1000 --strategy balanced --force
