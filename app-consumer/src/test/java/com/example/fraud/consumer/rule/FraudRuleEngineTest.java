@@ -29,6 +29,16 @@ class FraudRuleEngineTest {
     ));
 
     @Test
+    void exposesBaselineRuleVersion() {
+        assertThat(FraudRuleVersions.RULE_V2_BASELINE_V1)
+                .isEqualTo("rule-v2-baseline-v1")
+                .startsWith("rule-v2-")
+                .isNotBlank();
+        assertThat(FraudRuleVersions.ACTIVE_RULE_VERSION)
+                .isEqualTo(FraudRuleVersions.RULE_V2_BASELINE_V1);
+    }
+
+    @Test
     void evaluatesLowRiskTransaction() {
         FraudRuleEngineResult result = ruleEngine.evaluate(message(
                 BigDecimal.valueOf(10_000),

@@ -55,6 +55,8 @@ REQUIRED_TOP_LEVEL_FIELDS = {
     "actionDecisionDistribution",
     "operatorWorkloadSummary",
     "riskScoreCoverage",
+    "ruleVersionCoverage",
+    "ruleVersionDistribution",
     "thresholdRegressionReliability",
     "evaluationExcludedRecords",
     "failedRecords",
@@ -157,6 +159,16 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         raise ContractError("unexpected riskScore coverage")
     if report["thresholdRegressionReliability"] != "full_risk_score_coverage":
         raise ContractError("unexpected threshold regression reliability")
+    if report["ruleVersionCoverage"] != {
+        "resultsWithRuleVersion": 2,
+        "resultsWithoutRuleVersion": 0,
+        "coverageRate": 1.0,
+        "coverageScope": "evaluated_results_only",
+        "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
+    }:
+        raise ContractError("unexpected ruleVersion coverage")
+    if report["ruleVersionDistribution"] != {"rule-v2-baseline-v1": 2}:
+        raise ContractError("unexpected ruleVersion distribution")
 
 
 def main() -> int:
@@ -176,8 +188,8 @@ def main() -> int:
         write_jsonl(
             results,
             [
-                {"eventId": "paysim-1", "riskLevel": "HIGH", "riskScore": 80, "ruleCodes": ["BALANCE_DRAIN"]},
-                {"eventId": "paysim-2", "riskLevel": "LOW", "riskScore": 0, "ruleCodes": []},
+                {"eventId": "paysim-1", "riskLevel": "HIGH", "riskScore": 80, "ruleVersion": "rule-v2-baseline-v1", "ruleCodes": ["BALANCE_DRAIN"]},
+                {"eventId": "paysim-2", "riskLevel": "LOW", "riskScore": 0, "ruleVersion": "rule-v2-baseline-v1", "ruleCodes": []},
             ],
         )
         args = SimpleNamespace(

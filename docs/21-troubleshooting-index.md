@@ -73,3 +73,8 @@
 - Final readiness production claim risk: `docs/11-troubleshooting-log.md#v2-phase-10-final-readiness를-production-fraud-성능-보장으로-오해하는-문제`
 - Implemented vs planned wording risk: `docs/11-troubleshooting-log.md#v2-phase-10-implemented-vs-planned-표현이-섞이는-문제`
 - final-check meaning drift: `docs/11-troubleshooting-log.md#v2-phase-10-evidence-command가-늘어나면서-final-check-의미가-불명확해지는-문제`
+- Rule version not connected to consumer baseline: `docs/11-troubleshooting-log.md#v2-phase-11-evaluation-report-ruleversion이-실제-consumer-rule과-연결되지-않는-문제`
+- Rule/threshold version confusion: `docs/11-troubleshooting-log.md#v2-phase-11-ruleversion과-thresholdversion을-섞는-문제`
+- Java/Python version drift: `docs/11-troubleshooting-log.md#v2-phase-11-javapython-version-drift-문제`
+- Per-result ruleVersion overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-11-per-result-ruleversion-없이-이벤트별-rule-consistency를-보장하는-것처럼-말하는-문제`
+- Rule version integration performance overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-11-rule-version-integration을-fraud-성능-개선으로-오해하는-문제`

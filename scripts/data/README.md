@@ -110,6 +110,7 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 7: evaluation evidence command alias and CI-safe verification checks
 - V2 Phase 8: PaySim native type replay contract, mapping policy metadata, and CI-safe native contract check
 - V2 Phase 9: rule/threshold/evaluation policy versioning and fixture-based regression check
+- V2 Phase 11: app-consumer Rule Engine baseline `ruleVersion` contract and Java/Python drift check
 
 ## Command Matrix
 
@@ -126,8 +127,10 @@ These commands do not require raw/full PaySim data, a running app-api, or a loca
 | `make verify-paysim-evaluation-report-contract` | Phase 7 fixture report contract | No | No | No | temp report | required report fields and fixture metrics match |
 | `make verify-paysim-native-replay-contract` | Phase 8 native type contract | No | No | No | temp replay/evaluation reports | mapping policy, type distributions, and unsupported type exclusion match |
 | `make verify-paysim-rule-threshold-regression` | Phase 9 rule/threshold regression contract | No | No | No | temp reports | version fields, threshold fallback, workload, and fixture metrics match |
+| `make verify-paysim-rule-version-contract` | Phase 11 Java/Python ruleVersion contract | No | No | No | terminal result and temp reports | app-consumer baseline rule version matches evaluator policy; mismatched per-result ruleVersion fails |
 | `make verify-v2-phase9` | Aggregated V2 Phase 7/8/9 checks | No | No | No | terminal result | data tests, data policy, and all three verifiers pass |
-| `make final-check` | Representative repository readiness gate | No | No | No | Gradle/Docker/script/test output | Gradle build, Docker config, scripts check, and `verify-v2-phase9` pass |
+| `make verify-v2-phase11` | Aggregated V2 Phase 7/8/9/11 checks | No | No | No | terminal result | data tests, data policy, Phase 7/8/9 verifiers, and ruleVersion contract pass |
+| `make final-check` | Representative repository readiness gate | No | No | No | Gradle/Docker/script/test output | Gradle build, Docker config, scripts check, and `verify-v2-phase11` pass |
 
 ### Local/Manual Commands
 
@@ -384,6 +387,15 @@ make verify-v2-phase9
 
 `make verify-paysim-rule-threshold-regression` verifies fixture metrics, rule/threshold/evaluation policy versions, action workload summary, missing-result policy, and Phase 8 native type compatibility.
 
+For Phase 11 rule version integration checks that do not require full PaySim raw data, local DB exports, or actual app-api replay:
+
+```bash
+make verify-paysim-rule-version-contract
+make verify-v2-phase11
+```
+
+`make verify-paysim-rule-version-contract` checks that the app-consumer baseline version in `FraudRuleVersions.java` matches the evaluator `RULE_VERSION`, that unsupported rule versions fail fast, and that per-result `ruleVersion` values are either matching or reported as missing with a warning.
+
 Local/manual Phase 8 evidence uses an existing detection result export and replay report:
 
 ```bash
@@ -415,7 +427,7 @@ Evaluation rules:
 - Phase 8 separates replay input type distribution from evaluation denominator type distribution. `replayNativeTypeDistribution` is replay-report input scope, while `evaluatedNativeTypeDistribution` is label/result denominator scope.
 - Evaluation reports propagate `mappingMetadataPolicy` and `replayMissingMappingMetadata` from replay reports.
 - Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, `riskScoreCoverage`, `thresholdRegressionReliability`, `reviewCandidateEvents`, `reviewCandidateRate`, `blockedCandidateEvents`, `blockedCandidateRate`, `actionDecisionDistribution`, and `operatorWorkloadSummary`.
-- Current `ruleVersion` is an evaluation evidence policy value. Direct app-consumer Rule Engine version integration remains a follow-up.
+- Phase 11 verifies that contract-level `ruleVersion` matches the app-consumer baseline version. Per-result app-consumer persistence/export of `ruleVersion` remains a follow-up; when detection result rows omit it, the evaluator uses the contract-level version and records a warning.
 - `totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud count inside the evaluation denominator after replay-rejected and missing-result policy is applied.
 - `missedFraudEvents` is denominator-scoped. Missing fraud labels excluded by default are counted in `missingFraudLabels`, not in `missedFraudEvents`.
 - `misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means result rows that do not join to a label. `failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema failures and remain separate from detection quality mismatches. Phase 7 invalid input fails fast before report generation.

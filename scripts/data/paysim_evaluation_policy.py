@@ -1,4 +1,4 @@
-"""PaySim replay evaluation policy/version metadata for Phase 9."""
+"""PaySim replay evaluation policy/version metadata for Phase 9+ contracts."""
 
 from __future__ import annotations
 

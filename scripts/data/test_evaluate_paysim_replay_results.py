@@ -149,6 +149,21 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             },
             report["riskScoreCoverage"],
         )
+        self.assertEqual(
+            {
+                "resultsWithRuleVersion": 0,
+                "resultsWithoutRuleVersion": 2,
+                "coverageRate": 0.0,
+                "coverageScope": "evaluated_results_only",
+                "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
+            },
+            report["ruleVersionCoverage"],
+        )
+        self.assertEqual({}, report["ruleVersionDistribution"])
+        self.assertIn(
+            "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
+            report["warnings"],
+        )
         self.assertEqual("full_risk_score_coverage", report["thresholdRegressionReliability"])
         self.assertEqual(
             {"reviewCandidateRateWithinBudget": False, "blockedCandidateRateWithinBudget": True},
@@ -241,6 +256,55 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])
         with self.assertRaises(evaluate.EvaluationError):
             evaluate.evaluate(self.args(rule_version="rule-v2-baseline-vl"))
+
+    def test_result_rule_version_must_match_contract_rule_version(self):
+        self.write_fixture(
+            [self.label("paysim-1")],
+            [self.result("paysim-1", ruleVersion="rule-v2-drift-v1")],
+        )
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args())
+
+    def test_result_rule_version_coverage_is_reported_when_present(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", False)],
+            [
+                self.result("paysim-1", "HIGH", ruleVersion="rule-v2-baseline-v1"),
+                self.result("paysim-2", "LOW", ruleVersion="rule-v2-baseline-v1"),
+            ],
+        )
+        self.assertEqual(
+            {
+                "resultsWithRuleVersion": 2,
+                "resultsWithoutRuleVersion": 0,
+                "coverageRate": 1.0,
+                "coverageScope": "evaluated_results_only",
+                "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
+            },
+            report["ruleVersionCoverage"],
+        )
+        self.assertEqual({"rule-v2-baseline-v1": 2}, report["ruleVersionDistribution"])
+        self.assertNotIn(
+            "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
+            report["warnings"],
+        )
+
+    def test_mixed_per_result_rule_version_does_not_break_distribution(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", False)],
+            [
+                self.result("paysim-1", "HIGH", ruleVersion="rule-v2-baseline-v1"),
+                self.result("paysim-2", "LOW"),
+            ],
+        )
+        self.assertEqual(1, report["ruleVersionCoverage"]["resultsWithRuleVersion"])
+        self.assertEqual(1, report["ruleVersionCoverage"]["resultsWithoutRuleVersion"])
+        self.assertEqual(0.5, report["ruleVersionCoverage"]["coverageRate"])
+        self.assertEqual({"rule-v2-baseline-v1": 1}, report["ruleVersionDistribution"])
+        self.assertIn(
+            "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
+            report["warnings"],
+        )
 
     def test_threshold_policy_changes_workload_summary(self):
         labels = [self.label("paysim-1", True), self.label("paysim-2", False), self.label("paysim-3", False)]
