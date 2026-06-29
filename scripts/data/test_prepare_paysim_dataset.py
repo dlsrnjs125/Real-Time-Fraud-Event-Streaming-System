@@ -147,12 +147,23 @@ class PreparePaySimDatasetTest(unittest.TestCase):
             {
                 "eventId": "paysim-000000001",
                 "isFraud": True,
+                "normalizedType": "TRANSFER",
                 "sourceFlaggedFraud": False,
                 "sourceStep": 1,
                 "sourceType": "TRANSFER",
+                "typeMappingPolicyVersion": "paysim-native-mapping-v1",
+                "typeSupportLevel": "production-supported",
             },
             labels[0],
         )
+        self.assertEqual("TRANSFER", events[0]["nativeEventType"])
+        self.assertEqual("TRANSFER", events[0]["normalizedEventType"])
+        self.assertEqual("paysim-native-mapping-v1", events[0]["typeMappingPolicyVersion"])
+        self.assertEqual("production-supported", events[0]["typeSupportLevel"])
+        self.assertEqual("CASH_OUT", events[1]["nativeEventType"])
+        self.assertEqual("WITHDRAWAL", events[1]["eventType"])
+        self.assertEqual("WITHDRAWAL", events[1]["normalizedEventType"])
+        self.assertEqual("replay-supported", events[1]["typeSupportLevel"])
         self.assertEqual(2, report["totalRows"])
         self.assertEqual(2, report["acceptedRows"])
         self.assertEqual(1, report["fraudRows"])
@@ -162,6 +173,31 @@ class PreparePaySimDatasetTest(unittest.TestCase):
         self.assertEqual("HMAC-SHA256", report["hashAlgorithm"])
         self.assertEqual(16, report["hashIdPrefixLength"])
         self.assertEqual("cli", report["hashSaltSource"])
+        self.assertEqual("paysim-native-mapping-v1", report["mappingPolicyVersion"])
+        self.assertEqual({"CASH_IN": 0, "CASH_OUT": 1, "DEBIT": 0, "PAYMENT": 0, "TRANSFER": 1}, report["nativeTypeDistribution"])
+        self.assertEqual({"TRANSFER": 1, "WITHDRAWAL": 1}, report["normalizedTypeDistribution"])
+        self.assertEqual({"production-supported": 1, "replay-supported": 1}, report["typeSupportLevelDistribution"])
+        self.assertEqual({}, report["excludedByType"])
+
+    def test_cash_in_maps_to_deposit_for_replay(self):
+        result = self.run_prepare([self.base_row(type="CASH_IN", isFraud="0")])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        event = read_jsonl(self.output_dir / "paysim-events.jsonl")[0]
+        self.assertEqual("CASH_IN", event["nativeEventType"])
+        self.assertEqual("DEPOSIT", event["eventType"])
+        self.assertEqual("replay-supported", event["typeSupportLevel"])
+
+    def test_debit_is_explicitly_rejected_by_mapping_policy(self):
+        result = self.run_prepare([self.base_row(type="DEBIT", isFraud="0")])
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        events = read_jsonl(self.output_dir / "paysim-events.jsonl")
+        rejected = read_jsonl(self.output_dir / "paysim-rejected.jsonl")
+        report = json.loads((self.output_dir / "paysim-validation-report.json").read_text())
+        self.assertEqual([], events)
+        self.assertEqual("UNSUPPORTED_NATIVE_TYPE:DEBIT", rejected[0]["reason"])
+        self.assertEqual({"DEBIT": 1}, report["excludedByType"])
 
     def test_invalid_amount_is_rejected_with_safe_record(self):
         result = self.run_prepare(

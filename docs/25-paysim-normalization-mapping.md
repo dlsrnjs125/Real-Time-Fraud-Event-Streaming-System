@@ -6,7 +6,7 @@
 
 V2의 핵심은 PaySim 데이터를 단순히 보관하는 것이 아니라, Kafka event로 replay 가능한 입력으로 바꾸는 것입니다.
 
-V2 Phase 2에서 `scripts/data/prepare_paysim_dataset.py`가 이 mapping의 첫 구현을 제공합니다. sample generation, API replay, Rule Engine V2 구현은 후속 Phase로 남깁니다.
+V2 Phase 2에서 `scripts/data/prepare_paysim_dataset.py`가 이 mapping의 첫 구현을 제공합니다. V2 Phase 8에서는 PaySim native type을 production API enum에 그대로 추가하지 않고, replay/evaluation 전용 mapping contract로 분리했습니다.
 
 ## 2. PaySim Input Columns
 
@@ -84,7 +84,7 @@ PaySim label은 runtime event와 물리적으로 분리합니다.
 | PaySim column | V2 normalized field | Notes |
 |---|---|---|
 | `step` | `eventTime`, `balanceFeatures.sourceStep` | 기준 시작 시각 + step hour |
-| `type` | `eventType` | 기존 enum과 호환 필요 |
+| `type` | `eventType`, `nativeEventType`, `normalizedEventType`, `typeSupportLevel`, `typeMappingPolicyVersion` | Phase 8 mapping policy 적용 |
 | `amount` | `amount` | `BigDecimal`로 처리 |
 | `nameOrig` | `userId` | user-based Kafka key 유지 |
 | `nameOrig` | `accountId` | `ACC-` prefix 적용 가능 |
@@ -96,7 +96,29 @@ PaySim label은 runtime event와 물리적으로 분리합니다.
 | `isFraud` | `paysim-labels.jsonl.isFraud` | 평가용 sidecar. runtime event에 포함 금지 |
 | `isFlaggedFraud` | `paysim-labels.jsonl.sourceFlaggedFraud` | 평가용 sidecar. runtime event에 포함 금지 |
 
-## 4.1 Output Files
+## 4.1 PaySim Native Type Mapping Policy
+
+Phase 8 mapping policy version:
+
+```text
+paysim-native-mapping-v1
+```
+
+| PaySim native type | Runtime `eventType` | `nativeEventType` | `normalizedEventType` | `typeSupportLevel` | Policy |
+|---|---|---|---|---|---|
+| `PAYMENT` | `PAYMENT` | `PAYMENT` | `PAYMENT` | `production-supported` | current production semantics |
+| `TRANSFER` | `TRANSFER` | `TRANSFER` | `TRANSFER` | `production-supported` | current production semantics |
+| `CASH_OUT` | `WITHDRAWAL` | `CASH_OUT` | `WITHDRAWAL` | `replay-supported` | replay/evaluation mapping with semantic loss |
+| `CASH_IN` | `DEPOSIT` | `CASH_IN` | `DEPOSIT` | `replay-supported` | replay/evaluation mapping with semantic loss |
+| `DEBIT` | rejected | `DEBIT` | - | `unsupported` | rejected as `UNSUPPORTED_NATIVE_TYPE:DEBIT` |
+
+Phase 8 does not add `CASH_OUT`, `CASH_IN`, or `DEBIT` to the Java `TransactionEventType` enum. The production API continues to receive the normalized `eventType`; PaySim-specific mapping metadata stays in JSONL files and replay/evaluation reports.
+
+`CASH_OUT -> WITHDRAWAL` and `CASH_IN -> DEPOSIT` are replay-supported mappings, not claims that the production API has first-class cash-out or cash-in transaction semantics.
+
+See also: `docs/32-v2-paysim-native-replay-contract.md`.
+
+## 4.2 Output Files
 
 V2 preprocessing script는 정상 결과만 만들지 않습니다. rejected row와 validation report를 함께 만들어야 전처리 결과를 신뢰할 수 있습니다.
 
@@ -138,7 +160,7 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
 
 ```json
 {
-  "scriptVersion": "v2-phase-4",
+  "scriptVersion": "v2-phase-8",
   "datasetSlug": "ealaxi/paysim1",
   "rawFileName": "PS_20174392719_1491204439457_log.csv",
   "inputPath": "data/raw/PS_20174392719_1491204439457_log.csv",
@@ -151,13 +173,28 @@ Rejected row에는 `nameOrig`, `nameDest`, raw row 전체를 저장하지 않습
   "rejectedRows": "TBD",
   "fraudRows": "TBD",
   "flaggedFraudRows": "TBD",
-  "eventTypeCounts": {
+  "nativeTypeDistribution": {
     "PAYMENT": "TBD",
     "TRANSFER": "TBD",
     "CASH_OUT": "TBD",
     "CASH_IN": "TBD",
     "DEBIT": "TBD"
   },
+  "normalizedTypeDistribution": {
+    "PAYMENT": "TBD",
+    "TRANSFER": "TBD",
+    "WITHDRAWAL": "TBD",
+    "DEPOSIT": "TBD"
+  },
+  "typeSupportLevelDistribution": {
+    "production-supported": "TBD",
+    "replay-supported": "TBD",
+    "unsupported": "TBD"
+  },
+  "excludedByType": {
+    "DEBIT": "TBD"
+  },
+  "typeMappingPolicyVersion": "paysim-native-mapping-v1",
   "hashAlgorithm": "HMAC-SHA256",
   "hashIdPrefixLength": 16,
   "hashSaltSource": "default-local",
@@ -261,7 +298,7 @@ V2 초기 구현은 Rule V2가 balance 기반 feature를 안정적으로 읽을 
 - `TransactionBalanceFeatures`에는 PaySim label이나 source flag를 포함하지 않습니다.
 - field 이름은 PaySim 전용이 아니라 balance 기반 rule 입력임을 드러내는 이름을 사용합니다.
 - JSON field 이름은 `sourceStep`으로 통일합니다. `step`은 PaySim raw column 이름으로만 사용합니다.
-- `TransactionEventType` enum에는 PaySim type인 `CASH_OUT`, `CASH_IN`, `DEBIT`를 추가합니다. Rule V2에서 `CASH_OUT` 구분이 필요하므로 기존 type으로 강제 normalize하지 않습니다.
+- Phase 8 기준 `TransactionEventType` enum에는 PaySim type인 `CASH_OUT`, `CASH_IN`, `DEBIT`를 추가하지 않습니다. Native type은 `nativeEventType`과 report distribution으로 보존하고, app-api replay에는 normalized `eventType`만 보냅니다.
 - `currency`는 `KRW`를 사용하고 PaySim 출처는 `source=PAYSIM`으로 보존합니다.
 
 후보 Java contract:
@@ -298,6 +335,7 @@ public record TransactionBalanceFeatures(
 - `amount >= 0`
 - `step >= 0`
 - `type in PAYMENT, TRANSFER, CASH_OUT, CASH_IN, DEBIT`
+- unsupported native type은 explicit rejected reason으로 기록
 - `nameOrig` not blank
 - `nameDest` not blank
 - balance fields parseable
@@ -414,7 +452,10 @@ data/samples/paysim-sample-manifest.json
 
 - runtime event 필수 field와 `balanceFeatures` field 존재
 - `eventId`, `traceId` 중복 없음
-- `eventType`은 `TRANSFER`, `CASH_OUT`, `PAYMENT`, `CASH_IN`, `DEBIT` 중 하나
+- `eventType`은 current API enum과 호환되는 normalized type입니다. Phase 8 기준 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 runtime replay type으로 사용합니다.
+- `nativeEventType`은 원본 PaySim type을 기록합니다.
+- `normalizedEventType`은 `eventType`과 같아야 합니다.
+- `typeMappingPolicyVersion=paysim-native-mapping-v1`이어야 합니다.
 - `amount`와 balance field는 finite Decimal 문자열
 - `currency=KRW`, `source=PAYSIM`, `schemaVersion=v2-paysim`
 - `eventTime`은 UTC ISO-8601 형식
@@ -545,13 +586,13 @@ Event type policy:
 
 - 기본값은 `--event-type-policy current-api`입니다.
 - current app-api enum은 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 지원합니다.
-- PaySim native type인 `CASH_OUT`, `CASH_IN`, `DEBIT`은 Phase 5에서 Java DTO를 변경하지 않는다는 범위 때문에 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
-- `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
-- `preserve` mode에서는 native type을 사전 rejected로 집계하지 않으며, current API가 거부하면 HTTP 4xx/client error로 기록됩니다.
+- Phase 8 preprocessing은 `CASH_OUT -> WITHDRAWAL`, `CASH_IN -> DEPOSIT`으로 normalized `eventType`을 생성하고, `DEBIT`는 `UNSUPPORTED_NATIVE_TYPE:DEBIT`로 제외합니다.
+- Replay validation은 `nativeEventType`을 기준으로 mapping policy를 다시 계산합니다. `nativeEventType=DEBIT`를 `eventType=DEPOSIT`처럼 위장한 row는 HTTP 전송 전에 rejected 처리합니다.
+- `--event-type-policy preserve`는 dry-run only contract inspection mode입니다. Current app-api actual replay에는 사용하지 않습니다.
 
-Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 V2 Phase 8 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+Phase 8 replay는 current app-api DTO 기준을 유지합니다. PaySim native type의 의미는 `nativeEventType`, `normalizedEventType`, `typeSupportLevel`, `typeMappingPolicyVersion`으로 보존하고, HTTP body에는 current API가 지원하는 normalized `eventType`만 보냅니다.
 
-Native PaySim event type replay is postponed because V2 Phase 7 focuses on evaluation report evidence, not API DTO expansion. Accepting native event types changes the API contract and rule semantics, so it should be reviewed as a separate phase.
+Accepting PaySim native values directly in the production API would change the API contract and rule semantics. Phase 8 intentionally keeps that decision out of the Java enum.
 
 금지:
 
@@ -592,7 +633,11 @@ Report 해석 기준:
 - `httpSuccess`, `httpDuplicateOrConflict`, `httpClientError`, `httpServerError`, `timeout`, `connectionError`는 event-level final outcome입니다.
 - Retry 중간 attempt는 `retryTimeoutAttempts`, `retryServerErrorAttempts`, `retryConnectionErrorAttempts`에 별도로 기록합니다.
 - 기본 retry 대상은 timeout과 5xx입니다. Connection error retry는 `--retry-connection-error`를 명시한 경우에만 수행합니다.
-- `unsupportedEventTypes`는 current app-api enum 기준으로 HTTP 전송 전에 rejected 처리한 PaySim eventType count입니다.
+- `unsupportedEventTypes`는 current app-api enum 또는 native mapping policy 기준으로 HTTP 전송 전에 rejected 처리한 type count입니다.
+- `inputNativeTypeDistribution`, `inputNormalizedTypeDistribution`은 validation 전 input scope입니다.
+- `acceptedNativeTypeDistribution`, `acceptedNormalizedTypeDistribution`, `acceptedTypeSupportLevelDistribution`은 validation 통과 후 replay payload scope입니다.
+- `rejectedNativeTypeDistribution`, `rejectedNormalizedTypeDistribution`, `excludedByType`은 rejected/excluded scope입니다.
+- Compatibility alias인 `nativeTypeDistribution`은 input scope, `normalizedTypeDistribution`은 accepted scope로 유지하며 `nativeTypeDistributionSource`, `normalizedTypeDistributionSource`에 source를 명시합니다.
 - Invalid JSONL parse failure는 report의 row-level `payloadRejected`가 아니라 script-level input corruption failure로 봅니다.
 
 ## 12. Replay Result Evaluation Contract

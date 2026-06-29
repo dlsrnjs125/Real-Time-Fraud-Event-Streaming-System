@@ -110,6 +110,7 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 5: replay pipeline
 - V2 Phase 6: replay result evaluation baseline
 - V2 Phase 7: evaluation evidence command alias and CI-safe verification checks
+- V2 Phase 8: PaySim native type replay contract, mapping policy metadata, and CI-safe native contract check
 
 ## Preprocessing
 
@@ -268,9 +269,14 @@ Replay rules:
 - Replay payloads never include `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`.
 - `X-Trace-Id` is populated from the PaySim event `traceId`.
 - Fields not accepted by the current app-api DTO, such as `balanceFeatures`, `source`, `schemaVersion`, and `destinationAccountId`, are omitted and counted in `droppedFields`.
-- The default `--event-type-policy current-api` rejects PaySim native types that the current app-api enum does not support, such as `CASH_OUT`, `CASH_IN`, and `DEBIT`, before HTTP requests are sent.
-- `--event-type-policy preserve` keeps native PaySim event types for future API/Rule V2 compatibility checks, but current app-api actual replay may return validation errors for unsupported types.
-- In `preserve` mode, native PaySim types are not counted in `unsupportedEventTypes` before HTTP; if the current API rejects them, they are recorded as HTTP 4xx/client errors.
+- Phase 8 preprocessing writes `eventType` as the internal normalized type and preserves the original PaySim type in `nativeEventType`.
+- Phase 8 mapping metadata fields are `nativeEventType`, `normalizedEventType`, `typeSupportLevel`, and `typeMappingPolicyVersion`.
+- Mapping policy `paysim-native-mapping-v1` keeps `PAYMENT` and `TRANSFER` as production-supported, maps `CASH_OUT -> WITHDRAWAL` and `CASH_IN -> DEPOSIT` as replay-supported, and rejects `DEBIT` as unsupported.
+- Replay validation recomputes the mapping from `nativeEventType` and rejects mismatched `eventType`, `normalizedEventType`, or `typeSupportLevel`. For example, `nativeEventType=DEBIT` cannot be smuggled into the API as `eventType=DEPOSIT`.
+- If any native mapping metadata is present, `typeMappingPolicyVersion` is required and must equal `paysim-native-mapping-v1`.
+- Legacy PaySim rows without mapping metadata are still accepted for compatibility, but replay reports count them in `missingMappingMetadata` under `mappingMetadataPolicy=required_for_phase8_paysim_native_contract`.
+- The default `--event-type-policy current-api` validates that the HTTP body only uses current app-api enum values. Unsupported values are rejected before HTTP requests are sent.
+- `--event-type-policy preserve` is dry-run only and reserved for contract inspection. It must not be used against current app-api actual replay.
 - `idempotency-mode=preserve` keeps original `eventId` values and is useful for duplicate/idempotency checks.
 - `idempotency-mode=prefix` requires `--event-id-prefix` and avoids collisions when mixing datasets or replaying into the same API/database repeatedly.
 - `--rate-per-second` limits request pace; avoid unbounded replay against local Kafka/PostgreSQL.
@@ -322,6 +328,26 @@ make verify-v2-phase7
 
 This target runs fixture-based data script tests, data policy checks, and `verify_paysim_evaluation_report_contract.py`, which creates a temporary report and verifies required Phase 7 report fields.
 
+For Phase 8 native type replay contract checks that do not require full PaySim raw data, local DB exports, or actual app-api replay:
+
+```bash
+make verify-paysim-native-replay-contract
+make verify-v2-phase8
+```
+
+`make verify-paysim-native-replay-contract` creates temporary fixture events and verifies that mapping metadata, input/accepted/rejected type distributions, unsupported-type exclusion, evaluated denominator type distribution, and evaluation report propagation remain intact.
+
+`make verify-v2-phase8` runs fixture data tests, data policy checks, Phase 7 evaluation report contract verification, and the Phase 8 native replay contract verification.
+
+Local/manual Phase 8 evidence uses an existing detection result export and replay report:
+
+```bash
+make evaluate-paysim-native-replay
+make v2-phase8-evidence
+```
+
+These commands do not create the DB export by themselves. They require local `data/processed/paysim-detection-results.jsonl` and relevant replay/evaluation inputs.
+
 Detection result export contract:
 
 ```json
@@ -339,7 +365,11 @@ Evaluation rules:
 - Detection results that do not match any label eventId are not used in metrics. The report records `matchedResults` and `unmatchedResults`, and warns when result ids appear mismatched.
 - Evaluation reports are written under `data/processed`, defaulting to `data/processed/paysim-evaluation-report.json`, and must not be committed.
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
+- Phase 8 separates replay input type distribution from evaluation denominator type distribution. `replayNativeTypeDistribution` is replay-report input scope, while `evaluatedNativeTypeDistribution` is label/result denominator scope.
+- Evaluation reports propagate `mappingMetadataPolicy` and `replayMissingMappingMetadata` from replay reports.
+- `ruleVersion` and `thresholdVersion` are present as `null` placeholders in Phase 8. They are filled by later Rule V2 evidence work.
 - `totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud count inside the evaluation denominator after replay-rejected and missing-result policy is applied.
 - `missedFraudEvents` is denominator-scoped. Missing fraud labels excluded by default are counted in `missingFraudLabels`, not in `missedFraudEvents`.
 - `misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means result rows that do not join to a label. `failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema failures and remain separate from detection quality mismatches. Phase 7 invalid input fails fast before report generation.
 - CI runs fixture tests only. Actual DB/API export evaluation is local-only and requires a prepared `data/processed/paysim-detection-results.jsonl`.
+- Phase 8 mapping report fields are contract metadata. They explain the denominator and type semantics; they are not production fraud performance guarantees.

@@ -93,6 +93,43 @@ class ReplayPaySimEventsTest(unittest.TestCase):
         self.assertEqual(1, dropped["schemaVersion"])
         self.assertEqual(1, dropped["destinationAccountId"])
 
+    def test_native_mapping_fields_are_reported_for_dry_run(self):
+        write_jsonl(
+            self.input,
+            [
+                self.event(
+                    eventType="WITHDRAWAL",
+                    nativeEventType="CASH_OUT",
+                    normalizedEventType="WITHDRAWAL",
+                    typeSupportLevel="replay-supported",
+                    typeMappingPolicyVersion="paysim-native-mapping-v1",
+                )
+            ],
+        )
+
+        report = replay.replay(self.args(dry_run=True))
+
+        self.assertEqual(1, report["payloadAccepted"])
+        self.assertEqual("paysim-native-mapping-v1", report["mappingPolicyVersion"])
+        self.assertEqual({"paysim-native-mapping-v1": 1}, report["mappingPolicyVersions"])
+        self.assertEqual({"CASH_OUT": 1}, report["nativeTypeDistribution"])
+        self.assertEqual({"WITHDRAWAL": 1}, report["normalizedTypeDistribution"])
+        self.assertEqual({"replay-supported": 1}, report["typeSupportLevelDistribution"])
+        self.assertEqual({"CASH_OUT": 1}, report["inputNativeTypeDistribution"])
+        self.assertEqual({"WITHDRAWAL": 1}, report["acceptedNormalizedTypeDistribution"])
+        self.assertEqual({}, report["rejectedNativeTypeDistribution"])
+        self.assertEqual({}, report["excludedByType"])
+        self.assertEqual("required_for_phase8_paysim_native_contract", report["mappingMetadataPolicy"])
+        self.assertEqual(0, report["missingMappingMetadata"])
+
+    def test_paysim_row_without_mapping_metadata_is_counted(self):
+        write_jsonl(self.input, [self.event()])
+
+        report = replay.replay(self.args(dry_run=True))
+
+        self.assertEqual(1, report["payloadAccepted"])
+        self.assertEqual(1, report["missingMappingMetadata"])
+
     def assert_validation_fails(self, event, reason):
         with self.assertRaises(replay.PayloadValidationError) as context:
             replay.to_api_request(event, self.args(), replay.Counter())
@@ -117,6 +154,52 @@ class ReplayPaySimEventsTest(unittest.TestCase):
     def test_unsupported_current_api_event_type_fails_before_http(self):
         self.assert_validation_fails(self.event(eventType="CASH_OUT"), "UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API")
 
+    def test_normalized_event_type_mismatch_fails_validation(self):
+        self.assert_validation_fails(
+            self.event(
+                eventType="TRANSFER",
+                nativeEventType="CASH_OUT",
+                normalizedEventType="WITHDRAWAL",
+                typeMappingPolicyVersion="paysim-native-mapping-v1",
+            ),
+            "NATIVE_MAPPING_MISMATCH:CASH_OUT->TRANSFER",
+        )
+
+    def test_debit_native_type_cannot_be_smuggled_as_deposit(self):
+        self.assert_validation_fails(
+            self.event(
+                eventType="DEPOSIT",
+                nativeEventType="DEBIT",
+                normalizedEventType="DEPOSIT",
+                typeSupportLevel="replay-supported",
+                typeMappingPolicyVersion="paysim-native-mapping-v1",
+            ),
+            "UNSUPPORTED_NATIVE_TYPE:DEBIT",
+        )
+
+    def test_native_mapping_requires_policy_version(self):
+        self.assert_validation_fails(
+            self.event(
+                eventType="WITHDRAWAL",
+                nativeEventType="CASH_OUT",
+                normalizedEventType="WITHDRAWAL",
+                typeSupportLevel="replay-supported",
+            ),
+            "UNSUPPORTED_MAPPING_POLICY_VERSION",
+        )
+
+    def test_type_support_level_mismatch_fails_validation(self):
+        self.assert_validation_fails(
+            self.event(
+                eventType="WITHDRAWAL",
+                nativeEventType="CASH_OUT",
+                normalizedEventType="WITHDRAWAL",
+                typeSupportLevel="production-supported",
+                typeMappingPolicyVersion="paysim-native-mapping-v1",
+            ),
+            "TYPE_SUPPORT_LEVEL_MISMATCH:CASH_OUT",
+        )
+
     def test_non_positive_amount_fails_replay_validation(self):
         self.assert_validation_fails(self.event(amount="0"), "INVALID_AMOUNT")
         self.assert_validation_fails(self.event(amount="-1"), "INVALID_AMOUNT")
@@ -128,6 +211,11 @@ class ReplayPaySimEventsTest(unittest.TestCase):
             replay.Counter(),
         )
         self.assertEqual("CASH_OUT", payload["eventType"])
+
+    def test_event_type_policy_preserve_is_dry_run_only(self):
+        with self.assertRaises(replay.ReplayError):
+            replay.validate_args(self.args(event_type_policy="preserve", dry_run=False))
+        replay.validate_args(self.args(event_type_policy="preserve", dry_run=True))
 
     def test_idempotency_preserve_keeps_event_id(self):
         payload, _trace_id = replay.to_api_request(self.event(), self.args(idempotency_mode="preserve"), replay.Counter())
@@ -198,6 +286,9 @@ class ReplayPaySimEventsTest(unittest.TestCase):
         report = replay.replay(self.args(dry_run=True))
         self.assertEqual(1, report["payloadRejected"])
         self.assertEqual({"CASH_OUT": 1}, report["unsupportedEventTypes"])
+        self.assertEqual({"CASH_OUT": 1}, report["excludedByType"])
+        self.assertEqual({"CASH_OUT": 1}, report["rejectedNativeTypeDistribution"])
+        self.assertEqual({}, report["acceptedNativeTypeDistribution"])
 
     def test_retry_success_keeps_final_outcome_event_level(self):
         write_jsonl(self.input, [self.event()])

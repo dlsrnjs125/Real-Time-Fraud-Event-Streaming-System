@@ -19,8 +19,10 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from paysim_native_type_mapping import MAPPING_POLICY_VERSION, mapping_for
 
-SCRIPT_VERSION = "v2-phase-5"
+
+SCRIPT_VERSION = "v2-phase-8"
 DEFAULT_INPUT = Path("data/samples/paysim-events-sample.jsonl")
 DEFAULT_ENDPOINT = "http://localhost:8080/api/v1/transactions/events"
 DEFAULT_REPORT_OUTPUT = Path("data/processed/paysim-replay-report.json")
@@ -82,8 +84,20 @@ class ReplayStats:
     retry_timeout_attempts: int = 0
     retry_server_error_attempts: int = 0
     retry_connection_error_attempts: int = 0
+    missing_mapping_metadata: int = 0
     dropped_fields: Counter[str] = field(default_factory=Counter)
     unsupported_event_types: Counter[str] = field(default_factory=Counter)
+    input_native_type_distribution: Counter[str] = field(default_factory=Counter)
+    input_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
+    input_type_support_level_distribution: Counter[str] = field(default_factory=Counter)
+    accepted_native_type_distribution: Counter[str] = field(default_factory=Counter)
+    accepted_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
+    accepted_type_support_level_distribution: Counter[str] = field(default_factory=Counter)
+    rejected_native_type_distribution: Counter[str] = field(default_factory=Counter)
+    rejected_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
+    rejected_type_support_level_distribution: Counter[str] = field(default_factory=Counter)
+    excluded_by_type: Counter[str] = field(default_factory=Counter)
+    mapping_policy_versions: Counter[str] = field(default_factory=Counter)
     sample_event_ids: list[str] = field(default_factory=list)
     failures: list[FailureRecord] = field(default_factory=list)
 
@@ -140,6 +154,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ReplayError("--event-id-prefix requires --idempotency-mode prefix")
     if args.report_output.exists() and not args.force:
         raise ReplayError(f"report output already exists. Use --force: {args.report_output}")
+    if args.event_type_policy == "preserve" and not args.dry_run:
+        raise ReplayError("--event-type-policy preserve is dry-run only for contract inspection")
 
 
 def read_jsonl(path: Path):
@@ -196,6 +212,7 @@ def validate_event(event: dict[str, Any], event_type_policy: str = "current-api"
         raise PayloadValidationError("INVALID_TRACE_ID", event_id=event_id)
     if not isinstance(event["eventType"], str) or not event["eventType"]:
         raise PayloadValidationError("INVALID_EVENT_TYPE", event_id=event_id)
+    validate_native_mapping(event)
     if event_type_policy == "current-api" and event["eventType"] not in CURRENT_API_EVENT_TYPES:
         raise PayloadValidationError(f"UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:{event['eventType']}", event_id=event_id)
     if event["currency"] != "KRW":
@@ -208,6 +225,30 @@ def validate_event(event: dict[str, Any], event_type_policy: str = "current-api"
         raise PayloadValidationError("INVALID_AMOUNT", event_id=event_id)
     if not isinstance(event["eventTime"], str) or not event["eventTime"]:
         raise PayloadValidationError("INVALID_EVENT_TIME", event_id=event_id)
+
+
+def validate_native_mapping(event: dict[str, Any]) -> None:
+    has_mapping_metadata = any(
+        key in event
+        for key in ("nativeEventType", "normalizedEventType", "typeSupportLevel", "typeMappingPolicyVersion")
+    )
+    if not has_mapping_metadata:
+        return
+    event_id = event_id_from(event)
+    if event.get("typeMappingPolicyVersion") != MAPPING_POLICY_VERSION:
+        raise PayloadValidationError(f"UNSUPPORTED_MAPPING_POLICY_VERSION:{event.get('typeMappingPolicyVersion')}", event_id=event_id)
+    native_type = event.get("nativeEventType")
+    if not isinstance(native_type, str) or not native_type:
+        raise PayloadValidationError("INVALID_NATIVE_EVENT_TYPE", event_id=event_id)
+    mapping = mapping_for(native_type)
+    if mapping.normalized_type is None or mapping.support_level == "unsupported":
+        raise PayloadValidationError(mapping.excluded_reason or f"UNSUPPORTED_NATIVE_TYPE:{native_type}", event_id=event_id)
+    if event.get("eventType") != mapping.normalized_type:
+        raise PayloadValidationError(f"NATIVE_MAPPING_MISMATCH:{native_type}->{event.get('eventType')}", event_id=event_id)
+    if event.get("normalizedEventType") != mapping.normalized_type:
+        raise PayloadValidationError(f"NORMALIZED_EVENT_TYPE_MISMATCH:{native_type}", event_id=event_id)
+    if event.get("typeSupportLevel") != mapping.support_level:
+        raise PayloadValidationError(f"TYPE_SUPPORT_LEVEL_MISMATCH:{native_type}", event_id=event_id)
 
 
 def replay_event_id(event_id: str, idempotency_mode: str, event_id_prefix: str | None) -> str:
@@ -381,6 +422,27 @@ def build_report(args: argparse.Namespace, stats: ReplayStats, started_at: str, 
         "retryTimeoutAttempts": stats.retry_timeout_attempts,
         "retryServerErrorAttempts": stats.retry_server_error_attempts,
         "retryConnectionErrorAttempts": stats.retry_connection_error_attempts,
+        "mappingMetadataPolicy": "required_for_phase8_paysim_native_contract",
+        "missingMappingMetadata": stats.missing_mapping_metadata,
+        "mappingPolicyVersion": MAPPING_POLICY_VERSION,
+        "mappingPolicyVersions": dict(sorted(stats.mapping_policy_versions.items())),
+        "typeDistributionScope": "split_input_accepted_rejected",
+        "nativeTypeDistributionSource": "input_rows_before_payload_validation",
+        "normalizedTypeDistributionSource": "accepted_payloads_after_validation",
+        "typeSupportLevelDistributionSource": "accepted_payloads_after_validation",
+        "nativeTypeDistribution": dict(sorted(stats.input_native_type_distribution.items())),
+        "normalizedTypeDistribution": dict(sorted(stats.accepted_normalized_type_distribution.items())),
+        "typeSupportLevelDistribution": dict(sorted(stats.accepted_type_support_level_distribution.items())),
+        "inputNativeTypeDistribution": dict(sorted(stats.input_native_type_distribution.items())),
+        "inputNormalizedTypeDistribution": dict(sorted(stats.input_normalized_type_distribution.items())),
+        "inputTypeSupportLevelDistribution": dict(sorted(stats.input_type_support_level_distribution.items())),
+        "acceptedNativeTypeDistribution": dict(sorted(stats.accepted_native_type_distribution.items())),
+        "acceptedNormalizedTypeDistribution": dict(sorted(stats.accepted_normalized_type_distribution.items())),
+        "acceptedTypeSupportLevelDistribution": dict(sorted(stats.accepted_type_support_level_distribution.items())),
+        "rejectedNativeTypeDistribution": dict(sorted(stats.rejected_native_type_distribution.items())),
+        "rejectedNormalizedTypeDistribution": dict(sorted(stats.rejected_normalized_type_distribution.items())),
+        "rejectedTypeSupportLevelDistribution": dict(sorted(stats.rejected_type_support_level_distribution.items())),
+        "excludedByType": dict(sorted(stats.excluded_by_type.items())),
         "durationSeconds": round(duration_seconds, 6),
         "eventsPerSecond": round(events_per_second, 6),
         "droppedFields": dict(sorted(stats.dropped_fields.items())),
@@ -411,18 +473,49 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
         stats.total_read += 1
         event_id = event_id_from(event)
         try:
+            if is_paysim_event(event) and not has_mapping_metadata(event):
+                stats.missing_mapping_metadata += 1
+            native_type = event.get("nativeEventType", event.get("eventType"))
+            if isinstance(native_type, str) and native_type:
+                stats.input_native_type_distribution[native_type] += 1
+            normalized_type = event.get("normalizedEventType", event.get("eventType"))
+            if isinstance(normalized_type, str) and normalized_type:
+                stats.input_normalized_type_distribution[normalized_type] += 1
+            support_level = event.get("typeSupportLevel")
+            if isinstance(support_level, str) and support_level:
+                stats.input_type_support_level_distribution[support_level] += 1
+            mapping_version = event.get("typeMappingPolicyVersion")
+            if isinstance(mapping_version, str) and mapping_version:
+                stats.mapping_policy_versions[mapping_version] += 1
             payload, trace_id = to_api_request(event, args, stats.dropped_fields)
         except PayloadValidationError as exc:
             stats.payload_rejected += 1
+            if isinstance(native_type, str) and native_type:
+                stats.rejected_native_type_distribution[native_type] += 1
+            if isinstance(normalized_type, str) and normalized_type:
+                stats.rejected_normalized_type_distribution[normalized_type] += 1
+            if isinstance(support_level, str) and support_level:
+                stats.rejected_type_support_level_distribution[support_level] += 1
             if exc.reason.startswith("UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:"):
                 event_type = exc.reason.split(":", 1)[1]
                 stats.unsupported_event_types[event_type] += 1
+                stats.excluded_by_type[event_type] += 1
+            elif exc.reason.startswith("UNSUPPORTED_NATIVE_TYPE:"):
+                event_type = exc.reason.split(":", 1)[1]
+                stats.unsupported_event_types[event_type] += 1
+                stats.excluded_by_type[event_type] += 1
             stats.add_failure(row_number, exc.reason, exc.event_id or event_id)
             if args.stop_on_error:
                 break
             continue
 
         stats.payload_accepted += 1
+        if isinstance(native_type, str) and native_type:
+            stats.accepted_native_type_distribution[native_type] += 1
+        if isinstance(normalized_type, str) and normalized_type:
+            stats.accepted_normalized_type_distribution[normalized_type] += 1
+        if isinstance(support_level, str) and support_level:
+            stats.accepted_type_support_level_distribution[support_level] += 1
         stats.add_sample_event_id(payload["eventId"])
         if args.dry_run:
             continue
@@ -447,6 +540,17 @@ def replay(args: argparse.Namespace) -> dict[str, Any]:
     report = build_report(args, stats, started_at, finished_at, auth_used)
     write_report(args.report_output, report)
     return report
+
+
+def has_mapping_metadata(event: dict[str, Any]) -> bool:
+    return any(
+        key in event
+        for key in ("nativeEventType", "normalizedEventType", "typeSupportLevel", "typeMappingPolicyVersion")
+    )
+
+
+def is_paysim_event(event: dict[str, Any]) -> bool:
+    return event.get("source") == "PAYSIM" or event.get("schemaVersion") == "v2-paysim"
 
 
 def main() -> int:
