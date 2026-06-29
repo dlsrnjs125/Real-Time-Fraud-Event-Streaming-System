@@ -51,7 +51,7 @@ data/
     .gitkeep
     paysim-events-sample.jsonl
     paysim-labels-sample.jsonl
-    paysim-fraud-sample.jsonl
+    paysim-sample-manifest.json
 
 scripts/
   data/
@@ -59,9 +59,11 @@ scripts/
     check-data-policy.sh
     download_paysim_dataset.py
     prepare_paysim_dataset.py
+    validate_paysim_outputs.py
+    generate_paysim_samples.py
 ```
 
-후속 Phase에서 `sample_paysim_dataset.py`, `replay_paysim_to_api.py`를 추가합니다. V2 Phase 2에서는 dataset acquisition helper와 preprocessing normalization만 구현하며, sample generation과 replay는 아직 구현하지 않습니다.
+V2 Phase 3에서 validation과 safe sampling script를 추가했습니다. Replay script는 후속 Phase에서 추가합니다.
 
 `.gitignore` policy:
 
@@ -72,16 +74,17 @@ data/samples/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
-!data/samples/*.jsonl
-!data/samples/*.csv
+!data/samples/paysim-events-sample.jsonl
+!data/samples/paysim-labels-sample.jsonl
+!data/samples/paysim-sample-manifest.json
 ```
 
 정책:
 
 - `data/raw`: Kaggle 원본 CSV 위치. `.gitkeep` 외 커밋 금지.
 - `data/processed`: 전처리 전체 산출물 위치. `.gitkeep` 외 커밋 금지.
-- `data/samples`: 후속 Phase에서 작은 sample만 제한적으로 커밋 가능.
-- sample은 100~1,000건 이하, raw identifier 미포함, `.jsonl` 또는 `.csv`, 1MB 이하를 기준으로 둡니다.
+- `data/samples`: 검증된 작은 JSONL sample과 sample manifest만 제한적으로 커밋 가능.
+- sample은 100~1,000건 이하, raw identifier 미포함, 지정된 sample JSONL/manifest 파일명, 1MB 이하를 기준으로 둡니다.
 
 `scripts/data/check-data-policy.sh`는 tracked 또는 staged 상태의 `data/` 파일을 검사합니다.
 
@@ -217,3 +220,37 @@ V2 Data Python Toolchain 보강에서 추가한 구현:
 - venv 기반 `download-paysim`, `prepare-paysim`, `prepare-paysim-smoke`, `test-data-scripts`
 
 `scripts/data/requirements.txt`는 PaySim data helper에 필요한 Python dependency만 관리합니다. KaggleHub API 변화가 있으면 이 파일에서 version range를 조정하거나 더 좁게 고정합니다.
+
+## 11. V2 Phase 3 Validation and Safe Sampling
+
+V2 Phase 3에서는 full processed output을 replay나 Rule V2 입력으로 넘기기 전에 검증합니다.
+
+검증 대상:
+
+- `data/processed/paysim-events.jsonl`
+- `data/processed/paysim-labels.jsonl`
+- `data/processed/paysim-rejected.jsonl`
+- `data/processed/paysim-validation-report.json`
+
+검증 후 커밋 가능한 파일은 `data/samples` 아래의 작은 JSONL sample과 manifest로 제한합니다. `data/samples`에는 raw CSV, full processed JSONL, full validation summary를 넣지 않습니다.
+
+Phase 3 sample policy:
+
+- JSONL sample만 생성합니다.
+- CSV sample은 raw column leakage 위험 때문에 생성하지 않습니다.
+- `data/samples/*.csv`, 임의 `data/samples/*.jsonl`, 일반 `data/samples/*.json`은 data policy check에서 막습니다.
+- `paysim-events-sample.jsonl`, `paysim-labels-sample.jsonl`, `paysim-sample-manifest.json`만 제한적으로 허용합니다.
+- sample manifest에는 dataset slug, raw filename, input SHA-256, sample count, strategy, `hashSaltSource`만 기록합니다.
+- sample manifest에 raw identifier나 salt 값 자체를 기록하지 않습니다.
+- local smoke sample에는 `default-local` salt source가 허용되지만, 공유/커밋 sample에는 `--require-non-default-salt` 사용을 권장합니다.
+
+`check-data-policy.sh`의 sample content scan은 staged file을 대상으로 하는 Git commit guardrail입니다. JSON schema 수준의 정밀 검증은 `validate_paysim_outputs.py`와 `generate_paysim_samples.py`에서 수행합니다.
+
+Committed sample은 raw identifier와 salt 값을 노출하지 않는 것을 우선하므로, 동일한 raw dataset과 동일한 private salt가 없으면 byte-for-byte 재생성은 보장하지 않습니다. 재현성은 `sourceInputSha256`, sample manifest, generation script, validation script 기준으로 설명합니다.
+
+V2 Phase 3 검증 결과:
+
+- `make prepare-paysim-smoke`: accepted 1,000 rows
+- `make validate-paysim`: events=1000, labels=1000, rejected=0, fraud=9, flagged=0, rejectRatio=0.0000
+- `make generate-paysim-sample-strict`: events=1000, labels=1000, fraud=9
+- `make data-policy-check`: PASS

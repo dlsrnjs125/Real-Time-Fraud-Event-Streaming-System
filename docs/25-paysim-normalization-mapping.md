@@ -346,10 +346,10 @@ CLI options:
 
 ## 10. Sampling Policy
 
-추가 script 후보:
+구현 script:
 
 ```text
-scripts/data/sample_paysim_dataset.py
+scripts/data/generate_paysim_samples.py
 ```
 
 출력:
@@ -357,7 +357,7 @@ scripts/data/sample_paysim_dataset.py
 ```text
 data/samples/paysim-events-sample.jsonl
 data/samples/paysim-labels-sample.jsonl
-data/samples/paysim-fraud-sample.jsonl
+data/samples/paysim-sample-manifest.json
 ```
 
 정책:
@@ -365,8 +365,71 @@ data/samples/paysim-fraud-sample.jsonl
 - sample은 100~1,000건 이하로 제한합니다.
 - sample에는 raw identifier를 포함하지 않습니다.
 - hash identifier만 포함합니다.
-- label 분포를 README 또는 validation report에 명시합니다.
+- label 분포를 sample manifest에 명시합니다.
 - sample은 테스트/문서용이며 성능 수치 근거로 사용하지 않습니다.
+- Phase 3에서는 CSV sample을 생성하지 않습니다.
+
+## 10.1 Phase 3 Validation Contract
+
+`scripts/data/validate_paysim_outputs.py`는 Phase 2 processed output 네 종류를 함께 검증합니다.
+
+검증 기준:
+
+- runtime event 필수 field와 `balanceFeatures` field 존재
+- `eventId`, `traceId` 중복 없음
+- `eventType`은 `TRANSFER`, `CASH_OUT`, `PAYMENT`, `CASH_IN`, `DEBIT` 중 하나
+- `amount`와 balance field는 finite Decimal 문자열
+- `currency=KRW`, `source=PAYSIM`, `schemaVersion=v2-paysim`
+- `eventTime`은 UTC ISO-8601 형식
+- runtime event에 `receivedAt`, `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud` 없음
+- event/label sidecar는 `eventId` set이 일치
+- rejected row는 reason allowlist만 사용
+- report의 accepted/rejected/fraud/flagged/type count가 실제 line count와 일치
+- `rejectRatio = rejectedRows / totalRows`가 기본 0.01을 초과하면 실패
+- raw `nameOrig`, `nameDest`, `C12345`, `M12345` 형태 값이 output에 있으면 실패
+- report에는 `hashSaltSource`만 있고 salt 값 자체는 없어야 함
+
+Validator는 full JSONL payload 전체를 메모리에 올리지 않고 line-by-line으로 읽습니다. 다만 event/label 정합성 검증을 위해 eventId set과 traceId set은 메모리에 보관합니다. 전체 PaySim full output 검증 시 이 set 크기는 accepted row 수에 비례합니다.
+
+## 10.2 Phase 3 Sample Output Contract
+
+`scripts/data/generate_paysim_samples.py`는 processed events/labels/report에서 작은 sample을 생성합니다.
+
+출력:
+
+```text
+data/samples/paysim-events-sample.jsonl
+data/samples/paysim-labels-sample.jsonl
+data/samples/paysim-sample-manifest.json
+```
+
+sample contract:
+
+- sample event count <= 1,000
+- event sample과 label sample의 eventId set 일치
+- event sample에 label field나 `receivedAt` 없음
+- event/label/manifest에 raw identifier pattern 없음
+- manifest에는 source dataset slug, raw filename, input SHA-256, sample count, strategy, hashSaltSource 기록
+- manifest에 salt 값 자체를 기록하지 않음
+- 각 sample file은 1MB 이하
+- Phase 3에서는 CSV sample을 생성하지 않음
+- committed sample은 salt 값을 노출하지 않는 것을 우선하므로 동일한 private salt 없이는 byte-for-byte 재생성을 보장하지 않음
+
+Sampling strategy:
+
+- `head`: event 앞 N건과 matching label 추출
+- `balanced`: fraud label true event를 우선 포함하고 나머지를 non-fraud로 채움
+
+`balanced`는 deterministic first-N-per-class 방식입니다. 복잡한 reservoir sampling은 아직 구현하지 않습니다. Fraud row가 매우 적은 dataset에서는 가능한 fraud row만 포함하고 sample size 나머지는 non-fraud로 채웁니다.
+
+## 10.3 Phase 4 Handoff
+
+Phase 4에서는 hash/salt policy를 더 강화합니다. 후보:
+
+- committed sample 생성 시 non-default salt source를 필수화
+- salt source policy를 문서뿐 아니라 sample generation command policy로 고정
+- replay 단계에서 dataset/sample 충돌을 피하기 위한 eventId prefix policy 검토
+- raw identifier leakage check를 Java replay path와 API payload validation에도 연결
 
 ## 11. Replay Pipeline Contract
 

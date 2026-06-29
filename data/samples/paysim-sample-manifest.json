@@ -1,0 +1,22 @@
+{
+  "containsRawIdentifiers": false,
+  "containsRuntimeLabels": false,
+  "createdAt": "2026-06-26T06:09:56.183659Z",
+  "hashSaltSource": "env:PAYSIM_HASH_SALT",
+  "outputFiles": {
+    "events": "data/samples/paysim-events-sample.jsonl",
+    "labels": "data/samples/paysim-labels-sample.jsonl"
+  },
+  "sampleEvents": 1000,
+  "sampleFraudRows": 9,
+  "sampleLabels": 1000,
+  "sampleNonFraudRows": 991,
+  "sampleSizeRequested": 1000,
+  "sampleStrategy": "balanced",
+  "scriptVersion": "v2-phase-3",
+  "sourceDatasetSlug": "ealaxi/paysim1",
+  "sourceEventsPath": "data/processed/paysim-events.jsonl",
+  "sourceInputSha256": "16910f90577b0d981bf8ff289714510bb89bc71bff7d3f220f024e287e4eea6b",
+  "sourceLabelsPath": "data/processed/paysim-labels.jsonl",
+  "sourceRawFileName": "PS_20174392719_1491204439457_log.csv"
+}

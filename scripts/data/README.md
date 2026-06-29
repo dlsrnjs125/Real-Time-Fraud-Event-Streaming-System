@@ -67,13 +67,17 @@ Do not commit:
 
 `data/samples` is for small samples only. A sample may be committed only when all of these are true:
 
-- It is a `.jsonl` or `.csv` file.
+- It is one of `paysim-events-sample.jsonl`, `paysim-labels-sample.jsonl`, or `paysim-sample-manifest.json`.
 - It is 100 to 1,000 rows or less.
 - It does not contain raw `nameOrig` or `nameDest`.
 - It uses hashed identifiers only.
 - It is small enough for repository review; the current policy check fails samples larger than 1MB.
 
 `data/samples` is not a place for the original Kaggle CSV.
+
+Phase 3 does not generate CSV samples because CSV can accidentally preserve raw PaySim columns. The data policy check rejects CSV samples, arbitrary JSONL samples, generic JSON samples, full/processed sample names, and sample files larger than 1MB.
+
+`check-data-policy.sh` also performs lightweight grep-based sample content scans against staged files. This is a Git commit guardrail for common mistakes, not a full JSON schema validator. Structural validation remains the responsibility of `validate_paysim_outputs.py` and `generate_paysim_samples.py`.
 
 ## Identifier Hashing
 
@@ -127,6 +131,48 @@ Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`
 Phase 2 writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay processed output until Phase 5 adds replay-specific safety checks. Atomic temp-file writes are a Phase 5 follow-up.
 
 Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
+
+## Validation and Sampling
+
+Validate processed outputs after preprocessing:
+
+```bash
+make validate-paysim
+```
+
+The validator checks:
+
+- event/label/rejected/report count consistency
+- eventId join consistency between runtime events and label sidecar
+- label leakage in runtime events
+- raw `nameOrig`, `nameDest`, and PaySim identifier pattern leakage
+- rejected reason allowlist
+- reject ratio threshold
+- report provenance and count fields
+
+Generate commit-safe JSONL samples after validation:
+
+```bash
+make generate-paysim-sample
+```
+
+For shared or committed samples, prefer strict salt-source enforcement:
+
+```bash
+make generate-paysim-sample-strict
+```
+
+Generated sample files:
+
+- `data/samples/paysim-events-sample.jsonl`
+- `data/samples/paysim-labels-sample.jsonl`
+- `data/samples/paysim-sample-manifest.json`
+
+The sample manifest records dataset slug, raw filename, input SHA-256, sample counts, strategy, and `hashSaltSource`. It must not contain raw identifiers or the salt value itself.
+
+Committed samples prioritize not exposing raw identifiers or salt values. Without the same private salt, byte-for-byte regeneration of the pseudonymized sample is not guaranteed; reproducibility is described through `sourceInputSha256`, the sample manifest, and the generation/validation scripts.
+
+CI runs fixture-based data script tests only. Full validation and sample generation require local `data/processed` output and are not part of the default CI path.
 
 Test the data scripts without the real Kaggle CSV:
 

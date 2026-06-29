@@ -31,5 +31,6 @@ data/samples/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/samples/.gitkeep
-!data/samples/*.jsonl
-!data/samples/*.csv
+!data/samples/paysim-events-sample.jsonl
+!data/samples/paysim-labels-sample.jsonl
+!data/samples/paysim-sample-manifest.json
