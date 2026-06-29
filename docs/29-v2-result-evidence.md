@@ -239,7 +239,8 @@ Join and denominator rules:
 - If replay used `--event-id-prefix`, evaluation removes the prefix before joining with original PaySim label ids.
 - Label sidecar is not replay payload and must not be copied into detection result export.
 - `excludeReplayRejected=true` excludes pre-HTTP replay rejected eventIds found in the replay report bounded `failures` summary.
-- `includeMissingResults=true` is the default. Missing fraud result is FN; missing non-fraud result is TN and increments `missingResults`.
+- Missing detection results are excluded from denominator metrics by default.
+- `--include-missing-results` is an explicit sensitivity check. In that mode, missing fraud result is FN; missing non-fraud result is TN and increments `missingResults`.
 - Make evaluation targets run with `--strict` so duplicate label/result eventIds and invalid sidecar/result contracts fail instead of becoming warnings.
 - If `--replay-report` is provided, the file is required. Use `make evaluate-paysim-sample-no-replay-report` for intentional label/result-only evaluation.
 - Reports include `matchedResults` and `unmatchedResults` so prefix mismatch or wrong result export source is visible.
@@ -259,6 +260,7 @@ Metrics:
 ```text
 precision = TP / (TP + FP)
 recall = TP / (TP + FN)
+f1Score = 2 * precision * recall / (precision + recall)
 falsePositiveRate = FP / (FP + TN)
 falseNegativeRate = FN / (FN + TP)
 accuracy = (TP + TN) / evaluatedEvents
@@ -280,6 +282,59 @@ Baseline limitations:
 - DB/API export is a local input contract in this Phase, not an automated connector.
 - A 1,000-row committed sample is pipeline validation evidence, not representative PaySim-wide performance.
 - Replay report `failures` is bounded, so rejected event exclusion may be incomplete if rejected ids are not present in the summary. The evaluator emits a warning for that case.
+
+## 2.4 Phase 7 Replay Evaluation Evidence
+
+V2 Phase 7는 Phase 6 evaluation script를 기반으로 report 해석과 운영 evidence 기준을 정리합니다.
+
+Commands:
+
+```bash
+make evaluate-paysim-replay
+make verify-v2-phase7
+```
+
+`make evaluate-paysim-replay`는 local detection result export와 replay report가 준비된 환경에서 실행합니다. 실제 app-api replay를 실행하지 않고, 이미 존재하는 label sidecar와 detection result export를 평가합니다.
+
+`make verify-v2-phase7`는 full PaySim raw data, local DB export, app-api replay 없이 fixture test, data policy check, evaluation report contract check를 실행하는 CI-safe check입니다.
+
+Current evaluation report fields include:
+
+```text
+totalEvents
+totalFraudLabels
+evaluatedFraudLabeledEvents
+missingFraudLabels
+missingNonFraudLabels
+fraudLabeledEvents
+detectedFraudEvents
+missedFraudEvents
+evaluatedMissedFraudEvents
+falsePositiveEvents
+truePositiveEvents
+trueNegativeEvents
+metrics.precision
+metrics.recall
+metrics.f1Score
+riskLevelCounts
+ruleCodeCounts
+misclassifiedEvents
+unmatchedResultEvents
+evaluationExcludedRecords
+failedRecords
+invalidRecords
+recordFailurePolicy
+```
+
+`totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud-labeled count after replay-rejected and missing-result policy has been applied. `fraudLabeledEvents` remains as a compatibility alias for `evaluatedFraudLabeledEvents`.
+
+`missedFraudEvents` is calculated within the evaluation denominator. When missing results are excluded by default, missing fraud labels are counted in `missingFraudLabels` and `missingResults`, not in `missedFraudEvents`.
+
+`misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means detection result rows that did not join to a label. `failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema failure aggregation and must not be interpreted as rule false positives or false negatives. Phase 7 invalid input fails fast before report generation, so successful reports keep these fields at 0 and record `recordFailurePolicy=fail_fast_before_report_generation`.
+
+Phase 7 separates current report metrics from future or operational metrics. `action_decision_distribution` requires the V2 action workflow, and Consumer Lag/API latency/Redis degraded count remain streaming operation metrics, not label-based detection quality metrics.
+
+Detailed interpretation rules and gate criteria are documented in `docs/31-v2-replay-evaluation-evidence.md`.
 
 ## 3. Evidence Tables
 

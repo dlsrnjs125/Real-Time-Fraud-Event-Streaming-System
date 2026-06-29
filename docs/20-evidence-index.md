@@ -21,6 +21,8 @@
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 | Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
 | V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only, typed runtime feature and label sidecar separation | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
+| V2 Phase 6 | PaySim replay result evaluation baseline | `make evaluate-paysim-sample`, `make test-data-scripts` | `docs/29-v2-result-evidence.md`, `blog/24-v2-paysim-replay-evaluation-baseline.md` |
+| V2 Phase 7 | Replay evaluation evidence and interpretation | `make evaluate-paysim-replay`, `make verify-v2-phase7` | `docs/31-v2-replay-evaluation-evidence.md` |
 
 ## CI / Build
 
@@ -81,3 +83,11 @@
 | V2 PaySim provenance | `docs/24-kaggle-paysim-data-provenance.md` | synthetic dataset 출처와 raw data 미커밋 정책 |
 | V2 result evidence plan | `docs/29-v2-result-evidence.md` | V2 구현 후 기록할 측정/평가 기준 |
 | V2 visualization plan | `docs/30-v2-visualization.md` | V2 구현 후 생성할 chart/table 기준 |
+| V2 replay evaluation evidence | `docs/31-v2-replay-evaluation-evidence.md` | replay evaluation report, 해석 기준, gate 가능/불가 기준 |
+
+## V2 PaySim Evidence
+
+| Evidence | Command | Output | Pass Criteria | Notes |
+|---|---|---|---|---|
+| V2 Replay Evaluation Report | `make evaluate-paysim-replay` | `data/processed/paysim-evaluation-report.json` | report 생성, strict contract 통과, required fields 존재 | 성능 보장값이 아니라 rule baseline 검증 evidence |
+| V2 Phase 7 CI-safe checks | `make verify-v2-phase7` | unittest output, data policy check output, fixture report contract check | data script tests pass, raw/full processed PaySim files excluded from Git, required report fields and expected fixture counts match | full evaluation input 없이 실행 가능 |

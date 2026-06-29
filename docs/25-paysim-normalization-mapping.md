@@ -549,7 +549,9 @@ Event type policy:
 - `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
 - `preserve` mode에서는 native type을 사전 rejected로 집계하지 않으며, current API가 거부하면 HTTP 4xx/client error로 기록됩니다.
 
-Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 7 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 V2 Phase 8 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+
+Native PaySim event type replay is postponed because V2 Phase 7 focuses on evaluation report evidence, not API DTO expansion. Accepting native event types changes the API contract and rule semantics, so it should be reviewed as a separate phase.
 
 금지:
 

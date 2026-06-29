@@ -188,7 +188,7 @@ Rule V2 개선 목표:
 - amount threshold만으로 잡히지 않는 fraud를 `sourceStep`과 balance features 기반 rule로 보완합니다.
 - `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` 도입 전후의 missed fraud와 false positive 변화를 기록합니다.
 
-Phase 7에서 Rule Engine V2를 구현할 때는 Phase 6 evaluation report를 비교 기준으로 사용합니다.
+Phase 7에서는 replay evaluation evidence와 해석 기준을 먼저 정리합니다. Rule Engine V2를 구현하는 후속 Phase에서는 Phase 6/7 evaluation report를 비교 기준으로 사용합니다.
 
 ## 7. Redis Degraded Behavior
 
