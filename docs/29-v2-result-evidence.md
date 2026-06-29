@@ -241,9 +241,10 @@ Join and denominator rules:
 - `excludeReplayRejected=true` excludes pre-HTTP replay rejected eventIds found in the replay report bounded `failures` summary.
 - `includeMissingResults=true` is the default. Missing fraud result is FN; missing non-fraud result is TN and increments `missingResults`.
 - Make evaluation targets run with `--strict` so duplicate label/result eventIds and invalid sidecar/result contracts fail instead of becoming warnings.
+- If `--replay-report` is provided, the file is required. Use `make evaluate-paysim-sample-no-replay-report` for intentional label/result-only evaluation.
 - Reports include `matchedResults` and `unmatchedResults` so prefix mismatch or wrong result export source is visible.
 - Reports include `missingResultTreatment` and warn when missing results are included in metrics.
-- Reports include `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`. If payload rejects outnumber available rejected eventIds, the denominator may still include replay-rejected events and the report emits a warning.
+- Reports include `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`. If payload rejects outnumber available rejected eventIds, the denominator may still include replay-rejected events and the report emits a warning.
 
 Risk threshold:
 

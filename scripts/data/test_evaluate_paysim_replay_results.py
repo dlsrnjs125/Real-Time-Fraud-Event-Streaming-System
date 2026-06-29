@@ -68,7 +68,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         value = {
             "labels": self.labels,
             "results": self.results,
-            "replay_report": self.replay_report,
+            "replay_report": None,
             "output": self.output,
             "positive_risk_level": "MEDIUM",
             "event_id_prefix": None,
@@ -88,6 +88,8 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
 
     def evaluate_fixture(self, labels, results, replay_report=None, **arg_overrides):
         self.write_fixture(labels, results, replay_report)
+        if replay_report is not None and "replay_report" not in arg_overrides:
+            arg_overrides["replay_report"] = self.replay_report
         return evaluate.evaluate(self.args(**arg_overrides))
 
     def test_perfect_prediction_has_full_metrics(self):
@@ -98,6 +100,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1.0, report["metrics"]["precision"])
         self.assertEqual(1.0, report["metrics"]["recall"])
         self.assertEqual(1.0, report["metrics"]["accuracy"])
+        self.assertFalse(report["replayReportUsed"])
 
     def test_confusion_matrix_counts_tp_fp_tn_fn(self):
         report = self.evaluate_fixture(
@@ -204,6 +207,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             ),
         )
         self.assertEqual(1, report["excludedReplayRejected"])
+        self.assertTrue(report["replayReportUsed"])
         self.assertEqual(1, report["replayPayloadRejected"])
         self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
         self.assertTrue(report["replayRejectedExclusionComplete"])
@@ -229,6 +233,11 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1, report["replayRejectedEventIdsAvailable"])
         self.assertFalse(report["replayRejectedExclusionComplete"])
         self.assertTrue(any("payloadRejected is greater" in warning for warning in report["warnings"]))
+
+    def test_missing_explicit_replay_report_fails(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])
+        with self.assertRaises(FileNotFoundError):
+            evaluate.evaluate(self.args(replay_report=self.replay_report))
 
     def test_zero_metric_denominators_are_null(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=False)

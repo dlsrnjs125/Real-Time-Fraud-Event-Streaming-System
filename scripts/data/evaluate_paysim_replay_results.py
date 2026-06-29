@@ -17,7 +17,6 @@ from typing import Any
 SCRIPT_VERSION = "v2-phase-6"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
-DEFAULT_REPLAY_REPORT = Path("data/processed/paysim-replay-report.json")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
 RISK_LEVELS = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 RISK_RANK = {risk: index for index, risk in enumerate(RISK_LEVELS)}
@@ -90,7 +89,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate PaySim replay results against label sidecar.")
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
-    parser.add_argument("--replay-report", type=Path, default=DEFAULT_REPLAY_REPORT)
+    parser.add_argument("--replay-report", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--positive-risk-level", choices=RISK_LEVELS, default="MEDIUM")
     parser.add_argument("--event-id-prefix")
@@ -202,8 +201,10 @@ def load_results(path: Path, event_id_prefix: str | None, strict: bool) -> tuple
 
 
 def load_replay_report(path: Path | None) -> dict[str, Any] | None:
-    if path is None or not path.exists():
+    if path is None:
         return None
+    if not path.exists():
+        raise FileNotFoundError(str(path))
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -376,6 +377,7 @@ def build_report(
         "labelsPath": str(labels_path),
         "resultsPath": str(results_path),
         "replayReportPath": str(replay_report_path) if replay_report_path else None,
+        "replayReportUsed": replay_report_path is not None,
         "startedAt": started_at,
         "finishedAt": finished_at,
         "positiveRiskLevel": args.positive_risk_level,

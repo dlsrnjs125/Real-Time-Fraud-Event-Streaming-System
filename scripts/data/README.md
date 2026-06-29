@@ -307,6 +307,8 @@ If no replay report is available, evaluate labels and results only:
 make evaluate-paysim-sample-no-replay-report
 ```
 
+`make evaluate-paysim-sample` passes `--replay-report`; that file must exist or evaluation fails. Use the no-replay target when intentionally evaluating labels and results without replay rejected exclusion.
+
 Detection result export contract:
 
 ```json
@@ -320,7 +322,7 @@ Evaluation rules:
 - `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
 - Missing detection results are included by default. Fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
 - The report records `missingResultTreatment=fraud_missing_as_FN_non_fraud_missing_as_TN` by default and emits a warning when missing results affect metrics.
-- With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
+- With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
 - Detection results that do not match any label eventId are not used in metrics. The report records `matchedResults` and `unmatchedResults`, and warns when result ids appear mismatched.
 - Evaluation reports are written under `data/processed`, defaulting to `data/processed/paysim-evaluation-report.json`, and must not be committed.
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
