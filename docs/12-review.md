@@ -981,3 +981,48 @@ make verify-v2-phase8
 - `CASH_OUT -> WITHDRAWAL` mapping은 semantic loss가 있으므로 Rule V2 결과와 함께 재검토해야 합니다.
 - Mapping version과 rule version을 함께 비교하는 report matrix는 후속 Phase에서 보강합니다.
 - Phase 8 fixture check는 contract 검증이며 full PaySim fraud 성능 검증이 아닙니다.
+
+## V2 Phase 9 Review
+
+### 잘한 점
+
+- Evaluation report에 `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`를 추가했습니다.
+- Precision/recall/F1과 함께 review/block candidate workload summary를 기록합니다.
+- Rule logic version과 threshold boundary version을 분리했습니다.
+- Fixture 기반 regression verifier를 추가해 expected metric value와 workload value를 함께 검증합니다.
+- CI-safe check와 local/manual full evidence command를 분리했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] Threshold를 낮춘 결과를 recall 개선만으로 해석하지 않는가
+- [ ] False positive 증가 가능성과 missed fraud risk를 함께 검토했는가
+- [ ] `ruleVersion`, `thresholdVersion`, `mappingPolicyVersion`, `evaluationContractVersion`을 함께 확인하는가
+- [ ] `actionDecisionDistribution`, `reviewCandidateRate`, `blockedCandidateRate`를 함께 보는가
+- [ ] Fixture regression을 production fraud 성능 보장으로 표현하지 않는가
+- [ ] Raw/full PaySim data나 local DB export가 커밋되지 않았는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-v2-phase9
+```
+
+### 의도적으로 제외한 것
+
+- 실제 운영 threshold tuning
+- ML model baseline
+- Consumer Rule Engine version 자동 추출
+- Full PaySim regression output commit
+- Grafana dashboard panel 구현
+
+### 남은 한계
+
+- 현재 `ruleVersion`은 evaluation evidence policy version이며 app-consumer Rule Engine에서 자동 주입되지 않습니다.
+- Full replay rejected eventId 전체 export는 후속 개선입니다.
+- Workload budget은 후보 기준이며 실제 운영 staffing capacity가 아닙니다.

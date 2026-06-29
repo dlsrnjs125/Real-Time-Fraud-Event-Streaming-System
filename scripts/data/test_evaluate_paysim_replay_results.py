@@ -43,10 +43,11 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         return value
 
     def result(self, event_id, risk_level="LOW", rule_codes=None, **overrides):
+        default_scores = {"LOW": 0, "MEDIUM": 60, "HIGH": 85, "CRITICAL": 95}
         value = {
             "eventId": event_id,
             "riskLevel": risk_level,
-            "riskScore": 0,
+            "riskScore": default_scores.get(risk_level, 0),
             "ruleCodes": rule_codes if rule_codes is not None else [],
             "detectedAt": "2026-01-01T00:00:01Z",
         }
@@ -70,7 +71,10 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             "results": self.results,
             "replay_report": None,
             "output": self.output,
-            "positive_risk_level": "MEDIUM",
+            "positive_risk_level": None,
+            "threshold_version": "threshold-v1",
+            "rule_version": "rule-v2-baseline-v1",
+            "evaluation_policy_version": "evaluation-policy-v1",
             "event_id_prefix": None,
             "exclude_replay_rejected": True,
             "include_missing_results": False,
@@ -120,10 +124,36 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
         self.assertEqual("fail_fast_before_report_generation", report["recordFailurePolicy"])
-        self.assertEqual("2026-06-v2-phase8", report["reportSchemaVersion"])
-        self.assertEqual("2026-06-v2-phase8", report["evaluationContractVersion"])
-        self.assertIsNone(report["ruleVersion"])
-        self.assertIsNone(report["thresholdVersion"])
+        self.assertEqual("2026-06-v2-phase9", report["reportSchemaVersion"])
+        self.assertEqual("v2-phase9-evaluation-contract-v1", report["evaluationContractVersion"])
+        self.assertEqual("evaluation-policy-v1", report["evaluationPolicyVersion"])
+        self.assertEqual("rule-v2-baseline-v1", report["ruleVersion"])
+        self.assertEqual("threshold-v1", report["thresholdVersion"])
+        self.assertEqual("MEDIUM", report["positiveRiskLevel"])
+        self.assertEqual("MEDIUM", report["thresholdPolicy"]["positiveRiskLevelFallback"])
+        self.assertEqual(["MEDIUM", "HIGH", "CRITICAL"], report["thresholdPolicy"]["reviewRiskLevelsFallback"])
+        self.assertEqual(["HIGH", "CRITICAL"], report["thresholdPolicy"]["blockRiskLevelsFallback"])
+        self.assertEqual(50, report["mediumRiskThreshold"])
+        self.assertEqual(80, report["highRiskThreshold"])
+        self.assertEqual(1, report["reviewCandidateEvents"])
+        self.assertEqual(0.5, report["reviewCandidateRate"])
+        self.assertEqual(0, report["blockedCandidateEvents"])
+        self.assertEqual(0.0, report["blockedCandidateRate"])
+        self.assertEqual({"ALLOW": 1, "REVIEW": 1}, report["actionDecisionDistribution"])
+        self.assertEqual(
+            {
+                "resultsWithRiskScore": 2,
+                "resultsWithoutRiskScore": 0,
+                "coverageRate": 1.0,
+                "coverageScope": "evaluated_results_only",
+            },
+            report["riskScoreCoverage"],
+        )
+        self.assertEqual("full_risk_score_coverage", report["thresholdRegressionReliability"])
+        self.assertEqual(
+            {"reviewCandidateRateWithinBudget": False, "blockedCandidateRateWithinBudget": True},
+            report["operatorWorkloadSummary"]["budgetStatus"],
+        )
         self.assertFalse(report["replayReportUsed"])
 
     def test_confusion_matrix_counts_tp_fp_tn_fn(self):
@@ -162,10 +192,71 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         report = self.evaluate_fixture(
             [self.label("paysim-1", True), self.label("paysim-2", True)],
             [self.result("paysim-1", "MEDIUM"), self.result("paysim-2", "HIGH")],
-            positive_risk_level="HIGH",
+            threshold_version="threshold-strict-v1",
         )
         self.assertEqual(1, report["confusionMatrix"]["truePositive"])
         self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
+        self.assertEqual("threshold-strict-v1", report["thresholdVersion"])
+        self.assertEqual("HIGH", report["positiveRiskLevel"])
+
+    def test_threshold_policy_controls_risk_level_fallback_when_score_is_missing(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", True), self.label("paysim-3", True)],
+            [
+                self.result("paysim-1", "MEDIUM", riskScore=None),
+                self.result("paysim-2", "HIGH", riskScore=None),
+                self.result("paysim-3", "CRITICAL", riskScore=None),
+            ],
+            threshold_version="threshold-strict-v1",
+        )
+        self.assertEqual({"ALLOW": 1, "BLOCK": 1, "REVIEW": 1}, report["actionDecisionDistribution"])
+        self.assertEqual(2, report["confusionMatrix"]["truePositive"])
+        self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
+        self.assertEqual(
+            {
+                "resultsWithRiskScore": 0,
+                "resultsWithoutRiskScore": 3,
+                "coverageRate": 0.0,
+                "coverageScope": "evaluated_results_only",
+            },
+            report["riskScoreCoverage"],
+        )
+        self.assertEqual("partial_without_full_risk_score_coverage", report["thresholdRegressionReliability"])
+        self.assertIn(
+            "Some evaluated results do not include riskScore; threshold policy falls back to riskLevel-based decisions.",
+            report["warnings"],
+        )
+
+    def test_positive_risk_level_must_match_threshold_policy_fallback(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(threshold_version="threshold-strict-v1", positive_risk_level="MEDIUM"))
+
+    def test_unknown_threshold_version_fails_fast(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(threshold_version="unknown-threshold"))
+
+    def test_unknown_rule_version_fails_fast(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1")])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(rule_version="rule-v2-baseline-vl"))
+
+    def test_threshold_policy_changes_workload_summary(self):
+        labels = [self.label("paysim-1", True), self.label("paysim-2", False), self.label("paysim-3", False)]
+        results = [
+            self.result("paysim-1", "MEDIUM", riskScore=60),
+            self.result("paysim-2", "MEDIUM", riskScore=75),
+            self.result("paysim-3", "HIGH", riskScore=85),
+        ]
+        baseline = self.evaluate_fixture(labels, results)
+        strict = self.evaluate_fixture(labels, results, threshold_version="threshold-strict-v1")
+
+        self.assertEqual(3, baseline["reviewCandidateEvents"])
+        self.assertEqual(1, baseline["blockedCandidateEvents"])
+        self.assertEqual(2, strict["reviewCandidateEvents"])
+        self.assertEqual(0, strict["blockedCandidateEvents"])
+        self.assertGreater(baseline["reviewCandidateRate"], strict["reviewCandidateRate"])
 
     def test_missing_fraud_result_is_excluded_by_default(self):
         report = self.evaluate_fixture([self.label("paysim-1", True)], [])

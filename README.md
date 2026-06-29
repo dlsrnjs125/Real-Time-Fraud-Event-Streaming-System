@@ -134,6 +134,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [31. V2 Visualization Plan](docs/30-v2-visualization.md)
 - [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
 - [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md)
+- [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Drafts](blog/README.md)
 
@@ -145,58 +146,17 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 후속 V2 기획은 Kaggle PaySim synthetic 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 관리 흐름으로 확장하는 방향으로 문서화되어 있습니다. V2 문서는 설계 기준이며, 실제 구현 완료 상태를 의미하지 않습니다.
 
-V2 Phase 1에서는 PaySim 원본 CSV와 processed 전체 결과가 repository에 커밋되지 않도록 `data/` 디렉터리, `.gitignore`, `make data-policy-check` guardrail을 추가했습니다. V2 Phase 2에서는 optional KaggleHub download helper와 PaySim preprocessing normalization script를 추가했습니다. 상세 기준은 [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md), [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md), [PaySim Data Scripts](scripts/data/README.md)를 확인합니다.
+## V2 PaySim Evaluation
 
-V2 PaySim data workflow:
-
-```bash
-make data-env
-make download-paysim
-make prepare-paysim-smoke
-make validate-paysim
-make generate-paysim-sample
-make test-data-scripts
-```
-
-V2 PaySim strict hash/salt checks:
-
-```bash
-make validate-paysim-strict
-make generate-paysim-sample-strict
-make test-data-scripts
-```
-
-V2 PaySim replay:
-
-```bash
-make replay-paysim-sample-dry-run
-make replay-paysim-sample
-```
-
-Actual replay requires local app-api and infrastructure to be running. Detailed replay contract is documented in [PaySim Data Scripts](scripts/data/README.md) and [V2 Result Evidence Plan](docs/29-v2-result-evidence.md).
-
-V2 PaySim replay evaluation:
-
-```bash
-make evaluate-paysim-replay
-make verify-v2-phase7
-make test-data-scripts
-```
-
-V2 Phase 7 turns the PaySim replay evaluation baseline into reproducible evidence. The result is a rule baseline/report contract check, not a production fraud performance guarantee.
-
-V2 Phase 8 keeps the production API enum stable while adding an explicit PaySim native type replay contract:
-
-```bash
-make verify-v2-phase8
-make v2-phase8-evidence
-```
-
-Details: [PaySim Data Scripts](scripts/data/README.md), [V2 Result Evidence Plan](docs/29-v2-result-evidence.md), [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md), [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md), [V2 Phase 7 Blog Draft](blog/25-v2-paysim-replay-evaluation-evidence.md), [V2 Phase 8 Blog Draft](blog/26-v2-paysim-native-type-replay-contract.md).
+V2 extends the fraud detection pipeline with PaySim-based replay/evaluation workflows. The goal is not to claim production fraud model performance, but to make rule baseline evaluation reproducible with documented data, mapping, and threshold contracts.
 
 Raw and full processed PaySim data are intentionally excluded from the repository.
 
-Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.
+Details:
 
-Detailed validation and sampling contracts are documented in [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md) and [PaySim Data Scripts](scripts/data/README.md).
-Detailed hash/salt policy is documented in [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md), [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md), and [PaySim Data Scripts](scripts/data/README.md).
+- [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md)
+- [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md)
+- [PaySim Data Scripts](scripts/data/README.md)
+- [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
+- [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md)
+- [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md)

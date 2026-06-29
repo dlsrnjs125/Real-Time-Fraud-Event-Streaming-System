@@ -71,6 +71,7 @@ make test-data-scripts
 make data-policy-check
 make verify-v2-phase7
 make verify-v2-phase8
+make verify-v2-phase9
 ```
 
 Local evaluation after `data/processed/paysim-detection-results.jsonl` exists:
@@ -101,6 +102,8 @@ make evaluate-paysim-replay
 `make verify-v2-phase7` is CI-safe because it uses fixture data for report contract validation. It verifies that a report can be generated, required fields exist, expected fixture counts match, sensitive fields are absent, and missing results are excluded from denominator metrics by default.
 
 `make verify-v2-phase8` extends the CI-safe check with PaySim native type mapping contract verification. It does not require raw PaySim, a local DB export, or actual app-api replay.
+
+`make verify-v2-phase9` extends the CI-safe check with rule/threshold regression fields and workload summary verification.
 
 ## 5. Current Report Metrics
 
@@ -153,6 +156,8 @@ The replay report separately provides:
 - `excludedByType`
 
 Phase 8 adds the native type contract fields above. The evaluation report also separates `replayNativeTypeDistribution` from `evaluatedNativeTypeDistribution`, so replay input composition is not confused with the denominator used for precision/recall. Evaluation metrics should be compared only when `mappingPolicyVersion`, denominator policy, rule version, and threshold version are compatible.
+
+Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, riskScore coverage, threshold regression reliability, and operator workload summary fields.
 
 ## 6. Future Metrics
 

@@ -111,6 +111,7 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 6: replay result evaluation baseline
 - V2 Phase 7: evaluation evidence command alias and CI-safe verification checks
 - V2 Phase 8: PaySim native type replay contract, mapping policy metadata, and CI-safe native contract check
+- V2 Phase 9: rule/threshold/evaluation policy versioning and fixture-based regression check
 
 ## Preprocessing
 
@@ -339,11 +340,22 @@ make verify-v2-phase8
 
 `make verify-v2-phase8` runs fixture data tests, data policy checks, Phase 7 evaluation report contract verification, and the Phase 8 native replay contract verification.
 
+For Phase 9 rule/threshold regression checks that do not require full PaySim raw data, local DB exports, or actual app-api replay:
+
+```bash
+make verify-paysim-rule-threshold-regression
+make verify-v2-phase9
+```
+
+`make verify-paysim-rule-threshold-regression` verifies fixture metrics, rule/threshold/evaluation policy versions, action workload summary, missing-result policy, and Phase 8 native type compatibility.
+
 Local/manual Phase 8 evidence uses an existing detection result export and replay report:
 
 ```bash
 make evaluate-paysim-native-replay
+make evaluate-paysim-threshold-policy-report
 make v2-phase8-evidence
+make v2-phase9-evidence
 ```
 
 These commands do not create the DB export by themselves. They require local `data/processed/paysim-detection-results.jsonl` and relevant replay/evaluation inputs.
@@ -358,7 +370,7 @@ Evaluation rules:
 
 - Labels JSONL is evaluation input only. It is never replay payload.
 - Join key is `eventId`. If replay used an eventId prefix, pass `--event-id-prefix` so detection result ids can be normalized back to original PaySim ids.
-- `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
+- The selected `thresholdVersion` is the source of truth for fraud-positive and action fallback decisions. `--positive-risk-level` is a legacy compatibility option and must match `thresholdPolicy.positiveRiskLevelFallback` when provided.
 - Missing detection results are excluded from denominator metrics by default. The report records `missingResultTreatment=missing_results_excluded_from_denominator`.
 - Use `--include-missing-results` only for explicit sensitivity checks. In that mode, fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
 - With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. The report records `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`; if `payloadRejected` is greater than available rejected eventIds, the evaluation report warns that the denominator may still include replay-rejected events.
@@ -367,7 +379,8 @@ Evaluation rules:
 - Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
 - Phase 8 separates replay input type distribution from evaluation denominator type distribution. `replayNativeTypeDistribution` is replay-report input scope, while `evaluatedNativeTypeDistribution` is label/result denominator scope.
 - Evaluation reports propagate `mappingMetadataPolicy` and `replayMissingMappingMetadata` from replay reports.
-- `ruleVersion` and `thresholdVersion` are present as `null` placeholders in Phase 8. They are filled by later Rule V2 evidence work.
+- Phase 9 fills `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`, `riskScoreCoverage`, `thresholdRegressionReliability`, `reviewCandidateEvents`, `reviewCandidateRate`, `blockedCandidateEvents`, `blockedCandidateRate`, `actionDecisionDistribution`, and `operatorWorkloadSummary`.
+- Current `ruleVersion` is an evaluation evidence policy value. Direct app-consumer Rule Engine version integration remains a follow-up.
 - `totalFraudLabels` is the full fraud count in the label sidecar. `evaluatedFraudLabeledEvents` is the fraud count inside the evaluation denominator after replay-rejected and missing-result policy is applied.
 - `missedFraudEvents` is denominator-scoped. Missing fraud labels excluded by default are counted in `missingFraudLabels`, not in `missedFraudEvents`.
 - `misclassifiedEvents` means `FP + FN`. `unmatchedResultEvents` means result rows that do not join to a label. `failedRecords` and `invalidRecords` are reserved for future non-fatal pipeline/schema failures and remain separate from detection quality mismatches. Phase 7 invalid input fails fast before report generation.

@@ -499,6 +499,48 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 검증: evaluator fixture와 native replay contract verifier에서 replay scope와 evaluated scope를 별도로 검증합니다.
 - 남은 한계: Full replay에서 bounded failure summary만으로 rejected eventId exclusion이 불완전할 수 있으므로, rejected id 전체 export는 후속 개선 후보로 남깁니다.
 
+---
+
+## V2 Phase 9. threshold를 낮춰 recall이 좋아진 것처럼 보이지만 false positive가 증가하는 문제
+
+- 문제: threshold를 낮추면 fraud-labeled event를 더 많이 잡을 수 있지만, non-fraud event도 함께 positive로 분류될 수 있습니다.
+- 판단: recall만 보고 threshold를 선택하면 운영자 review workload와 사용자 영향을 놓칩니다.
+- 대응: `reviewCandidateEvents`, `reviewCandidateRate`, `blockedCandidateEvents`, `blockedCandidateRate`, `falsePositiveEvents`를 함께 기록합니다.
+- 검증: `verify_paysim_rule_threshold_regression.py` fixture에서 threshold policy에 따른 workload 변화를 검증합니다.
+- 남은 한계: Fixture workload는 실제 운영 staffing capacity를 의미하지 않습니다.
+
+## V2 Phase 9. thresholdVersion 없이 metric을 비교하는 문제
+
+- 문제: precision/recall/F1이 변해도 threshold 변경 때문인지 rule 변경 때문인지 알 수 없습니다.
+- 판단: Metric은 `ruleVersion`, `thresholdVersion`, `mappingPolicyVersion`, `evaluationContractVersion`과 함께 해석해야 합니다.
+- 대응: Phase 9 report에 `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, `thresholdPolicy`를 필수로 남깁니다.
+- 검증: Phase 9 regression verifier가 version field 존재와 expected semantic values를 확인합니다.
+- 남은 한계: Consumer Rule Engine version과 evaluator ruleVersion 자동 연결은 후속 작업입니다.
+
+## V2 Phase 9. F1 score만 보고 운영 최적화로 오해하는 문제
+
+- 문제: F1이 좋아져도 false positive 비용이나 blocked user impact가 커질 수 있습니다.
+- 판단: Fraud detection은 metric optimization과 운영 비용 최적화가 다릅니다.
+- 대응: `actionDecisionDistribution`과 `operatorWorkloadSummary`를 함께 기록합니다.
+- 검증: Fixture report에서 review/block candidate count와 rate를 검증합니다.
+- 남은 한계: 실제 운영 action decision engine distribution은 후속 workflow 구현 이후 연결합니다.
+
+## V2 Phase 9. fixture regression을 production 성능 보장으로 오해하는 문제
+
+- 문제: CI fixture check가 통과해도 실제 운영 fraud 성능이 보장되는 것은 아닙니다.
+- 판단: Fixture는 report contract와 semantic regression 검증입니다.
+- 대응: CI-safe check와 local/manual full evidence를 분리하고, 문서에서 production performance guarantee가 아님을 명시합니다.
+- 검증: `make verify-v2-phase9`는 raw PaySim, local DB export, actual replay 없이 fixture만 사용합니다.
+- 남은 한계: Full PaySim replay와 운영 metric evidence는 local/manual 단계에서 별도로 생성해야 합니다.
+
+## V2 Phase 9. ruleVersion과 thresholdVersion을 하나로 뭉치는 문제
+
+- 문제: Rule logic 변경과 threshold boundary 변경이 섞이면 metric 변화 원인 분석이 어렵습니다.
+- 판단: Rule 의미와 threshold boundary는 별도 version으로 관리해야 합니다.
+- 대응: `ruleVersion`과 `thresholdVersion`을 분리하고, `evaluationPolicyVersion`도 별도 기록합니다.
+- 검증: Evaluation report contract와 Phase 9 regression verifier에서 version field를 확인합니다.
+- 남은 한계: 실제 app-consumer rule config snapshot 연결은 후속 단계입니다.
+
 ## V2 Phase 5. Retry outcome count 해석이 모호해지는 문제
 
 - 문제: retry 중간 timeout/5xx를 final outcome counter에 함께 누적하면 한 이벤트가 timeout과 success에 동시에 잡힌 것처럼 보일 수 있습니다.

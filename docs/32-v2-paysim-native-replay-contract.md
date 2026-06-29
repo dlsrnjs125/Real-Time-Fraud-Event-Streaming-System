@@ -97,7 +97,7 @@ Evaluation report:
 - propagates `mappingMetadataPolicy` and `replayMissingMappingMetadata`
 - separates replay input scope from evaluation denominator scope
 - records `replayNativeTypeDistribution`, `evaluatedNativeTypeDistribution`, and `excludedNativeTypeDistribution`
-- records `ruleVersion=null` and `thresholdVersion=null` placeholders for later Rule V2 evidence
+- reserves `ruleVersion` and `thresholdVersion` fields for rule/threshold evidence
 - keeps Phase 7 fields backward compatible
 - keeps missing/excluded/rejected buckets separate from denominator metrics
 
@@ -118,7 +118,7 @@ Excluding `DEBIT` can change precision and recall because some labels are not ev
 - `evaluatedEvents`
 - `missingResults`
 
-Phase 8 fixes `mappingPolicyVersion` and `evaluationContractVersion`. `ruleVersion` and `thresholdVersion` remain null until Rule V2 evidence fills them. Evaluation metrics are compared only with compatible mapping, evaluation contract, rule, and threshold versions.
+Phase 8 fixes `mappingPolicyVersion` and `evaluationContractVersion`. Phase 9 fills `ruleVersion` and `thresholdVersion` for evaluation evidence; wiring those versions to the live consumer Rule Engine remains a follow-up. Evaluation metrics are compared only with compatible mapping, evaluation contract, rule, and threshold versions.
 
 ## 7. Rule Semantics
 

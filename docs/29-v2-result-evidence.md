@@ -251,7 +251,7 @@ Interpretation:
 - Replay report separates input, accepted, and rejected distributions so unsupported types do not appear as accepted normalized types.
 - If native mapping metadata is present, `typeMappingPolicyVersion` is required. Legacy PaySim rows without mapping metadata are counted in `missingMappingMetadata`.
 - Evaluation report separates `replayNativeTypeDistribution` from `evaluatedNativeTypeDistribution`.
-- Phase 8 fixes `mappingPolicyVersion` and `evaluationContractVersion`. Evaluation metrics are directly comparable only when mapping policy, evaluation contract, denominator policy, rule version, and threshold version are compatible. Phase 8 leaves `ruleVersion` and `thresholdVersion` as null placeholders.
+- Phase 8 fixes `mappingPolicyVersion` and `evaluationContractVersion`. Evaluation metrics are directly comparable only when mapping policy, evaluation contract, denominator policy, rule version, and threshold version are compatible. Phase 9 fills `ruleVersion` and `thresholdVersion` for evaluation evidence.
 
 CI-safe verification:
 
@@ -267,6 +267,45 @@ Implementation:
 
 ```text
 scripts/data/evaluate_paysim_replay_results.py
+```
+
+### 2.3.1 Phase 9 Rule/Threshold Regression Fields
+
+V2 Phase 9 extends the replay evaluation report with rule/threshold regression evidence fields:
+
+```json
+{
+  "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
+  "evaluationPolicyVersion": "evaluation-policy-v1",
+  "ruleVersion": "rule-v2-baseline-v1",
+  "thresholdVersion": "threshold-v1",
+  "thresholdPolicy": {
+    "mediumRiskThreshold": 50,
+    "highRiskThreshold": 80,
+    "positiveRiskLevelFallback": "MEDIUM",
+    "reviewRiskLevelsFallback": ["MEDIUM", "HIGH", "CRITICAL"],
+    "blockRiskLevelsFallback": ["HIGH", "CRITICAL"]
+  },
+  "riskScoreCoverage": "TBD",
+  "thresholdRegressionReliability": "TBD",
+  "reviewCandidateEvents": "TBD",
+  "reviewCandidateRate": "TBD",
+  "blockedCandidateEvents": "TBD",
+  "blockedCandidateRate": "TBD",
+  "actionDecisionDistribution": "TBD",
+  "operatorWorkloadSummary": {
+    "workloadBudget": "TBD",
+    "budgetStatus": "TBD"
+  }
+}
+```
+
+These fields support regression comparison. They are not a production fraud performance guarantee.
+
+CI-safe verification:
+
+```bash
+make verify-v2-phase9
 ```
 
 Commands:
@@ -314,7 +353,7 @@ Risk threshold:
 LOW < MEDIUM < HIGH < CRITICAL
 ```
 
-With `--positive-risk-level MEDIUM`, `MEDIUM`, `HIGH`, and `CRITICAL` are predicted positive.
+From Phase 9, the selected `thresholdVersion` is the source of truth for fraud-positive and action fallback decisions. The legacy `--positive-risk-level` option must match `thresholdPolicy.positiveRiskLevelFallback` when provided.
 
 Metrics:
 

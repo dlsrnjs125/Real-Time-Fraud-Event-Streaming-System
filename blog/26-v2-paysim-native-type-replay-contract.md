@@ -123,11 +123,11 @@ Mapping policy가 달라지면 denominator가 달라진다. 그래서 precision/
 
 > 같은 mapping policy version일 때만 직접 비교할 수 있습니다. Phase 8부터는 `mappingPolicyVersion`, `replayNativeTypeDistribution`, `evaluatedNativeTypeDistribution`, `excludedByType`을 함께 보고 denominator가 바뀌었는지 확인해야 합니다. Rule version과 threshold version도 후속 evidence에서 함께 비교해야 합니다.
 
-질문: "ruleVersion과 thresholdVersion이 왜 null인가요?"
+질문: "Phase 8에서 ruleVersion과 thresholdVersion은 어떻게 해석하나요?"
 
 답변:
 
-> Phase 8에서는 mappingPolicyVersion과 evaluationContractVersion만 고정했습니다. 실제 Rule Engine V2와 threshold tuning은 후속 evidence 단계에서 채울 값이라, 지금은 null placeholder로 두고 비교 기준에 들어갈 자리를 먼저 만든 것입니다.
+> Phase 8에서는 mappingPolicyVersion과 evaluationContractVersion만 고정했습니다. Rule/threshold 비교 기준은 Phase 9 evaluation evidence에서 `ruleVersion`과 `thresholdVersion`으로 채웠고, 실제 Consumer Rule Engine version 자동 연결은 후속 단계로 남겼습니다.
 
 ## 7. 남은 한계
 
