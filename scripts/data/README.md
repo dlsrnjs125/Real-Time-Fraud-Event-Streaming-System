@@ -286,3 +286,36 @@ Direct dry-run example:
   --dry-run \
   --force
 ```
+
+## Replay Result Evaluation
+
+V2 Phase 6 adds `scripts/data/evaluate_paysim_replay_results.py` to compare a local detection result export with the PaySim label sidecar.
+
+Local sample evaluation requires a detection result export under `data/processed`:
+
+```bash
+make evaluate-paysim-sample
+```
+
+If no replay report is available, evaluate labels and results only:
+
+```bash
+make evaluate-paysim-sample-no-replay-report
+```
+
+Detection result export contract:
+
+```json
+{"eventId": "paysim-000000001", "riskLevel": "LOW", "riskScore": 0, "ruleCodes": [], "detectedAt": "2026-01-01T00:00:01Z"}
+```
+
+Evaluation rules:
+
+- Labels JSONL is evaluation input only. It is never replay payload.
+- Join key is `eventId`. If replay used an eventId prefix, pass `--event-id-prefix` so detection result ids can be normalized back to original PaySim ids.
+- `--positive-risk-level MEDIUM` treats `MEDIUM`, `HIGH`, and `CRITICAL` as predicted fraud positive.
+- Missing detection results are included by default. Fraud labels without a result count as FN; non-fraud labels without a result count as TN and increment `missingResults`.
+- With a replay report, pre-HTTP payload rejects recorded in the bounded `failures` summary are excluded from the denominator by default. If the replay report has `payloadRejected` but no eventIds in `failures`, the evaluation report emits a warning because exclusion may be incomplete.
+- Evaluation reports are written under `data/processed`, defaulting to `data/processed/paysim-evaluation-report.json`, and must not be committed.
+- Reports store counts, metrics, distributions, warnings, and at most 10 sample eventIds. They do not store raw identifiers, label/result payload dumps, request/response bodies, or tokens.
+- CI runs fixture tests only. Actual DB/API export evaluation is local-only and requires a prepared `data/processed/paysim-detection-results.jsonl`.

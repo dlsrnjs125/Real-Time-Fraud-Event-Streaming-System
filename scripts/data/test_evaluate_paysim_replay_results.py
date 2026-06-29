@@ -1,0 +1,237 @@
+import importlib.util
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+
+
+SCRIPT_PATH = Path(__file__).with_name("evaluate_paysim_replay_results.py")
+SPEC = importlib.util.spec_from_file_location("evaluate_paysim_replay_results", SCRIPT_PATH)
+evaluate = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+sys.modules["evaluate_paysim_replay_results"] = evaluate
+SPEC.loader.exec_module(evaluate)
+
+
+def write_jsonl(path, rows):
+    path.write_text("\n".join(json.dumps(row, sort_keys=True) for row in rows) + ("\n" if rows else ""), encoding="utf-8")
+
+
+class EvaluatePaySimReplayResultsTest(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name)
+        self.labels = self.root / "labels.jsonl"
+        self.results = self.root / "results.jsonl"
+        self.replay_report = self.root / "replay-report.json"
+        self.output = self.root / "evaluation-report.json"
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def label(self, event_id, is_fraud=False, **overrides):
+        value = {
+            "eventId": event_id,
+            "isFraud": is_fraud,
+            "sourceFlaggedFraud": False,
+            "sourceStep": 1,
+            "sourceType": "TRANSFER",
+        }
+        value.update(overrides)
+        return value
+
+    def result(self, event_id, risk_level="LOW", rule_codes=None, **overrides):
+        value = {
+            "eventId": event_id,
+            "riskLevel": risk_level,
+            "riskScore": 0,
+            "ruleCodes": rule_codes if rule_codes is not None else [],
+            "detectedAt": "2026-01-01T00:00:01Z",
+        }
+        value.update(overrides)
+        return value
+
+    def replay(self, failures=None, **overrides):
+        value = {
+            "scriptVersion": "v2-phase-5",
+            "eventIdPrefix": None,
+            "payloadRejected": len(failures or []),
+            "unsupportedEventTypes": {},
+            "failures": failures or [],
+        }
+        value.update(overrides)
+        return value
+
+    def args(self, **overrides):
+        value = {
+            "labels": self.labels,
+            "results": self.results,
+            "replay_report": self.replay_report,
+            "output": self.output,
+            "positive_risk_level": "MEDIUM",
+            "event_id_prefix": None,
+            "exclude_replay_rejected": True,
+            "include_missing_results": True,
+            "force": True,
+            "strict": True,
+        }
+        value.update(overrides)
+        return SimpleNamespace(**value)
+
+    def write_fixture(self, labels, results, replay_report=None):
+        write_jsonl(self.labels, labels)
+        write_jsonl(self.results, results)
+        if replay_report is not None:
+            self.replay_report.write_text(json.dumps(replay_report, sort_keys=True), encoding="utf-8")
+
+    def evaluate_fixture(self, labels, results, replay_report=None, **arg_overrides):
+        self.write_fixture(labels, results, replay_report)
+        return evaluate.evaluate(self.args(**arg_overrides))
+
+    def test_perfect_prediction_has_full_metrics(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", False)],
+            [self.result("paysim-1", "MEDIUM"), self.result("paysim-2", "LOW")],
+        )
+        self.assertEqual(1.0, report["metrics"]["precision"])
+        self.assertEqual(1.0, report["metrics"]["recall"])
+        self.assertEqual(1.0, report["metrics"]["accuracy"])
+
+    def test_confusion_matrix_counts_tp_fp_tn_fn(self):
+        report = self.evaluate_fixture(
+            [
+                self.label("paysim-1", True),
+                self.label("paysim-2", False),
+                self.label("paysim-3", False),
+                self.label("paysim-4", True),
+            ],
+            [
+                self.result("paysim-1", "HIGH"),
+                self.result("paysim-2", "MEDIUM"),
+                self.result("paysim-3", "LOW"),
+                self.result("paysim-4", "LOW"),
+            ],
+        )
+        self.assertEqual(
+            {"truePositive": 1, "falsePositive": 1, "trueNegative": 1, "falseNegative": 1},
+            report["confusionMatrix"],
+        )
+        self.assertEqual(0.5, report["metrics"]["precision"])
+        self.assertEqual(0.5, report["metrics"]["recall"])
+
+    def test_medium_or_higher_is_positive_by_default(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", True), self.label("paysim-3", True)],
+            [self.result("paysim-1", "MEDIUM"), self.result("paysim-2", "HIGH"), self.result("paysim-3", "CRITICAL")],
+        )
+        self.assertEqual(3, report["confusionMatrix"]["truePositive"])
+
+    def test_high_threshold_treats_medium_as_negative(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", True)],
+            [self.result("paysim-1", "MEDIUM"), self.result("paysim-2", "HIGH")],
+            positive_risk_level="HIGH",
+        )
+        self.assertEqual(1, report["confusionMatrix"]["truePositive"])
+        self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
+
+    def test_missing_fraud_result_is_false_negative_when_included(self):
+        report = self.evaluate_fixture([self.label("paysim-1", True)], [])
+        self.assertEqual(1, report["missingResults"])
+        self.assertEqual(1, report["confusionMatrix"]["falseNegative"])
+
+    def test_missing_non_fraud_result_is_true_negative_when_included(self):
+        report = self.evaluate_fixture([self.label("paysim-1", False)], [])
+        self.assertEqual(1, report["missingResults"])
+        self.assertEqual(1, report["confusionMatrix"]["trueNegative"])
+
+    def test_missing_result_can_be_excluded_from_denominator(self):
+        report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=False)
+        self.assertEqual(1, report["missingResults"])
+        self.assertEqual(0, report["evaluatedEvents"])
+        self.assertIsNone(report["metrics"]["accuracy"])
+
+    def test_event_id_prefix_is_removed_for_join(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True)],
+            [self.result("local-smoke-paysim-1", "HIGH")],
+            event_id_prefix="local-smoke",
+        )
+        self.assertEqual(1, report["confusionMatrix"]["truePositive"])
+
+    def test_duplicate_label_event_id_fails_in_strict_mode(self):
+        self.write_fixture([self.label("paysim-1"), self.label("paysim-1")], [])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(strict=True))
+
+    def test_duplicate_result_event_id_fails_in_strict_mode(self):
+        self.write_fixture(
+            [self.label("paysim-1")],
+            [self.result("paysim-1", "LOW"), self.result("paysim-1", "HIGH")],
+        )
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(strict=True))
+
+    def test_unsupported_risk_level_fails(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1", "UNKNOWN")])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args())
+
+    def test_label_file_raw_identifier_field_fails(self):
+        self.write_fixture([self.label("paysim-1", nameOrig="C12345")], [])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args())
+
+    def test_result_file_label_field_fails(self):
+        self.write_fixture([self.label("paysim-1")], [self.result("paysim-1", "LOW", isFraud=False)])
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args())
+
+    def test_replay_payload_rejected_event_is_excluded(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True), self.label("paysim-2", True)],
+            [self.result("paysim-1", "LOW"), self.result("paysim-2", "HIGH")],
+            self.replay(
+                failures=[
+                    {
+                        "rowNumber": 1,
+                        "eventId": "paysim-1",
+                        "reason": "UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API:CASH_OUT",
+                    }
+                ]
+            ),
+        )
+        self.assertEqual(1, report["excludedReplayRejected"])
+        self.assertEqual(1, report["evaluatedEvents"])
+        self.assertEqual(1, report["confusionMatrix"]["truePositive"])
+
+    def test_zero_metric_denominators_are_null(self):
+        report = self.evaluate_fixture([self.label("paysim-1", True)], [], include_missing_results=False)
+        self.assertIsNone(report["metrics"]["precision"])
+        self.assertIsNone(report["metrics"]["recall"])
+        self.assertIsNone(report["metrics"]["falsePositiveRate"])
+        self.assertIsNone(report["metrics"]["accuracy"])
+
+    def test_report_does_not_store_raw_identifier_token_or_payload(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", False)],
+            [self.result("paysim-1", "LOW")],
+        )
+        text = json.dumps(report, sort_keys=True)
+        self.assertNotIn("C12345", text)
+        self.assertNotIn("secret-token", text)
+        self.assertNotIn("requestBody", text)
+        self.assertNotIn("responseBody", text)
+        self.assertNotIn("isFraud", text)
+
+    def test_sample_event_ids_are_limited_to_ten(self):
+        labels = [self.label(f"paysim-{index}", False) for index in range(20)]
+        results = [self.result(f"paysim-{index}", "LOW") for index in range(20)]
+        report = self.evaluate_fixture(labels, results)
+        self.assertEqual(10, len(report["sampleEventIds"]))
+
+
+if __name__ == "__main__":
+    unittest.main()

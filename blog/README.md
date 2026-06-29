@@ -32,6 +32,7 @@
 21. [V2 PaySim validation, rejected analysis, safe sampling](21-v2-paysim-validation-rejected-sampling.md)
 22. [V2 PaySim identifier hash policy](22-v2-paysim-identifier-hash-policy.md)
 23. [V2 PaySim replay pipeline](23-v2-paysim-replay-pipeline.md)
+24. [V2 PaySim replay evaluation baseline](24-v2-paysim-replay-evaluation-baseline.md)
 
 ## 글 구조
 

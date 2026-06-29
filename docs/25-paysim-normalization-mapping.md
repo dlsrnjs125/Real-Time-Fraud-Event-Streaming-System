@@ -549,7 +549,7 @@ Event type policy:
 - `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
 - `preserve` mode에서는 native type을 사전 rejected로 집계하지 않으며, current API가 거부하면 HTTP 4xx/client error로 기록됩니다.
 
-Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 6 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 7 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
 
 금지:
 
@@ -593,7 +593,57 @@ Report 해석 기준:
 - `unsupportedEventTypes`는 current app-api enum 기준으로 HTTP 전송 전에 rejected 처리한 PaySim eventType count입니다.
 - Invalid JSONL parse failure는 report의 row-level `payloadRejected`가 아니라 script-level input corruption failure로 봅니다.
 
-## 12. Partial Output Safety
+## 12. Replay Result Evaluation Contract
+
+V2 Phase 6 구현 script:
+
+```text
+scripts/data/evaluate_paysim_replay_results.py
+```
+
+Phase 6은 DB에 직접 연결하지 않습니다. Fraud detection result는 local export JSONL contract로만 다룹니다.
+
+입력:
+
+```text
+data/samples/paysim-labels-sample.jsonl
+data/processed/paysim-labels.jsonl
+data/processed/paysim-detection-results.jsonl
+data/processed/paysim-replay-report.json
+```
+
+Label sidecar는 replay payload가 아니라 evaluation join input입니다. Detection result export는 label field를 포함하지 않아야 하며, join은 `eventId` 기준으로만 수행합니다.
+
+Detection result export row 예시:
+
+```json
+{
+  "eventId": "paysim-000000001",
+  "riskLevel": "LOW",
+  "riskScore": 0,
+  "ruleCodes": [],
+  "detectedAt": "2026-01-01T00:00:01Z"
+}
+```
+
+Evaluation 기준:
+
+- risk level 순서는 `LOW < MEDIUM < HIGH < CRITICAL`입니다.
+- 기본 positive threshold는 `MEDIUM`이며, `MEDIUM`, `HIGH`, `CRITICAL`을 predicted fraud positive로 봅니다.
+- `--event-id-prefix`가 있으면 detection result eventId에서 prefix를 제거해 원본 PaySim eventId와 join합니다.
+- `--include-missing-results` 기본값은 true입니다. Fraud label에 result가 없으면 FN, non-fraud label에 result가 없으면 TN으로 계산하고 `missingResults`를 증가시킵니다.
+- replay report가 있으면 HTTP 전 payload rejected로 확인된 eventId는 denominator에서 제외합니다.
+- Phase 5 replay report의 `failures`는 bounded summary이므로, `payloadRejected` count는 있지만 eventId가 summary에 없으면 exclusion이 불완전할 수 있습니다. Evaluation report는 이 경우 warning을 남깁니다.
+
+Output:
+
+```text
+data/processed/paysim-evaluation-report.json
+```
+
+이 파일은 Git ignore 대상이며 commit하지 않습니다. Report는 confusion matrix, precision, recall, false positive rate, false negative rate, accuracy, risk distribution, ruleCode count, warnings, 최대 10개 sample eventIds만 저장합니다. Raw identifier, token, request body, response body, label/result full payload dump는 저장하지 않습니다.
+
+## 13. Partial Output Safety
 
 V2 Phase 2 script는 output file을 직접 씁니다. `fail-fast` 중단이나 사용자 interrupt가 발생하면 partial output이 남을 수 있습니다. 현재는 `data/processed`가 Git ignore 대상이고 replay pipeline이 아직 없으므로 Phase 2 blocker로 보지 않습니다.
 
