@@ -113,6 +113,43 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 8: PaySim native type replay contract, mapping policy metadata, and CI-safe native contract check
 - V2 Phase 9: rule/threshold/evaluation policy versioning and fixture-based regression check
 
+## Command Matrix
+
+Use this section as the PaySim command reference. The root README intentionally keeps only the representative repository check and links here for detail.
+
+### CI-Safe Commands
+
+These commands do not require raw/full PaySim data, a running app-api, or a local detection result export.
+
+| Command | Scope | Requires raw/full PaySim | Requires app-api | Requires detection export | Output | Pass Criteria |
+|---|---|---:|---:|---:|---|---|
+| `make data-policy-check` | Git guardrail for committed/staged `data/` files | No | No | No | terminal result | raw/full processed PaySim data is not tracked or staged |
+| `make test-data-scripts` | Python fixture/unit tests | No | No | No | unittest output | all data script tests pass |
+| `make verify-paysim-evaluation-report-contract` | Phase 7 fixture report contract | No | No | No | temp report | required report fields and fixture metrics match |
+| `make verify-paysim-native-replay-contract` | Phase 8 native type contract | No | No | No | temp replay/evaluation reports | mapping policy, type distributions, and unsupported type exclusion match |
+| `make verify-paysim-rule-threshold-regression` | Phase 9 rule/threshold regression contract | No | No | No | temp reports | version fields, threshold fallback, workload, and fixture metrics match |
+| `make verify-v2-phase9` | Aggregated V2 Phase 7/8/9 checks | No | No | No | terminal result | data tests, data policy, and all three verifiers pass |
+| `make final-check` | Representative repository readiness gate | No | No | No | Gradle/Docker/script/test output | Gradle build, Docker config, scripts check, and `verify-v2-phase9` pass |
+
+### Local/Manual Commands
+
+These commands use local PaySim files, local infrastructure, or detection exports. They are not CI-safe by default.
+
+| Command | Scope | Requires raw/full PaySim | Requires app-api | Requires detection export | Output | Pass Criteria |
+|---|---|---:|---:|---:|---|---|
+| `make data-env` | Create Python helper environment | No | No | No | `.venv-data` | requirements install successfully |
+| `make download-paysim` | Download raw Kaggle CSV locally | Yes | No | No | `data/raw/...csv` | expected CSV exists locally; it must remain uncommitted |
+| `make prepare-paysim-smoke` | Normalize limited raw rows | Yes | No | No | `data/processed/*.jsonl`, validation report | processed files are generated locally |
+| `make validate-paysim` | Validate processed local outputs | Yes | No | No | terminal result | processed output/report contract is valid |
+| `make generate-paysim-sample` | Generate commit-safe samples | Yes | No | No | `data/samples/*.jsonl`, manifest | sample contract and policy checks pass |
+| `make replay-paysim-sample-dry-run` | Validate replay payloads without HTTP | No | No | No | `data/processed/paysim-replay-report.json` | payload contract passes without sending HTTP |
+| `make replay-paysim-sample` | Replay committed sample into local app-api | No | Yes | No | replay report | local app-api accepts/rejects rows according to replay contract |
+| `make evaluate-paysim-replay` | Evaluate labels against local detection results | No | No | Yes | `data/processed/paysim-evaluation-report.json` | strict evaluation report is generated |
+| `make evaluate-paysim-threshold-policy-report` | Generate default threshold policy evaluation report | No | No | Yes | `data/processed/paysim-evaluation-report.json` | report records selected threshold policy and workload summary |
+| `make v2-phase9-evidence` | Local/manual Phase 9 evidence alias | No | No | Yes | evaluation report | threshold policy report generation succeeds |
+
+Generated raw/full processed outputs and local reports under `data/raw` or `data/processed` must not be committed. Commit only the allowed small sample files and docs.
+
 ## Preprocessing
 
 Run a limited local smoke conversion after the raw CSV exists:

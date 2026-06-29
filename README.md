@@ -74,19 +74,13 @@ curl http://localhost:8080/actuator/health
 curl http://localhost:8081/actuator/health
 ```
 
-Local commands:
+Representative verification:
 
 ```bash
-make build
-make test
-make infra-up
-make api
-make consumer
-make data-env
-make data-policy-check
-make test-data-scripts
 make final-check
 ```
+
+Detailed local, infrastructure, and PaySim commands are documented in the `Makefile` and [PaySim Data Scripts](scripts/data/README.md).
 
 OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
@@ -135,6 +129,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 - [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
 - [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md)
 - [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md)
+- [V2 Final Readiness](docs/34-v2-final-readiness.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Drafts](blog/README.md)
 
@@ -144,7 +139,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
 
-후속 V2 기획은 Kaggle PaySim synthetic 거래 데이터를 재현 가능한 방식으로 연동하고, Rule 기반 탐지 결과를 위험도별 action decision과 fraud case 관리 흐름으로 확장하는 방향으로 문서화되어 있습니다. V2 문서는 설계 기준이며, 실제 구현 완료 상태를 의미하지 않습니다.
+V2 문서는 PaySim 기반 replay/evaluation evidence와 후속 확장 계획을 함께 다룹니다. 완료된 evidence contract, local/manual 검증, future work의 구분은 [V2 Final Readiness](docs/34-v2-final-readiness.md)에 정리합니다.
 
 ## V2 PaySim Evaluation
 
@@ -157,6 +152,9 @@ Details:
 - [Kaggle PaySim Data Provenance](docs/24-kaggle-paysim-data-provenance.md)
 - [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md)
 - [PaySim Data Scripts](scripts/data/README.md)
+- [V2 Final Readiness](docs/34-v2-final-readiness.md)
+- [Evidence Index](docs/20-evidence-index.md)
+- [Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [V2 Replay Evaluation Evidence](docs/31-v2-replay-evaluation-evidence.md)
 - [V2 PaySim Native Replay Contract](docs/32-v2-paysim-native-replay-contract.md)
 - [V2 Rule Threshold Regression Evidence](docs/33-v2-rule-threshold-regression-evidence.md)
