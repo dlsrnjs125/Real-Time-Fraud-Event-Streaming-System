@@ -68,3 +68,8 @@
 - F1-only optimization risk: `docs/11-troubleshooting-log.md#v2-phase-9-f1-score만-보고-운영-최적화로-오해하는-문제`
 - Fixture performance overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-9-fixture-regression을-production-성능-보장으로-오해하는-문제`
 - Rule and threshold version coupling risk: `docs/11-troubleshooting-log.md#v2-phase-9-ruleversion과-thresholdversion을-하나로-뭉치는-문제`
+- README bloat from phase details: `docs/11-troubleshooting-log.md#v2-phase-10-readme가-phase별-구현-상세로-비대해지는-문제`
+- CI-safe and local/manual command confusion: `docs/11-troubleshooting-log.md#v2-phase-10-ci-safe-command와-localmanual-command가-readme에서-섞이는-문제`
+- Final readiness production claim risk: `docs/11-troubleshooting-log.md#v2-phase-10-final-readiness를-production-fraud-성능-보장으로-오해하는-문제`
+- Implemented vs planned wording risk: `docs/11-troubleshooting-log.md#v2-phase-10-implemented-vs-planned-표현이-섞이는-문제`
+- final-check meaning drift: `docs/11-troubleshooting-log.md#v2-phase-10-evidence-command가-늘어나면서-final-check-의미가-불명확해지는-문제`

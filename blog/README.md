@@ -36,6 +36,7 @@
 25. [V2 Phase 7 - PaySim Replay Evaluation을 운영 Evidence로 바꾸기](25-v2-paysim-replay-evaluation-evidence.md)
 26. [V2 Phase 8 - PaySim Native Type Replay Contract 정리](26-v2-paysim-native-type-replay-contract.md)
 27. [V2 Phase 9 - Threshold를 올리거나 낮추기 전에 Regression Evidence부터 만들기](27-v2-rule-threshold-regression-evidence.md)
+28. [V2 Phase 10 - README를 줄이고 Evidence를 정리한 이유](28-v2-final-readiness-and-readme-slimdown.md)
 
 ## 글 구조
 

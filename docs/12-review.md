@@ -1026,3 +1026,55 @@ make verify-v2-phase9
 - 현재 `ruleVersion`은 evaluation evidence policy version이며 app-consumer Rule Engine에서 자동 주입되지 않습니다.
 - Full replay rejected eventId 전체 export는 후속 개선입니다.
 - Workload budget은 후보 기준이며 실제 운영 staffing capacity가 아닙니다.
+
+## V2 Phase 10 Review
+
+### 잘한 점
+
+- README를 entry point로 유지하고 Phase 7/8/9 상세 command와 metric 해석을 docs/scripts README로 분리했습니다.
+- `docs/34-v2-final-readiness.md`에서 completed scope, CI-safe checks, local/manual checks, future work를 분리했습니다.
+- `make final-check`를 representative readiness gate로 문서화했습니다.
+- PaySim command matrix를 `scripts/data/README.md`로 이동해 raw data, local app-api, detection export 의존성을 구분했습니다.
+- final readiness가 production fraud model performance guarantee가 아님을 명시했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] README가 프로젝트 entry point 역할을 유지하는가
+- [ ] Phase별 상세 command와 troubleshooting이 README가 아니라 docs/blog/scripts README에 있는가
+- [ ] implemented, local/manual, future work 표현이 섞이지 않는가
+- [ ] CI-safe command와 local/manual command가 명확히 구분되는가
+- [ ] production fraud 성능 보장처럼 읽히는 문장이 없는가
+- [ ] raw/full PaySim data나 local report/export가 staged/tracked 되지 않았는가
+- [ ] `make final-check` 의미와 내부 구성 설명이 Makefile/docs와 일치하는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-v2-phase9
+make final-check
+make replay-paysim-sample-dry-run
+```
+
+Local/manual checks observed in this workspace:
+
+- `make validate-paysim`: FAIL because ignored `data/processed/paysim-validation-report.json` is stale and missing `hashAlgorithm`, `hashIdPrefixLength`.
+- `make evaluate-paysim-threshold-policy-report`: FAIL because ignored `data/processed/paysim-detection-results.jsonl` is not present.
+
+### 의도적으로 제외한 것
+
+- 새 fraud detection rule 구현
+- app-consumer Rule Engine version 자동 주입
+- full PaySim replay/evaluation report commit
+- dashboard 또는 model baseline 구현
+- README에 Phase별 운영 매뉴얼 추가
+
+### 남은 한계
+
+- Phase 10은 documentation/readiness consistency 작업입니다.
+- Full replay, local detection result export evaluation, threshold before/after comparison report는 local/manual 또는 future work입니다.

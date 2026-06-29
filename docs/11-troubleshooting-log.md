@@ -2226,3 +2226,57 @@ Report에 `totalFraudLabels`, `evaluatedFraudLabeledEvents`, `missingFraudLabels
 ### 남은 한계
 
 기존 report consumer가 있다면 `fraudLabeledEvents` 대신 `evaluatedFraudLabeledEvents`를 사용하도록 전환해야 합니다.
+## V2 Phase 10 README가 Phase별 구현 상세로 비대해지는 문제
+
+문제:
+README에 Phase 7/8/9의 evaluation evidence, native type contract, threshold regression command와 metric 해석이 누적되면 처음 보는 사람이 프로젝트 핵심을 빠르게 파악하기 어렵습니다.
+
+판단:
+README는 entry point이고, 상세 설계/검증/트러블슈팅은 docs, blog, `scripts/data/README.md`로 분리해야 합니다.
+
+해결:
+README의 V2 PaySim 섹션은 3~5문장 수준의 요약과 상세 링크만 남깁니다. Detailed PaySim workflows are documented in `scripts/data/README.md` and V2 evidence docs.
+
+## V2 Phase 10 CI-safe command와 local/manual command가 README에서 섞이는 문제
+
+문제:
+README에 모든 PaySim command를 나열하면 어떤 명령이 raw data, local app-api, detection result export를 요구하는지 알기 어렵습니다.
+
+판단:
+command matrix는 `scripts/data/README.md`에서 관리하고, README에는 대표 검증 경로만 남깁니다.
+
+해결:
+README에는 `make final-check`를 대표 repository readiness check로 두고, detailed PaySim commands are documented separately. CI-safe command와 local/manual command는 `scripts/data/README.md`의 command matrix에서 구분합니다.
+
+## V2 Phase 10 final readiness를 production fraud 성능 보장으로 오해하는 문제
+
+문제:
+Phase 10 final readiness가 실제 운영 fraud model 성능 검증처럼 보일 수 있습니다.
+
+판단:
+final readiness는 reproducibility, contract guardrail, documentation consistency 검증입니다. 운영 fraud 성능 보장은 별도 데이터, 운영 지표, 모델 검증이 필요합니다.
+
+해결:
+`docs/34-v2-final-readiness.md`에 not production performance guarantee를 명시했습니다. V2 readiness checks validate reproducibility and contracts, not production fraud model performance.
+
+## V2 Phase 10 implemented vs planned 표현이 섞이는 문제
+
+문제:
+docs/blog에서 future work가 구현 완료처럼 보이면 evidence 신뢰도가 떨어집니다.
+
+판단:
+Completed, Local Manual, Future Work를 명확히 분리해야 합니다.
+
+해결:
+V2 Final Readiness 문서에 status matrix, completed scope, verification matrix, known limitations, next steps를 분리했습니다. Completed scope and future extensions are separated in V2 readiness docs.
+
+## V2 Phase 10 evidence command가 늘어나면서 final-check 의미가 불명확해지는 문제
+
+문제:
+Phase별 verifier가 늘어나면 어떤 명령이 최종 gate인지 헷갈릴 수 있습니다.
+
+판단:
+`make final-check`를 representative readiness gate로 유지하고, 내부 구성은 Makefile, Evidence Index, `scripts/data/README.md`에 기록합니다.
+
+해결:
+Evidence Index와 `scripts/data/README.md`에 `final-check` 구성과 pass criteria를 정리했습니다. `make final-check` is the representative repository readiness check.
