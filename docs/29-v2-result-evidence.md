@@ -198,6 +198,89 @@ Evidence 구분:
 - current-api event type dry-run: Phase 5에서는 current app-api enum에 없는 PaySim native types를 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
 - preserve event type replay: native type을 HTTP 전송 전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error evidence로 해석합니다.
 
+## 2.3 Phase 6 Replay Result Evaluation Baseline
+
+V2 Phase 6는 Rule Engine V2를 구현하기 전에 replay 결과 평가 baseline을 만듭니다. 입력은 PaySim label sidecar와 local detection result export이며, DB/API 직접 조회는 이 Phase에서 자동화하지 않습니다.
+
+Implementation:
+
+```text
+scripts/data/evaluate_paysim_replay_results.py
+```
+
+Commands:
+
+```bash
+make evaluate-paysim-sample
+make evaluate-paysim-sample-no-replay-report
+```
+
+Inputs:
+
+- labels: `data/samples/paysim-labels-sample.jsonl` 또는 `data/processed/paysim-labels.jsonl`
+- detection result export: `data/processed/paysim-detection-results.jsonl`
+- optional replay report: `data/processed/paysim-replay-report.json`
+
+Detection result export contract:
+
+```json
+{
+  "eventId": "paysim-000000001",
+  "riskLevel": "LOW",
+  "riskScore": 0,
+  "ruleCodes": [],
+  "detectedAt": "2026-01-01T00:00:01Z"
+}
+```
+
+Join and denominator rules:
+
+- Label/result join is by `eventId` only.
+- If replay used `--event-id-prefix`, evaluation removes the prefix before joining with original PaySim label ids.
+- Label sidecar is not replay payload and must not be copied into detection result export.
+- `excludeReplayRejected=true` excludes pre-HTTP replay rejected eventIds found in the replay report bounded `failures` summary.
+- `includeMissingResults=true` is the default. Missing fraud result is FN; missing non-fraud result is TN and increments `missingResults`.
+- Make evaluation targets run with `--strict` so duplicate label/result eventIds and invalid sidecar/result contracts fail instead of becoming warnings.
+- If `--replay-report` is provided, the file is required. Use `make evaluate-paysim-sample-no-replay-report` for intentional label/result-only evaluation.
+- Reports include `matchedResults` and `unmatchedResults` so prefix mismatch or wrong result export source is visible.
+- Reports include `missingResultTreatment` and warn when missing results are included in metrics.
+- Reports include `replayReportUsed`, `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, and `replayRejectedExclusionComplete`. If payload rejects outnumber available rejected eventIds, the denominator may still include replay-rejected events and the report emits a warning.
+
+Risk threshold:
+
+```text
+LOW < MEDIUM < HIGH < CRITICAL
+```
+
+With `--positive-risk-level MEDIUM`, `MEDIUM`, `HIGH`, and `CRITICAL` are predicted positive.
+
+Metrics:
+
+```text
+precision = TP / (TP + FP)
+recall = TP / (TP + FN)
+falsePositiveRate = FP / (FP + TN)
+falseNegativeRate = FN / (FN + TP)
+accuracy = (TP + TN) / evaluatedEvents
+```
+
+If a denominator is zero, the metric is `null`.
+
+Output:
+
+```text
+data/processed/paysim-evaluation-report.json
+```
+
+The report stores confusion matrix, metrics, risk distributions, ruleCode counts, warnings, and at most 10 sample eventIds. It does not store raw identifiers, tokens, request bodies, response bodies, label payload dumps, or result payload dumps.
+
+Baseline limitations:
+
+- The metric reflects current rule output, not Rule Engine V2 performance.
+- DB/API export is a local input contract in this Phase, not an automated connector.
+- A 1,000-row committed sample is pipeline validation evidence, not representative PaySim-wide performance.
+- Replay report `failures` is bounded, so rejected event exclusion may be incomplete if rejected ids are not present in the summary. The evaluator emits a warning for that case.
+
 ## 3. Evidence Tables
 
 ### Dataset Summary

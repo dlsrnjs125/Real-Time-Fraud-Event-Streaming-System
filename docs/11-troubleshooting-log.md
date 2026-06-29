@@ -360,7 +360,7 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 원인: Phase 5에서는 Java DTO/API enum을 변경하지 않고 replay pipeline만 구현하기로 했습니다.
 - 대응: replay script 기본값은 `--event-type-policy current-api`이며 unsupported native type을 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
 - 검증: dry-run에서 first 100 sample 기준 `CASH_OUT=14`, `DEBIT=10`이 `unsupportedEventTypes`에 집계되었습니다.
-- 남은 한계: `--event-type-policy preserve`는 native type을 사전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error로 기록되며, PaySim native type 의미를 보존한 actual replay는 Phase 6 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
+- 남은 한계: `--event-type-policy preserve`는 native type을 사전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error로 기록되며, PaySim native type 의미를 보존한 actual replay는 Phase 7 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
 
 ## V2 Phase 5. Retry outcome count 해석이 모호해지는 문제
 
@@ -401,6 +401,62 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 대응: invalid JSONL은 input corruption으로 간주해 replay를 실패시키고, row-level `payloadRejected`는 정상 JSON object row가 replay contract를 위반한 경우에만 집계한다고 문서화했습니다.
 - 검증: `read_jsonl()` parse failure path와 replay validation catch 위치 확인.
 - 남은 한계: invalid JSONL을 line-level reject로 계속 진행하는 tolerant mode는 Phase 5 범위에 포함하지 않습니다.
+
+## V2 Phase 6. Replay는 성공했지만 detection result가 없는 문제
+
+- 문제: app-api replay는 성공했지만 Consumer 처리 실패, lag, Redis/DB 오류, 또는 export 누락으로 detection result가 없을 수 있습니다.
+- 원인: replay success와 fraud detection result persistence는 서로 다른 비동기 단계입니다.
+- 대응: evaluation 기본값은 missing result를 denominator에 포함합니다. Fraud label에 result가 없으면 FN, non-fraud label에 result가 없으면 TN으로 계산하고 `missingResults`를 증가시킵니다.
+- 검증: fixture test에서 missing fraud result는 FN, missing non-fraud result는 TN으로 집계되는지 확인했습니다. Report에는 `missingResultTreatment`와 missing result warning을 기록합니다.
+- 남은 한계: missing result의 원인이 Consumer lag인지 export 누락인지는 evaluation script만으로 판별하지 않습니다.
+
+## V2 Phase 6. Label sidecar를 replay payload나 result export에 섞을 수 있는 문제
+
+- 문제: `isFraud`가 replay payload나 detection result export에 들어가면 evaluation leakage가 발생합니다.
+- 원인: label sidecar와 runtime event가 같은 eventId를 공유하므로 수동 export/merge 과정에서 label field가 섞일 수 있습니다.
+- 대응: evaluator는 detection result export에 `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`가 있으면 실패합니다. Label sidecar는 evaluation input으로만 문서화했습니다.
+- 검증: fixture test에서 result file에 `isFraud`가 있으면 `EvaluationError`가 발생하는지 확인했습니다.
+- 남은 한계: 외부 DB/API export 도구가 label을 섞지 않는지는 별도 review와 export contract 검증이 필요합니다.
+
+## V2 Phase 6. eventId prefix replay 결과가 label과 join되지 않는 문제
+
+- 문제: prefix replay를 사용하면 detection result eventId가 `local-smoke-paysim-...` 형태가 되어 original PaySim label eventId와 join되지 않을 수 있습니다.
+- 원인: replay collision 회피용 prefix는 API/DB 저장 eventId를 바꾸지만 label sidecar는 원본 deterministic eventId를 유지합니다.
+- 대응: evaluator에 `--event-id-prefix`를 추가해 detection result eventId에서 prefix를 제거한 뒤 join합니다. Replay report에 `eventIdPrefix`가 있으면 기본값으로 사용할 수 있습니다.
+- 검증: fixture test에서 `local-smoke-paysim-1` 결과가 `paysim-1` label과 join되는지 확인했습니다. Report에는 `matchedResults`, `unmatchedResults`와 unmatched result warning을 기록합니다.
+- 남은 한계: prefix가 여러 번 중첩된 결과나 임의 eventId rewrite는 지원하지 않습니다.
+
+## V2 Phase 6. Replay rejected event를 denominator에 포함하는 문제
+
+- 문제: current app-api enum 미지원 type처럼 HTTP 요청 전 rejected된 event를 evaluation denominator에 포함하면 model/rule 성능처럼 metric이 왜곡됩니다.
+- 원인: replay validation 단계에서 제외된 row는 Consumer와 Rule Engine에 도달하지 않습니다.
+- 대응: replay report가 있으면 pre-HTTP rejected eventId를 denominator에서 제외합니다.
+- 검증: fixture test에서 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API` failure event가 `excludedReplayRejected`로 제외되는지 확인했습니다. Report에는 `replayPayloadRejected`, `replayRejectedEventIdsAvailable`, `replayRejectedExclusionComplete`를 기록합니다.
+- 남은 한계: Phase 5 replay report의 `failures`는 bounded summary이므로 모든 rejected eventId가 없을 수 있습니다. 이 경우 evaluator는 warning을 남기며, full exclusion이 필요하면 replay report contract 확장이 필요합니다.
+
+## V2 Phase 6. Duplicate label/result eventId를 warning으로 넘기는 문제
+
+- 문제: duplicate label eventId는 denominator를 왜곡하고, duplicate result eventId는 어떤 riskLevel을 metric에 사용할지 모호하게 만듭니다.
+- 원인: evaluation 초기 구현은 duplicate eventId를 strict mode에서만 실패시키고 non-strict에서는 warning으로 넘길 수 있었습니다.
+- 대응: duplicate label/result eventId는 strict 여부와 무관하게 항상 실패하도록 변경했고, Makefile evaluation target은 `--strict`를 기본으로 실행합니다.
+- 검증: duplicate label/result fixture가 `strict=False`에서도 실패하는지 확인했습니다.
+- 남은 한계: 중복 원인은 export SQL, admin API pagination, replay prefix 정책을 별도로 확인해야 합니다.
+
+## V2 Phase 6. Metric denominator가 0일 때 division error가 나는 문제
+
+- 문제: positive prediction이 없거나 evaluated event가 0이면 precision/recall/accuracy 계산에서 0으로 나누는 문제가 생깁니다.
+- 원인: small sample이나 current rule output에서는 특정 denominator가 쉽게 0이 될 수 있습니다.
+- 대응: denominator가 0이면 metric을 `null`로 기록하고 warning을 남깁니다.
+- 검증: fixture test에서 denominator 0일 때 metric이 `null`인지 확인했습니다.
+- 남은 한계: `null` metric은 "0점"이 아니라 계산 불가이므로 evidence 문서에서 별도로 해석해야 합니다.
+
+## V2 Phase 6. 1,000건 sample metric을 전체 PaySim 성능처럼 과장하는 문제
+
+- 문제: committed sample evaluation 결과를 전체 PaySim 성능 또는 production fraud model 성능처럼 해석할 수 있습니다.
+- 원인: sample은 repository review와 pipeline validation을 위한 1,000건 이하 subset이며 class distribution도 balanced strategy 영향을 받습니다.
+- 대응: docs와 blog에 sample metric은 pipeline validation evidence이며 대표 성능이 아니라고 기록했습니다.
+- 검증: evidence plan과 roadmap limitation에 해당 기준을 추가했습니다.
+- 남은 한계: full PaySim evaluation evidence는 local processed output과 detection result export가 준비된 뒤 별도 evidence 단계에서 기록해야 합니다.
 
 ### 문제 상황
 

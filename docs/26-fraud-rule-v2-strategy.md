@@ -161,6 +161,35 @@ f1 = 2 * precision * recall / (precision + recall)
 
 V2의 precision/recall은 production ML model 성능이 아니라, PaySim synthetic label에 대한 Rule coverage 분석 지표입니다. Rule 기반 탐지의 해석 가능성과 Kafka 처리 evidence를 중심으로 기록합니다.
 
+## 6.1 Phase 6 Baseline Before Rule V2
+
+V2 Phase 6에서는 Rule Engine V2를 바로 구현하지 않고 replay result evaluation baseline을 먼저 만듭니다.
+
+이유:
+
+- Rule V2를 추가하기 전에 current rule output이 PaySim label과 얼마나 맞는지 측정 기준이 필요합니다.
+- 개선 목표를 "탐지가 더 좋아졌다"가 아니라 precision, recall, false positive rate, false negative rate, accuracy 변화로 설명해야 합니다.
+- Label sidecar가 replay payload나 Rule Engine input으로 섞이지 않는 평가 경계를 먼저 고정해야 합니다.
+- eventId prefix replay, replay rejected event, missing detection result 같은 평가 denominator 문제를 Rule V2 구현 전에 분리해야 합니다.
+
+Phase 6 baseline은 다음 기준을 사용합니다.
+
+```text
+label/result join key = eventId
+positive prediction = riskLevel >= configured positiveRiskLevel
+default positiveRiskLevel = MEDIUM
+actual positive = isFraud == true
+```
+
+Rule V2 개선 목표:
+
+- recall을 올리되 false positive rate 폭증을 피합니다.
+- PaySim fraud label 기준으로 Rule V2 전후 confusion matrix를 비교합니다.
+- amount threshold만으로 잡히지 않는 fraud를 `sourceStep`과 balance features 기반 rule로 보완합니다.
+- `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` 도입 전후의 missed fraud와 false positive 변화를 기록합니다.
+
+Phase 7에서 Rule Engine V2를 구현할 때는 Phase 6 evaluation report를 비교 기준으로 사용합니다.
+
 ## 7. Redis Degraded Behavior
 
 Redis 기반 rule은 V1 정책을 유지합니다.
