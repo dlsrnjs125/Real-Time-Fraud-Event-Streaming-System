@@ -164,6 +164,15 @@ make generate-paysim-sample-strict
 make test-data-scripts
 ```
 
+V2 PaySim replay:
+
+```bash
+make replay-paysim-sample-dry-run
+make replay-paysim-sample
+```
+
+Actual replay requires local app-api and infrastructure to be running. Detailed replay contract is documented in [PaySim Data Scripts](scripts/data/README.md) and [V2 Result Evidence Plan](docs/29-v2-result-evidence.md).
+
 Python dependencies for PaySim helpers are installed into `.venv-data`; the Java application runtime does not depend on this Python environment.
 
 Detailed validation and sampling contracts are documented in [PaySim Normalization Mapping](docs/25-paysim-normalization-mapping.md) and [PaySim Data Scripts](scripts/data/README.md).

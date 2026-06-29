@@ -479,40 +479,98 @@ Java replay path와 API payload validation 연결은 Phase 5 replay pipeline 범
 
 ## 11. Replay Pipeline Contract
 
-Replay script 후보:
+V2 Phase 5 구현 script:
 
-```bash
-python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-events.jsonl \
-  --api-base-url http://localhost:8080 \
-  --limit 1000 \
-  --rate-per-second 50
+```text
+scripts/data/replay_paysim_events.py
 ```
 
-기능 요구사항:
+기본 replay 대상은 app-api transaction intake endpoint입니다.
 
-- JSONL 한 줄씩 읽기
-- app-api `POST /api/v1/transactions/events` 호출
-- rate limit 옵션
-- 실패 응답 기록
-- replay summary 출력
-- eventId prefix 옵션
-- 기본 replay는 `paysim-events.jsonl`만 읽고 label에 접근하지 않음
-- fraud-only/normal-only replay는 명시적으로 `--labels-input`을 전달한 경우에만 허용
-- filtered replay에서도 API/Kafka payload에는 label을 포함하지 않음
-- 후속 Phase 5에서는 `--event-id-prefix`로 replay 시점 eventId prefix를 조정할 수 있게 함
+```text
+POST http://localhost:8080/api/v1/transactions/events
+```
 
-fraud-only replay 예시:
+Replay input은 events JSONL만 사용합니다.
+
+```text
+data/samples/paysim-events-sample.jsonl
+data/processed/paysim-events.jsonl
+```
+
+`paysim-labels.jsonl`은 HTTP replay input이 아닙니다. Label sidecar는 replay 이후 fraud result와 join해 offline/online evaluation을 계산하기 위한 파일입니다.
+
+### 11.1 Runtime Event to API Request Mapping
+
+Current app-api `TransactionEventRequest` accepts:
+
+```text
+eventId
+userId
+accountId
+eventType
+amount
+currency
+merchantId
+deviceId
+location
+eventTime
+```
+
+PaySim runtime event에서 API request body로 보내는 field:
+
+| PaySim runtime event | app-api request | Notes |
+|---|---|---|
+| `eventId` | `eventId` | preserve 또는 prefix policy 적용 |
+| `userId` | `userId` | Kafka key와 user grouping 유지 |
+| `accountId` | `accountId` | HMAC pseudonym |
+| `eventType` | `eventType` | current enum과 호환 |
+| `amount` | `amount` | decimal string 그대로 전송 |
+| `currency` | `currency` | `KRW` |
+| `eventTime` | `eventTime` | server가 `receivedAt` 생성 |
+| `traceId` | `X-Trace-Id` header | body에는 넣지 않음 |
+
+API DTO에 없는 field는 HTTP body에서 제외하고 replay report의 `droppedFields`에 집계합니다.
+
+```text
+balanceFeatures
+source
+schemaVersion
+destinationAccountId
+```
+
+금지:
+
+- `receivedAt`: app-api가 접수 시각으로 생성합니다.
+- `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`: label leakage입니다.
+- `nameOrig`, `nameDest`, `C12345`, `M12345` 형태 raw identifier: replay payload와 report에 남기지 않습니다.
+
+### 11.2 EventId Collision and Idempotency
+
+`idempotency-mode=preserve`는 PaySim deterministic `eventId`를 그대로 사용합니다. 같은 API/DB에 다시 replay하면 `409 DUPLICATE_TRANSACTION_EVENT`가 발생할 수 있으며, replay report에서는 `httpDuplicateOrConflict`로 집계합니다.
+
+`idempotency-mode=prefix`는 `--event-id-prefix`를 요구합니다.
 
 ```bash
-python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-events.jsonl \
-  --event-id-prefix paysim-full-v1 \
-  --labels-input data/processed/paysim-labels.jsonl \
-  --filter fraud-only \
-  --api-base-url http://localhost:8080 \
-  --limit 1000
+.venv-data/bin/python scripts/data/replay_paysim_events.py \
+  --input data/samples/paysim-events-sample.jsonl \
+  --idempotency-mode prefix \
+  --event-id-prefix local-smoke \
+  --max-events 100 \
+  --force
 ```
+
+Prefix mode는 같은 dataset을 같은 API/DB에 여러 번 넣거나 sample/full dataset을 섞어 replay할 때 collision을 줄이기 위한 옵션입니다. 반대로 duplicate/idempotency 검증에는 preserve mode가 더 적합합니다.
+
+### 11.3 Replay Report
+
+Replay report 기본 경로:
+
+```text
+data/processed/paysim-replay-report.json
+```
+
+이 파일은 Git ignore 대상이며 commit하지 않습니다. Report는 success, duplicate/conflict, client error, server error, timeout, connection error, retry attempts, dropped fields, sampled eventIds, bounded failure summary를 기록합니다. Request body, response body, token, label field, raw identifier는 저장하지 않습니다.
 
 ## 12. Partial Output Safety
 

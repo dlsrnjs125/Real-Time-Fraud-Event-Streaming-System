@@ -298,6 +298,62 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 검증: validation/sample fixture와 committed sample policy check로 정상 eventId/traceId를 허용하면서 `C12345`, `M12345`, `U-C12345`는 차단합니다.
 - 남은 한계: raw identifier와 같은 모양의 다른 텍스트도 차단될 수 있으므로 sample/manifest에는 불필요한 free-form text를 넣지 않습니다.
 
+## V2 Phase 5. Replay payload에 label field가 섞일 수 있는 문제
+
+- 문제: `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`가 HTTP payload로 들어가면 Rule Engine이 평가 label을 볼 수 있는 구조가 됩니다.
+- 원인: PaySim events JSONL과 labels JSONL을 같은 data workflow에서 다루기 때문입니다.
+- 대응: replay script는 events JSONL만 input으로 받고 label field를 payload validation에서 거부합니다.
+- 검증: `test_replay_paysim_events.py` label leakage test와 dry-run replay.
+- 남은 한계: label 기반 filtering/evaluation은 후속 단계에서 별도 command로 분리해야 합니다.
+
+## V2 Phase 5. receivedAt을 client가 보내 server time policy가 깨지는 문제
+
+- 문제: replay payload가 `receivedAt`을 보내면 app-api가 접수 시각을 생성한다는 정책이 흐려집니다.
+- 원인: normalized runtime event와 Kafka message schema를 혼동할 수 있습니다.
+- 대응: replay script는 `receivedAt`이 있으면 HTTP 요청을 보내지 않고 rejected로 집계합니다.
+- 검증: receivedAt validation failure fixture test.
+- 남은 한계: app-api DTO에 향후 `receivedAt`이 추가되면 replay contract도 다시 검토해야 합니다.
+
+## V2 Phase 5. eventId preserve replay의 duplicate/idempotency 결과
+
+- 문제: PaySim eventId는 deterministic이므로 같은 API/DB에 반복 replay하면 `409 DUPLICATE_TRANSACTION_EVENT`가 발생할 수 있습니다.
+- 원인: app-api가 `transaction_event_receipts.event_id` unique constraint로 중복 접수를 막습니다.
+- 대응: preserve mode는 duplicate/idempotency 검증용으로 유지하고, 409는 `httpDuplicateOrConflict`로 집계합니다.
+- 검증: 409 aggregation fixture test.
+- 남은 한계: 409 response body를 자세히 해석하지 않고 duplicate/conflict bucket으로 집계합니다.
+
+## V2 Phase 5. eventId prefix를 무분별하게 쓰면 idempotency 검증이 어려워지는 문제
+
+- 문제: 매번 prefix를 바꾸면 중복 replay 방어를 검증하기 어렵습니다.
+- 원인: prefix mode는 collision 회피에는 유용하지만 preserve replay와 목적이 다릅니다.
+- 대응: `idempotency-mode=prefix`일 때만 `--event-id-prefix`를 허용하고, prefix가 없으면 실패합니다.
+- 검증: prefix mode fixture test.
+- 남은 한계: prefix naming convention은 운영 정책이 아니라 local replay convention입니다.
+
+## V2 Phase 5. app-api 미기동 시 불명확한 replay 실패
+
+- 문제: app-api가 꺼져 있으면 Python HTTP error가 그대로 노출되어 어떤 집계가 실패했는지 알기 어렵습니다.
+- 원인: connection refused와 timeout을 replay report로 분류하지 않으면 실패 evidence가 남지 않습니다.
+- 대응: connection refused는 `connectionError`, timeout은 `timeout`으로 집계하고 bounded failure summary를 남깁니다.
+- 검증: timeout fixture test, actual replay는 app-api 실행 중일 때만 수동 수행합니다.
+- 남은 한계: 네트워크 DNS 오류와 connection refused는 같은 connection error bucket입니다.
+
+## V2 Phase 5. Replay report에 request/response body나 token이 남을 수 있는 문제
+
+- 문제: report가 payload 전체나 Authorization token을 저장하면 raw identifier, token, label leakage 위험이 커집니다.
+- 원인: troubleshooting 편의로 request/response body를 그대로 저장하고 싶어질 수 있습니다.
+- 대응: report는 aggregate count, dropped fields, sampled eventIds, bounded failure reason만 저장합니다. Token, request body, response body는 저장하지 않습니다.
+- 검증: token/request body/raw identifier absence fixture test.
+- 남은 한계: endpoint URL 자체에 secret query parameter를 넣는 사용 방식은 금지해야 합니다.
+
+## V2 Phase 5. Rate limit 없이 replay하면 local API/Kafka/DB를 압박하는 문제
+
+- 문제: sample/full JSONL을 빠르게 replay하면 local Kafka/PostgreSQL 부하가 replay script 의도보다 커질 수 있습니다.
+- 원인: JSONL replay는 단순 loop로 구현하면 무제한 POST가 됩니다.
+- 대응: `--rate-per-second`를 필수 양수 값으로 검증하고 요청 간 sleep을 둡니다.
+- 검증: non-positive rate fixture test.
+- 남은 한계: rate limit은 단일 process 기준이며 distributed replay coordination은 제공하지 않습니다.
+
 ### 문제 상황
 
 로컬 Docker Compose 기반 k6 결과는 노트북 CPU, 메모리, Docker resource limit, JVM warmup, Kafka/DB/Redis container 상태에 크게 영향을 받습니다.

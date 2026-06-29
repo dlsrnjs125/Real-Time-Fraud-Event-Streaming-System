@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -32,6 +32,8 @@ help:
 	@echo "  make validate-paysim - Validate processed PaySim outputs"
 	@echo "  make validate-paysim-strict - Validate PaySim outputs with non-default salt policy"
 	@echo "  make generate-paysim-sample - Generate safe PaySim JSONL samples"
+	@echo "  make replay-paysim-sample-dry-run - Validate replay payloads without HTTP"
+	@echo "  make replay-paysim-sample - Replay committed PaySim sample into local app-api"
 	@echo "  make test-data-scripts - Run Python data script tests"
 	@echo "  make topics         - Create Kafka topics"
 	@echo "  make smoke          - Run local smoke test"
@@ -147,6 +149,15 @@ generate-paysim-sample: data-env
 
 generate-paysim-sample-strict: data-env
 	$(DATA_PYTHON) scripts/data/generate_paysim_samples.py --sample-size 1000 --strategy balanced --require-non-default-salt --force
+
+replay-paysim-sample: data-env
+	$(DATA_PYTHON) scripts/data/replay_paysim_events.py --input data/samples/paysim-events-sample.jsonl --max-events 100 --rate-per-second 10 --force
+
+replay-paysim-sample-dry-run: data-env
+	$(DATA_PYTHON) scripts/data/replay_paysim_events.py --input data/samples/paysim-events-sample.jsonl --max-events 100 --dry-run --force
+
+replay-paysim-processed-smoke: data-env
+	$(DATA_PYTHON) scripts/data/replay_paysim_events.py --input data/processed/paysim-events.jsonl --max-events 1000 --rate-per-second 20 --force
 
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
