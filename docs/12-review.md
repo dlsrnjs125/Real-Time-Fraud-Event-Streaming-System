@@ -750,6 +750,7 @@ make prepare-paysim-smoke
 - JSONL sample과 label sidecar를 분리하고 sample manifest를 생성했습니다.
 - `data/samples/*.csv`, 임의 JSONL, 일반 JSON 허용을 제거하고 현재 생성되는 sample 3개 파일만 제한 허용했습니다.
 - data policy check가 staged sample content를 scan해 event label leakage, raw identifier, manifest salt value를 차단하도록 보강했습니다.
+- grep 기반 sample content scan은 commit guardrail로 한정하고, 구조적 JSON 검증은 validator/generator가 수행한다고 문서화했습니다.
 - fixture 기반 unittest를 추가해 실제 Kaggle CSV 없이 Phase 3 contract를 검증했습니다.
 
 ### 사람 검토 체크리스트
@@ -788,6 +789,7 @@ make generate-paysim-sample-strict
 - `make validate-paysim`: PASS, events=1000 labels=1000 rejected=0 fraud=9 flagged=0 rejectRatio=0.0000
 - `make generate-paysim-sample-strict`: PASS, events=1000 labels=1000 fraud=9
 - sample leakage grep checks: PASS, expected no-output checks returned no matches
+- hidden/bidirectional Unicode control character scan: PASS
 - sample files: each under 1MB
 - raw CSV, processed output, `.venv-data` are ignored and not staged
 

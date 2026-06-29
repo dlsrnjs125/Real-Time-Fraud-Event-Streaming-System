@@ -244,6 +244,8 @@ Phase 3 sample policy:
 - sample manifest에 raw identifier나 salt 값 자체를 기록하지 않습니다.
 - local smoke sample에는 `default-local` salt source가 허용되지만, 공유/커밋 sample에는 `--require-non-default-salt` 사용을 권장합니다.
 
+`check-data-policy.sh`의 sample content scan은 staged file을 대상으로 하는 Git commit guardrail입니다. JSON schema 수준의 정밀 검증은 `validate_paysim_outputs.py`와 `generate_paysim_samples.py`에서 수행합니다.
+
 Committed sample은 raw identifier와 salt 값을 노출하지 않는 것을 우선하므로, 동일한 raw dataset과 동일한 private salt가 없으면 byte-for-byte 재생성은 보장하지 않습니다. 재현성은 `sourceInputSha256`, sample manifest, generation script, validation script 기준으로 설명합니다.
 
 V2 Phase 3 검증 결과:

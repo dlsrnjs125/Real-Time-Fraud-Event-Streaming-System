@@ -77,6 +77,8 @@ Do not commit:
 
 Phase 3 does not generate CSV samples because CSV can accidentally preserve raw PaySim columns. The data policy check rejects CSV samples, arbitrary JSONL samples, generic JSON samples, full/processed sample names, and sample files larger than 1MB.
 
+`check-data-policy.sh` also performs lightweight grep-based sample content scans against staged files. This is a Git commit guardrail for common mistakes, not a full JSON schema validator. Structural validation remains the responsibility of `validate_paysim_outputs.py` and `generate_paysim_samples.py`.
+
 ## Identifier Hashing
 
 PaySim is synthetic, but `nameOrig` and `nameDest` look like account identifiers. Treat them as sensitive for repository and logging purposes.
