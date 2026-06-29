@@ -140,7 +140,7 @@ These commands use local PaySim files, local infrastructure, or detection export
 | `make prepare-paysim-smoke` | Normalize limited raw rows | Yes | No | No | `data/processed/*.jsonl`, validation report | processed files are generated locally |
 | `make validate-paysim` | Validate processed local outputs | Yes | No | No | terminal result | processed output/report contract is valid |
 | `make generate-paysim-sample` | Generate commit-safe samples | Yes | No | No | `data/samples/*.jsonl`, manifest | sample contract and policy checks pass |
-| `make replay-paysim-sample-dry-run` | Validate replay payloads without HTTP | No | No | No | `data/processed/paysim-replay-report.json` | payload contract passes without sending HTTP |
+| `make replay-paysim-sample-dry-run` | Validate replay payloads without HTTP | No | No | No | `data/processed/paysim-replay-report.json` | payload contract passes; writes a local ignored report, so it stays local/manual rather than a default CI gate |
 | `make replay-paysim-sample` | Replay committed sample into local app-api | No | Yes | No | replay report | local app-api accepts/rejects rows according to replay contract |
 | `make evaluate-paysim-replay` | Evaluate labels against local detection results | No | No | Yes | `data/processed/paysim-evaluation-report.json` | strict evaluation report is generated |
 | `make evaluate-paysim-threshold-policy-report` | Generate default threshold policy evaluation report | No | No | Yes | `data/processed/paysim-evaluation-report.json` | report records selected threshold policy and workload summary |
@@ -175,7 +175,7 @@ Runtime events never include `isFraud`, `isFlaggedFraud`, `nameOrig`, `nameDest`
 
 `--limit` only limits output row processing. The script still computes SHA-256 for the full raw input file so the validation report keeps file-level provenance.
 
-Phase 2 writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay processed output until Phase 5 adds replay-specific safety checks. Atomic temp-file writes are a Phase 5 follow-up.
+The preprocessing script writes output files directly. If `fail-fast` stops during processing, partial files can remain under `data/processed`. Do not replay newly generated processed output until validation and replay dry-run checks pass. Atomic temp-file writes remain a future hardening candidate for preprocessing failure recovery.
 
 Phase 3 sample generation must not use the `default-local` salt for committed samples. Use `PAYSIM_HASH_SALT` or an explicit `--hash-salt`, and never write the salt value to reports or manifests.
 Phase 4 enforces this more strongly with `--require-non-default-salt`, `make validate-paysim-strict`, `make generate-paysim-sample-strict`, fixture tests, and data policy checks against committed sample manifests.
