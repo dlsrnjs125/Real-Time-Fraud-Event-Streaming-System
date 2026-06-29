@@ -259,12 +259,14 @@ make replay-paysim-processed-smoke
 Replay rules:
 
 - Input is events JSONL only, normally `data/samples/paysim-events-sample.jsonl` or `data/processed/paysim-events.jsonl`.
+- If replay input JSONL itself cannot be parsed, replay fails as input corruption. Row-level `payloadRejected` is only for parsed JSON object rows that violate the replay contract.
 - Labels JSONL is not a replay input. It is reserved for evaluation joins.
 - Replay payloads never include `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`.
 - `X-Trace-Id` is populated from the PaySim event `traceId`.
 - Fields not accepted by the current app-api DTO, such as `balanceFeatures`, `source`, `schemaVersion`, and `destinationAccountId`, are omitted and counted in `droppedFields`.
 - The default `--event-type-policy current-api` rejects PaySim native types that the current app-api enum does not support, such as `CASH_OUT`, `CASH_IN`, and `DEBIT`, before HTTP requests are sent.
 - `--event-type-policy preserve` keeps native PaySim event types for future API/Rule V2 compatibility checks, but current app-api actual replay may return validation errors for unsupported types.
+- In `preserve` mode, native PaySim types are not counted in `unsupportedEventTypes` before HTTP; if the current API rejects them, they are recorded as HTTP 4xx/client errors.
 - `idempotency-mode=preserve` keeps original `eventId` values and is useful for duplicate/idempotency checks.
 - `idempotency-mode=prefix` requires `--event-id-prefix` and avoids collisions when mixing datasets or replaying into the same API/database repeatedly.
 - `--rate-per-second` limits request pace; avoid unbounded replay against local Kafka/PostgreSQL.

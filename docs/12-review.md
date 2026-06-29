@@ -147,6 +147,7 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - timeout/409/5xx 집계가 구분되는가
 - retry final outcome과 retry attempt count가 분리되는가
 - current app-api enum에 없는 PaySim native eventType을 HTTP 전송 전에 rejected 처리하는가
+- invalid JSONL parse failure와 row-level `payloadRejected`의 기준이 분리되어 있는가
 - CI에서 실제 HTTP replay를 실행하지 않는가
 - mock/fixture 기반 replay test는 CI에서 실행되는가
 
@@ -157,6 +158,8 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 `droppedFields`로 집계합니다.
 - dry-run은 payload validation과 report 생성만 수행하고 HTTP를 호출하지 않습니다.
 - current app-api enum에 없는 PaySim native eventType은 기본 `current-api` policy에서 rejected 처리합니다.
+- `preserve` event type policy에서는 unsupported native type을 사전 rejected로 집계하지 않고, current API가 거부하면 HTTP 4xx/client error로 해석합니다.
+- invalid JSONL parse failure는 input corruption으로 간주하고, `payloadRejected`는 정상 JSON object row의 replay contract 위반에만 사용한다고 문서화했습니다.
 - retry final outcome counter와 retry attempt counter를 분리했습니다.
 - connection error retry는 `--retry-connection-error` opt-in으로 분리했습니다.
 - actual replay는 Makefile target으로 제공하지만 CI/final-check에는 넣지 않았습니다.

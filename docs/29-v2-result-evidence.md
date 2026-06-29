@@ -179,6 +179,7 @@ Report fields:
 - `5xx`: `httpServerError`
 - timeout: `timeout`
 - connection refused or app-api down: `connectionError`
+- invalid JSONL parse failure: script-level input corruption failure, not row-level `payloadRejected`
 
 Retry 해석:
 
@@ -195,6 +196,7 @@ Evidence 구분:
 - preserve replay: 같은 eventId를 반복 replay해 duplicate/idempotency behavior와 `409` 집계를 확인합니다.
 - prefix replay: `--idempotency-mode prefix --event-id-prefix <prefix>`로 collision 없이 새 eventId를 만드는지 확인합니다.
 - current-api event type dry-run: Phase 5에서는 current app-api enum에 없는 PaySim native types를 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
+- preserve event type replay: native type을 HTTP 전송 전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error evidence로 해석합니다.
 
 ## 3. Evidence Tables
 

@@ -500,6 +500,8 @@ data/processed/paysim-events.jsonl
 
 `paysim-labels.jsonl`은 HTTP replay input이 아닙니다. Label sidecar는 replay 이후 fraud result와 join해 offline/online evaluation을 계산하기 위한 파일입니다.
 
+Replay input JSONL 자체가 parse 불가능한 경우는 row-level business reject가 아니라 input corruption으로 간주해 replay를 실패시킵니다. Phase 5의 row-level `payloadRejected`는 JSON row가 정상 object로 읽힌 뒤 replay contract를 위반한 경우에만 집계합니다.
+
 ### 11.1 Runtime Event to API Request Mapping
 
 Current app-api `TransactionEventRequest` accepts:
@@ -545,6 +547,7 @@ Event type policy:
 - current app-api enum은 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 지원합니다.
 - PaySim native type인 `CASH_OUT`, `CASH_IN`, `DEBIT`은 Phase 5에서 Java DTO를 변경하지 않는다는 범위 때문에 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
 - `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
+- `preserve` mode에서는 native type을 사전 rejected로 집계하지 않으며, current API가 거부하면 HTTP 4xx/client error로 기록됩니다.
 
 Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 6 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
 
@@ -588,6 +591,7 @@ Report 해석 기준:
 - Retry 중간 attempt는 `retryTimeoutAttempts`, `retryServerErrorAttempts`, `retryConnectionErrorAttempts`에 별도로 기록합니다.
 - 기본 retry 대상은 timeout과 5xx입니다. Connection error retry는 `--retry-connection-error`를 명시한 경우에만 수행합니다.
 - `unsupportedEventTypes`는 current app-api enum 기준으로 HTTP 전송 전에 rejected 처리한 PaySim eventType count입니다.
+- Invalid JSONL parse failure는 report의 row-level `payloadRejected`가 아니라 script-level input corruption failure로 봅니다.
 
 ## 12. Partial Output Safety
 

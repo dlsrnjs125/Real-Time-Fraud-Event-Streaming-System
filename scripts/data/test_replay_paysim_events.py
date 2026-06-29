@@ -117,6 +117,10 @@ class ReplayPaySimEventsTest(unittest.TestCase):
     def test_unsupported_current_api_event_type_fails_before_http(self):
         self.assert_validation_fails(self.event(eventType="CASH_OUT"), "UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API")
 
+    def test_non_positive_amount_fails_replay_validation(self):
+        self.assert_validation_fails(self.event(amount="0"), "INVALID_AMOUNT")
+        self.assert_validation_fails(self.event(amount="-1"), "INVALID_AMOUNT")
+
     def test_event_type_policy_preserve_allows_native_paysim_type(self):
         payload, _trace_id = replay.to_api_request(
             self.event(eventType="CASH_OUT"),

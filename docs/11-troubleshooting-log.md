@@ -360,7 +360,7 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 원인: Phase 5에서는 Java DTO/API enum을 변경하지 않고 replay pipeline만 구현하기로 했습니다.
 - 대응: replay script 기본값은 `--event-type-policy current-api`이며 unsupported native type을 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
 - 검증: dry-run에서 first 100 sample 기준 `CASH_OUT=14`, `DEBIT=10`이 `unsupportedEventTypes`에 집계되었습니다.
-- 남은 한계: PaySim native type 의미를 보존한 actual replay는 Phase 6 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
+- 남은 한계: `--event-type-policy preserve`는 native type을 사전 rejected로 집계하지 않습니다. Current app-api가 거부하면 `unsupportedEventTypes`가 아니라 HTTP 4xx/client error로 기록되며, PaySim native type 의미를 보존한 actual replay는 Phase 6 이후 API DTO 확장 또는 Rule V2 contract와 함께 처리합니다.
 
 ## V2 Phase 5. Retry outcome count 해석이 모호해지는 문제
 
@@ -391,8 +391,16 @@ Docker 데몬 장애나 compose project 손상처럼 `docker compose start redis
 - 문제: Phase 2/3 processed validation을 통과한 row가 replay 단계에서 reject될 수 있습니다.
 - 원인: dataset normalization 기준과 current app-api request contract가 다릅니다. 예를 들어 preprocessing은 PaySim amount `>= 0`을 허용할 수 있지만 app-api는 `amount > 0`을 요구합니다.
 - 대응: replay validation은 current app-api contract 기준으로 `amount <= 0`을 rejected 처리한다고 문서화했습니다.
-- 검증: replay script amount validation과 app-api DTO contract 확인.
+- 검증: replay script amount validation과 app-api DTO contract 확인. `amount="0"`과 `amount="-1"` fixture가 `INVALID_AMOUNT`로 rejected 되는지 확인했습니다.
 - 남은 한계: API DTO가 V2 native PaySim fields를 받도록 확장되면 replay validation 기준도 함께 갱신해야 합니다.
+
+## V2 Phase 5. Invalid JSONL을 row-level reject로 오해할 수 있는 문제
+
+- 문제: replay input JSONL 자체가 깨진 경우를 `payloadRejected`로 볼지 script failure로 볼지 해석이 모호할 수 있습니다.
+- 원인: JSON parse failure는 정상 object row를 읽기 전에 발생하므로 per-row replay validation catch보다 앞에서 중단됩니다.
+- 대응: invalid JSONL은 input corruption으로 간주해 replay를 실패시키고, row-level `payloadRejected`는 정상 JSON object row가 replay contract를 위반한 경우에만 집계한다고 문서화했습니다.
+- 검증: `read_jsonl()` parse failure path와 replay validation catch 위치 확인.
+- 남은 한계: invalid JSONL을 line-level reject로 계속 진행하는 tolerant mode는 Phase 5 범위에 포함하지 않습니다.
 
 ### 문제 상황
 
