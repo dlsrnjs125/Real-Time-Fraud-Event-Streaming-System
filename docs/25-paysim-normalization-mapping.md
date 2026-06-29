@@ -479,40 +479,119 @@ Java replay path와 API payload validation 연결은 Phase 5 replay pipeline 범
 
 ## 11. Replay Pipeline Contract
 
-Replay script 후보:
+V2 Phase 5 구현 script:
 
-```bash
-python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-events.jsonl \
-  --api-base-url http://localhost:8080 \
-  --limit 1000 \
-  --rate-per-second 50
+```text
+scripts/data/replay_paysim_events.py
 ```
 
-기능 요구사항:
+기본 replay 대상은 app-api transaction intake endpoint입니다.
 
-- JSONL 한 줄씩 읽기
-- app-api `POST /api/v1/transactions/events` 호출
-- rate limit 옵션
-- 실패 응답 기록
-- replay summary 출력
-- eventId prefix 옵션
-- 기본 replay는 `paysim-events.jsonl`만 읽고 label에 접근하지 않음
-- fraud-only/normal-only replay는 명시적으로 `--labels-input`을 전달한 경우에만 허용
-- filtered replay에서도 API/Kafka payload에는 label을 포함하지 않음
-- 후속 Phase 5에서는 `--event-id-prefix`로 replay 시점 eventId prefix를 조정할 수 있게 함
+```text
+POST http://localhost:8080/api/v1/transactions/events
+```
 
-fraud-only replay 예시:
+Replay input은 events JSONL만 사용합니다.
+
+```text
+data/samples/paysim-events-sample.jsonl
+data/processed/paysim-events.jsonl
+```
+
+`paysim-labels.jsonl`은 HTTP replay input이 아닙니다. Label sidecar는 replay 이후 fraud result와 join해 offline/online evaluation을 계산하기 위한 파일입니다.
+
+Replay input JSONL 자체가 parse 불가능한 경우는 row-level business reject가 아니라 input corruption으로 간주해 replay를 실패시킵니다. Phase 5의 row-level `payloadRejected`는 JSON row가 정상 object로 읽힌 뒤 replay contract를 위반한 경우에만 집계합니다.
+
+### 11.1 Runtime Event to API Request Mapping
+
+Current app-api `TransactionEventRequest` accepts:
+
+```text
+eventId
+userId
+accountId
+eventType
+amount
+currency
+merchantId
+deviceId
+location
+eventTime
+```
+
+PaySim runtime event에서 API request body로 보내는 field:
+
+| PaySim runtime event | app-api request | Notes |
+|---|---|---|
+| `eventId` | `eventId` | preserve 또는 prefix policy 적용 |
+| `userId` | `userId` | Kafka key와 user grouping 유지 |
+| `accountId` | `accountId` | HMAC pseudonym |
+| `eventType` | `eventType` | current enum과 호환 |
+| `amount` | `amount` | decimal string 그대로 전송 |
+| `currency` | `currency` | `KRW` |
+| `eventTime` | `eventTime` | server가 `receivedAt` 생성 |
+| `traceId` | `X-Trace-Id` header | body에는 넣지 않음 |
+
+API DTO에 없는 field는 HTTP body에서 제외하고 replay report의 `droppedFields`에 집계합니다.
+
+```text
+balanceFeatures
+source
+schemaVersion
+destinationAccountId
+```
+
+Event type policy:
+
+- 기본값은 `--event-type-policy current-api`입니다.
+- current app-api enum은 `PAYMENT`, `TRANSFER`, `WITHDRAWAL`, `DEPOSIT`만 지원합니다.
+- PaySim native type인 `CASH_OUT`, `CASH_IN`, `DEBIT`은 Phase 5에서 Java DTO를 변경하지 않는다는 범위 때문에 HTTP 전송 전에 `UNSUPPORTED_EVENT_TYPE_FOR_CURRENT_API`로 rejected 처리합니다.
+- `--event-type-policy preserve`는 native eventType을 보존하지만 current app-api actual replay에서는 400 validation error가 발생할 수 있습니다.
+- `preserve` mode에서는 native type을 사전 rejected로 집계하지 않으며, current API가 거부하면 HTTP 4xx/client error로 기록됩니다.
+
+Phase 5 replay는 current app-api DTO 기준으로 동작합니다. PaySim native eventType의 의미를 보존한 실제 replay는 Phase 6 이후 API DTO 확장 또는 Rule Engine V2 contract와 함께 처리합니다.
+
+금지:
+
+- `receivedAt`: app-api가 접수 시각으로 생성합니다.
+- `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`: label leakage입니다.
+- `nameOrig`, `nameDest`, `C12345`, `M12345` 형태 raw identifier: replay payload와 report에 남기지 않습니다.
+- `amount <= 0`: preprocessing validation과 달리 current app-api request contract 기준에서 replay 단계 rejected로 처리될 수 있습니다.
+
+### 11.2 EventId Collision and Idempotency
+
+`idempotency-mode=preserve`는 PaySim deterministic `eventId`를 그대로 사용합니다. 같은 API/DB에 다시 replay하면 `409 DUPLICATE_TRANSACTION_EVENT`가 발생할 수 있으며, replay report에서는 `httpDuplicateOrConflict`로 집계합니다.
+
+`idempotency-mode=prefix`는 `--event-id-prefix`를 요구합니다.
 
 ```bash
-python scripts/data/replay_paysim_to_api.py \
-  --input data/processed/paysim-events.jsonl \
-  --event-id-prefix paysim-full-v1 \
-  --labels-input data/processed/paysim-labels.jsonl \
-  --filter fraud-only \
-  --api-base-url http://localhost:8080 \
-  --limit 1000
+.venv-data/bin/python scripts/data/replay_paysim_events.py \
+  --input data/samples/paysim-events-sample.jsonl \
+  --idempotency-mode prefix \
+  --event-id-prefix local-smoke \
+  --max-events 100 \
+  --force
 ```
+
+Prefix mode는 같은 dataset을 같은 API/DB에 여러 번 넣거나 sample/full dataset을 섞어 replay할 때 collision을 줄이기 위한 옵션입니다. 반대로 duplicate/idempotency 검증에는 preserve mode가 더 적합합니다.
+
+### 11.3 Replay Report
+
+Replay report 기본 경로:
+
+```text
+data/processed/paysim-replay-report.json
+```
+
+이 파일은 Git ignore 대상이며 commit하지 않습니다. Report는 success, duplicate/conflict, client error, server error, timeout, connection error, retry attempts, dropped fields, sampled eventIds, bounded failure summary를 기록합니다. Request body, response body, token, label field, raw identifier는 저장하지 않습니다.
+
+Report 해석 기준:
+
+- `httpSuccess`, `httpDuplicateOrConflict`, `httpClientError`, `httpServerError`, `timeout`, `connectionError`는 event-level final outcome입니다.
+- Retry 중간 attempt는 `retryTimeoutAttempts`, `retryServerErrorAttempts`, `retryConnectionErrorAttempts`에 별도로 기록합니다.
+- 기본 retry 대상은 timeout과 5xx입니다. Connection error retry는 `--retry-connection-error`를 명시한 경우에만 수행합니다.
+- `unsupportedEventTypes`는 current app-api enum 기준으로 HTTP 전송 전에 rejected 처리한 PaySim eventType count입니다.
+- Invalid JSONL parse failure는 report의 row-level `payloadRejected`가 아니라 script-level input corruption failure로 봅니다.
 
 ## 12. Partial Output Safety
 

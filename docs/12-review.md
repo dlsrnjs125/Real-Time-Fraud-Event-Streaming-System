@@ -132,6 +132,48 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - sample event에 `"isFraud"` 강제 add 시 `data-policy-check` 실패해야 합니다.
 - sample event에 `"nameOrig"` 강제 add 시 `data-policy-check` 실패해야 합니다.
 
+## V2 Phase 5 Review
+
+### 검토한 기준
+
+- replay input이 events JSONL만 사용하는가
+- label sidecar를 HTTP payload로 보내지 않는가
+- replay payload에 `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`가 없는가
+- replay payload에 `nameOrig`, `nameDest`, raw identifier pattern이 없는가
+- replay payload에 `receivedAt`이 없는가
+- eventId preserve/prefix 정책이 명확한가
+- dry-run은 실제 HTTP 요청을 보내지 않는가
+- report에 token/request body/raw identifier가 저장되지 않는가
+- timeout/409/5xx 집계가 구분되는가
+- retry final outcome과 retry attempt count가 분리되는가
+- current app-api enum에 없는 PaySim native eventType을 HTTP 전송 전에 rejected 처리하는가
+- invalid JSONL parse failure와 row-level `payloadRejected`의 기준이 분리되어 있는가
+- CI에서 실제 HTTP replay를 실행하지 않는가
+- mock/fixture 기반 replay test는 CI에서 실행되는가
+
+### 반영한 내용
+
+- `replay_paysim_events.py`는 events JSONL만 읽고 app-api intake DTO에 맞는 field만 전송합니다.
+- `traceId`는 `X-Trace-Id` header로 전달하고 body에서는 제외합니다.
+- DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 `droppedFields`로 집계합니다.
+- dry-run은 payload validation과 report 생성만 수행하고 HTTP를 호출하지 않습니다.
+- current app-api enum에 없는 PaySim native eventType은 기본 `current-api` policy에서 rejected 처리합니다.
+- `preserve` event type policy에서는 unsupported native type을 사전 rejected로 집계하지 않고, current API가 거부하면 HTTP 4xx/client error로 해석합니다.
+- invalid JSONL parse failure는 input corruption으로 간주하고, `payloadRejected`는 정상 JSON object row의 replay contract 위반에만 사용한다고 문서화했습니다.
+- retry final outcome counter와 retry attempt counter를 분리했습니다.
+- connection error retry는 `--retry-connection-error` opt-in으로 분리했습니다.
+- actual replay는 Makefile target으로 제공하지만 CI/final-check에는 넣지 않았습니다.
+- replay report는 `data/processed` 아래 생성되며 Git ignore 대상입니다.
+
+### 의도적으로 제외한 것
+
+- Java Rule Engine V2 구현
+- Fraud Action Decision 구현
+- Fraud Case Management 구현
+- Kafka schema, DB schema, API DTO 변경
+- CI에서 app-api 기동 또는 actual replay 실행
+- replay result와 label sidecar join/evaluation
+
 ## 3. 리뷰 질문
 
 1. `userId` partition key로 사용자별 순서가 충분히 보장되는가?

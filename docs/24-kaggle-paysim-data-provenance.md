@@ -150,7 +150,14 @@ make prepare-paysim-smoke
 make generate-paysim-sample-strict
 ```
 
-4. 후속 V2 Phase 5에서 Replay script로 app-api에 이벤트를 주입합니다.
+4. V2 Phase 5 replay script로 app-api에 이벤트를 주입합니다.
+
+```bash
+make replay-paysim-sample-dry-run
+make replay-paysim-sample
+```
+
+Actual replay는 local app-api와 infrastructure가 실행 중일 때만 수행합니다. Replay report는 `data/processed/paysim-replay-report.json`에 생성되며 repository에 커밋하지 않습니다.
 
 raw dataset acquisition과 preprocessing은 분리합니다. download helper는 raw CSV를 local에 준비하는 도구이고, preprocessing script는 raw CSV의 SHA-256과 `datasetSlug`를 validation report에 기록합니다.
 
@@ -289,3 +296,25 @@ V2 Phase 4에서 추가한 구현:
 V2 Phase 4부터 validation report contract에 `hashAlgorithm`, `hashIdPrefixLength`, `hashSaltSource`가 필수로 포함됩니다. V2 Phase 2/3에서 생성한 기존 `data/processed/*` 산출물이 있다면 `make prepare-paysim-smoke` 또는 `.venv-data/bin/python scripts/data/prepare_paysim_dataset.py --force`로 report를 재생성한 뒤 `make validate-paysim` 또는 `make validate-paysim-strict`를 실행합니다.
 
 Phase 4는 replay script, app-api 주입, Java Rule Engine V2, DB migration, Kafka topic/schema 변경을 구현하지 않습니다.
+
+## 13. V2 Phase 5 Replay Pipeline
+
+V2 Phase 5에서 추가한 구현:
+
+- `scripts/data/replay_paysim_events.py`
+- `scripts/data/test_replay_paysim_events.py`
+- `make replay-paysim-sample-dry-run`
+- `make replay-paysim-sample`
+- `make replay-paysim-processed-smoke`
+
+Replay 기준:
+
+- events JSONL만 HTTP replay input으로 사용합니다.
+- labels JSONL은 evaluation join 용도이며 HTTP payload에 넣지 않습니다.
+- app-api request DTO에 없는 `balanceFeatures`, `source`, `schemaVersion`, `destinationAccountId`는 dropped field로 집계합니다.
+- current app-api enum에 없는 PaySim native eventType은 기본 replay policy에서 HTTP 전송 전에 rejected 처리하고 `unsupportedEventTypes`에 집계합니다.
+- `traceId`는 body가 아니라 `X-Trace-Id` header로 전달합니다.
+- `eventId`는 preserve mode 또는 prefix mode로 다룹니다.
+- replay report에는 request/response body, token, raw identifier를 저장하지 않습니다.
+
+Phase 5는 Java Rule Engine V2, Fraud Action Decision, Fraud Case Management, DB migration, Kafka topic/schema 변경을 구현하지 않습니다.

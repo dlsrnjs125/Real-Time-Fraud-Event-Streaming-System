@@ -233,3 +233,56 @@ make data-policy-check
 ```
 
 The check scans files tracked or staged under `data/` and fails if raw or full processed data is about to be committed.
+
+## Replay
+
+V2 Phase 5 adds `scripts/data/replay_paysim_events.py` to replay normalized runtime events into app-api.
+
+Dry-run validates replay payloads and writes a report without HTTP requests:
+
+```bash
+make replay-paysim-sample-dry-run
+```
+
+Actual sample replay requires local infrastructure and app-api to be running:
+
+```bash
+make replay-paysim-sample
+```
+
+Processed-output smoke replay uses local full processed events and is not part of CI:
+
+```bash
+make replay-paysim-processed-smoke
+```
+
+Replay rules:
+
+- Input is events JSONL only, normally `data/samples/paysim-events-sample.jsonl` or `data/processed/paysim-events.jsonl`.
+- If replay input JSONL itself cannot be parsed, replay fails as input corruption. Row-level `payloadRejected` is only for parsed JSON object rows that violate the replay contract.
+- Labels JSONL is not a replay input. It is reserved for evaluation joins.
+- Replay payloads never include `isFraud`, `isFlaggedFraud`, `sourceFlaggedFraud`, `nameOrig`, `nameDest`, or `receivedAt`.
+- `X-Trace-Id` is populated from the PaySim event `traceId`.
+- Fields not accepted by the current app-api DTO, such as `balanceFeatures`, `source`, `schemaVersion`, and `destinationAccountId`, are omitted and counted in `droppedFields`.
+- The default `--event-type-policy current-api` rejects PaySim native types that the current app-api enum does not support, such as `CASH_OUT`, `CASH_IN`, and `DEBIT`, before HTTP requests are sent.
+- `--event-type-policy preserve` keeps native PaySim event types for future API/Rule V2 compatibility checks, but current app-api actual replay may return validation errors for unsupported types.
+- In `preserve` mode, native PaySim types are not counted in `unsupportedEventTypes` before HTTP; if the current API rejects them, they are recorded as HTTP 4xx/client errors.
+- `idempotency-mode=preserve` keeps original `eventId` values and is useful for duplicate/idempotency checks.
+- `idempotency-mode=prefix` requires `--event-id-prefix` and avoids collisions when mixing datasets or replaying into the same API/database repeatedly.
+- `--rate-per-second` limits request pace; avoid unbounded replay against local Kafka/PostgreSQL.
+- `--retry-count` retries timeout and 5xx attempts. Connection errors are not retried unless `--retry-connection-error` is explicitly set.
+- Final outcome counters such as `httpSuccess`, `timeout`, and `connectionError` are event-level final outcomes. Retry attempt details are recorded separately as `retryTimeoutAttempts`, `retryServerErrorAttempts`, and `retryConnectionErrorAttempts`.
+- `--auth-token` and `--auth-token-env` can send an `Authorization: Bearer ...` header for non-default deployments. The normal local transaction ingest API does not require it, and token values are not written to reports.
+- Replay reports are written under `data/processed`, defaulting to `data/processed/paysim-replay-report.json`, and must not be committed.
+- Reports store counts and sampled eventIds only. They do not store request bodies, response bodies, tokens, labels, or raw identifiers.
+- Phase 2/3 validation is dataset-oriented, while Phase 5 replay validation follows the current app-api request contract. For example, an amount that normalized successfully can still be rejected during replay if the app-api contract disallows it.
+
+Direct dry-run example:
+
+```bash
+.venv-data/bin/python scripts/data/replay_paysim_events.py \
+  --input data/samples/paysim-events-sample.jsonl \
+  --max-events 100 \
+  --dry-run \
+  --force
+```
