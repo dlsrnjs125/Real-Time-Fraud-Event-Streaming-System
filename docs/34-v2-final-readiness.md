@@ -103,7 +103,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | Runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | Phase 13 active/stored ruleVersion runtime/admin traceability |
 | Rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | Phase 14 ruleVersion change pre/post checklist and rollback/hold criteria |
 | Final evidence closure | `docs/39-v2-final-evidence-closure.md` | Phase 15 final evidence closure and anti-overclaim guardrails |
-| Blog series plan | `blog/README.md`, `blog/series/*` | final 11-post writing order and source draft map |
+| Blog series plan | `blog/README.md`, `blog/series/*` | final 12-post writing order and source draft map |
 | Blog image plan | `blog/image-plan.md` | selected diagram/screenshot candidates and privacy boundaries |
 | Blog draft archive | `blog/drafts/25-*` through `blog/drafts/33-*` | source material for narrative review and troubleshooting story |
 | Generated local reports | `data/processed/*.json` | local/manual output, not committed |

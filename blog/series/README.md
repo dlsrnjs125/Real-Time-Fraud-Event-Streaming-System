@@ -2,6 +2,8 @@
 
 This series records problems found during development and the design changes made in response. It is not a feature catalog or a general technology tutorial.
 
+Status: publication candidate text complete. Images are planned separately and should be added only when the screenshot or diagram actually exists.
+
 ## Common Structure
 
 Each post should follow this flow:
@@ -11,7 +13,10 @@ Each post should follow this flow:
 3. 실제로 막힌 지점
 4. 확인한 증거
 5. 변경한 설계
-6. 남은 한계
+6. 검증
+7. 남은 한계
+
+`12-project-retrospective.md`는 회고 글이므로 common structure를 엄격히 따르지 않는다. 대신 프로젝트 전체에서 기준이 바뀐 지점, 가장 크게 배운 점, 아쉬웠던 점, 다음 보완 방향을 중심으로 작성한다.
 
 ## Include
 
@@ -29,7 +34,3 @@ Each post should follow this flow:
 - p95, p99, RPS, or latency numbers that were not measured
 - raw PaySim data, tokens, admin secrets, account identifiers, or device identifiers
 - implemented/future work ambiguity
-
-## Series Files
-
-The 11 files in this directory are placeholders for the final writing pass. Each file links to the archived source drafts under `../drafts`.

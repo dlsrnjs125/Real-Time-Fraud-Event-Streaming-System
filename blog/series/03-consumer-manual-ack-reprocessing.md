@@ -1,14 +1,57 @@
-# Consumer manual ack와 재처리 가능성
+# DB 저장 전에 ack하면 무엇이 사라지는가
 
-Status: Planned consolidation
+## 문제
 
-Source drafts:
+Kafka Consumer에서 가장 위험한 실수는 메시지를 읽었다는 이유만으로 offset을 commit하는 것이다. API 서버라면 실패 응답을 반환하면 되지만, Consumer는 ack 시점이 잘못되면 처리되지 않은 이벤트가 사라진 것처럼 보일 수 있다. 그래서 이 프로젝트에서는 auto commit을 버리고 DB 저장과 fraud result 생성 이후에만 ack하는 구조로 바꿨다.
 
-- [05-offset-commit-reprocessing](../drafts/05-offset-commit-reprocessing.md)
-- [05-fraud-result-rule-engine](../drafts/05-fraud-result-rule-engine.md)
+## 초기 설계
 
-Focus:
+Consumer는 `enable-auto-commit=false`와 manual ack를 기본으로 둔다. 메시지를 읽은 뒤 validation, processing log 저장, Rule Engine 실행, fraud result 저장이 성공한 다음 offset을 ack한다.
 
-- offset commit 시점
-- duplicate event와 idempotency
-- FraudResult 저장과 PostgreSQL unique constraint
+```mermaid
+sequenceDiagram
+    participant K as Kafka
+    participant C as app-consumer
+    participant L as event_processing_logs
+    participant R as Rule Engine
+    participant D as fraud_detection_results
+    participant A as Ack
+
+    K->>C: consume transaction event
+    C->>C: validate schema and payload
+    C->>L: save processing log
+    C->>R: execute rules
+    R-->>C: risk result
+    C->>D: save result with unique eventId
+    C->>A: acknowledge offset
+```
+
+## 실제로 막힌 지점
+
+어려운 부분은 ack 시점, DB transaction, exception handling 순서였다. 예외를 잡고도 ack를 해버리면 unprocessed event가 사라진 것처럼 보일 수 있다. 반대로 DB 저장은 성공했지만 ack 직전에 Consumer가 죽으면 같은 offset이 다시 소비될 수 있다.
+
+이 두 상황은 서로 반대 방향의 위험이다. 하나는 유실처럼 보이고, 다른 하나는 중복처럼 보인다. 이 프로젝트는 중복 가능성을 받아들이고 idempotent processing으로 막는 쪽을 선택했다.
+
+특히 DB 저장은 성공했지만 ack 직전에 Consumer가 종료되는 경우를 정상적인 재소비 가능성으로 보았다. 그래서 ack 재시도 자체보다 같은 `eventId`와 source offset이 다시 들어와도 결과가 중복 생성되지 않는지를 기준으로 검증했다.
+
+## 트러블슈팅에서 남긴 판단
+
+`docs/11-troubleshooting-log.md`에는 auto commit을 쓰면 DB 저장 실패와 무관하게 offset이 commit될 수 있다고 정리했다. 그래서 manual ack를 선택했다. 다만 manual ack도 완벽하지 않다. DB 저장 성공 후 ack 직전에 죽으면 재소비가 발생한다.
+
+이 재소비는 `(topic, partition_no, offset_no)` unique constraint와 `fraud_detection_results.event_id` unique constraint로 방어한다. `existsByEventId()`는 빠른 중복 확인일 뿐이고, 최종 방어선은 PostgreSQL unique constraint다.
+
+## 확인한 증거
+
+`docs/07-consistency-and-reprocessing.md`와 `docs/18-runbook.md`에는 offset commit과 재처리 기준을 기록했다. 데이터 모델에서는 `event_processing_logs`의 `(topic, partition_no, offset_no)` unique constraint와 `fraud_detection_results.event_id` unique constraint가 최종 중복 방어선이다.
+
+## 바꾼 설계
+
+Consumer는 Kafka delivery를 business-level exactly-once로 주장하지 않는다. 대신 PostgreSQL unique constraint와 중복 처리 skip을 결합한 idempotent processing으로 설명한다. 같은 Kafka message가 다시 소비될 수 있다는 전제를 문서와 테스트 기준에 명시했다. 처리 로그만 있고 fraud result가 없는 중간 상태도 ack하지 않으면 재소비로 복구할 수 있는 상태로 본다.
+
+## 검증
+
+Consumer restart, duplicate replay, DLT reprocess 테스트와 runbook에서 같은 `eventId`가 중복 `FraudResult`를 만들지 않는지 확인하도록 했다. V2 이후 evaluator에서도 missing result와 duplicate result를 별도 해석 대상으로 분리했다.
+
+## 남은 한계
+
+이 설계는 exactly-once processing이 아니다. Kafka transaction, outbox pattern, downstream publish atomicity까지 포함한 더 강한 보장은 future work다. 현재 목표는 “장애 후에도 설명 가능한 재처리”와 “중복 결과를 만들지 않는 저장”이다.
