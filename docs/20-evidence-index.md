@@ -20,8 +20,9 @@
 | Phase 12 | Observability hardening | Prometheus/Grafana provisioning, alert rule, actuator metric check | `docs/08-observability.md` |
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 | Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
+| Final Docs/Blog Closure | Final docs/blog/image closure | docs index check, blog series structure check, image plan boundary | `docs/00-index.md`, `blog/README.md`, `blog/image-plan.md` |
 | V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only, typed runtime feature and label sidecar separation | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
-| V2 Phase 6 | PaySim replay result evaluation baseline | `make evaluate-paysim-sample`, `make test-data-scripts` | `docs/29-v2-result-evidence.md`, `blog/24-v2-paysim-replay-evaluation-baseline.md` |
+| V2 Phase 6 | PaySim replay result evaluation baseline | `make evaluate-paysim-sample`, `make test-data-scripts` | `docs/29-v2-result-evidence.md`, `blog/drafts/24-v2-paysim-replay-evaluation-baseline.md` |
 | V2 Phase 7 | Replay evaluation evidence and interpretation | `make evaluate-paysim-replay`, `make verify-v2-phase7` | `docs/31-v2-replay-evaluation-evidence.md` |
 | V2 Phase 8 | PaySim native replay contract | `make verify-v2-phase8` | `docs/32-v2-paysim-native-replay-contract.md` |
 | V2 Phase 9 | Rule/threshold regression evidence | `make verify-v2-phase9` | `docs/33-v2-rule-threshold-regression-evidence.md` |
@@ -30,6 +31,7 @@
 | V2 Phase 12 | Per-result rule version propagation evidence | `make verify-v2-phase12` | `docs/36-v2-result-rule-version-propagation-evidence.md` |
 | V2 Phase 13 | Runtime rule version observability evidence | `./gradlew test`, `make final-check`; `make verify-v2-phase13` for data/evaluation guardrails | `docs/37-v2-rule-version-observability-evidence.md` |
 | V2 Phase 14 | Rule version change runbook and rollback readiness evidence | `make final-check`, `./gradlew test`; local/manual actuator/admin checks documented in runbook | `docs/38-v2-rule-version-change-runbook.md` |
+| V2 Phase 15 | Final evidence closure | `make final-check`; documentation review | `docs/39-v2-final-evidence-closure.md` |
 
 ## CI / Build
 
@@ -98,6 +100,8 @@
 | V2 result rule version propagation evidence | `docs/36-v2-result-rule-version-propagation-evidence.md` | 신규 detection result 단위 ruleVersion 저장/조회와 evaluator strict mode |
 | V2 runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | active ruleVersion runtime metadata와 stored result ruleVersion summary |
 | V2 rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | ruleVersion 변경 전후 checklist, rollback/hold 기준, evidence template |
+| V2 final evidence closure | `docs/39-v2-final-evidence-closure.md` | V2 Phase 7~14 evidence map, implemented/local-manual/future work, anti-overclaim guardrails |
+| Blog writing plan | `blog/README.md` | final 11-post series order, draft archive, image planning boundary |
 
 ## V2 PaySim Evidence
 
@@ -112,4 +116,5 @@
 | V2 Runtime Rule Version Observability Check | `./gradlew test`, `make final-check` | Java tests and representative readiness output | app-consumer active ruleVersion metadata test passes, app-api stored ruleVersion summary test passes, final-check passes | CI-safe; runtime/admin traceability check, not production fraud model performance |
 | V2 Data/Evaluation Guardrail Check | `make verify-v2-phase13` | V2 fixture verifier output | data tests, data policy, and Phase 7/8/9/11/12 verifiers pass | CI-safe alias; does not run Phase 13 Java tests by itself |
 | V2 Rule Version Change Runbook Evidence | `make final-check`, `./gradlew test` | readiness output and runbook checklist | final-check passes, ruleVersion contract verifiers pass, runbook pre/post checklist exists, rollback/hold criteria documented, local/manual runtime checks are separated | validates change readiness and rollback decision criteria, not automatic rollback or production fraud model performance |
+| V2 Final Evidence Closure | `make final-check` | final summary and readiness output | final summary exists, Phase 7~14 evidence map is complete, implemented/local-manual/future work are separated, final-check limits are documented, README remains minimal | validates evidence traceability, not production fraud model performance |
 | V2 Final Readiness Check | `make final-check` | Gradle/Docker/script/data verifier output | Gradle build passes, Docker Compose config passes, scripts syntax passes, data policy and V2 data/evaluation verifiers pass, README stays minimal and links to detailed docs | CI-safe with required Java/Python/Docker tooling; validates readiness guardrails, not production fraud model performance |

@@ -24,7 +24,7 @@ README는 프로젝트 진입점으로 줄였다. 한 줄 설명, 문제 정의,
 
 docs는 evidence와 contract의 source로 둔다. Phase 7/8/9의 report field, mapping policy, threshold policy, denominator 해석은 README가 아니라 docs에 있어야 한다.
 
-blog는 트러블슈팅과 설명용 스토리를 담당한다. 왜 이런 분리를 했는지, 어떤 오해를 막으려 했는지, 면접에서 어떻게 설명할 수 있는지를 남긴다.
+blog는 트러블슈팅과 설명용 스토리를 담당한다. 왜 이런 분리를 했는지, 어떤 오해를 막으려 했는지, 어떤 기준으로 설명할 수 있는지를 남긴다.
 
 `make final-check`는 대표 readiness gate로 둔다. Gradle build, Docker Compose config, script syntax, data policy, Phase 7/8/9 verifier를 묶어 재현성과 contract guardrail을 확인한다. 이 명령은 production fraud 성능을 보장하지 않는다.
 
@@ -48,41 +48,41 @@ PaySim workflow에는 fixture만으로 돌릴 수 있는 command와 raw dataset,
 
 그래서 `docs/34-v2-final-readiness.md`에 "PaySim is synthetic", "not production fraud model performance guarantee", "replay-supported types are not production-supported semantics"를 분리해서 명시했다.
 
-## 5. 면접 답변으로 연결
+## 5. 설계 판단으로 정리
 
-질문: "왜 README를 줄였나요?"
+기준: "왜 README를 줄였나요?"
 
-답변:
+정리:
 
 > README는 프로젝트 진입점이기 때문입니다. Phase 7~9에서 evaluation report, native type mapping, threshold regression evidence가 쌓이면서 README가 운영 매뉴얼처럼 길어질 위험이 있었습니다. 그래서 README는 문제 정의, 아키텍처, 대표 검증 명령, 문서 링크만 남기고 상세 내용은 docs와 scripts README로 분리했습니다.
 
-질문: "상세한 Phase 7/8/9 내용은 어디에 두었나요?"
+기준: "상세한 Phase 7/8/9 내용은 어디에 두었나요?"
 
-답변:
+정리:
 
 > Phase 7 replay evaluation evidence는 `docs/31`, Phase 8 native replay contract는 `docs/32`, Phase 9 rule/threshold regression evidence는 `docs/33`에 두었습니다. 실제 command matrix는 `scripts/data/README.md`에서 CI-safe와 local/manual로 구분했습니다.
 
-질문: "final-check는 무엇을 보장하나요?"
+기준: "final-check는 무엇을 보장하나요?"
 
-답변:
+정리:
 
 > `make final-check`는 Gradle build, Docker Compose config, shell script syntax, data policy check, Phase 7/8/9 fixture verifier를 실행하는 대표 readiness gate입니다. 재현성과 contract guardrail을 확인하지만, production fraud model 성능을 보장하지는 않습니다.
 
-질문: "final readiness가 실제 fraud detection 성능 보장과 다른 이유는 무엇인가요?"
+기준: "final readiness가 실제 fraud detection 성능 보장과 다른 이유는 무엇인가요?"
 
-답변:
+정리:
 
 > PaySim은 synthetic dataset이고, fixture verifier는 report semantics와 regression impact를 검증합니다. 실제 운영 fraud 성능을 말하려면 production-like data, operational metrics, model validation, alert outcome feedback이 필요합니다.
 
-질문: "docs/blog를 어떻게 역할 분리했나요?"
+기준: "docs/blog를 어떻게 역할 분리했나요?"
 
-답변:
+정리:
 
 > docs는 contract와 evidence의 source로 두고, blog는 설계 판단과 트러블슈팅 스토리로 두었습니다. README는 그 둘로 들어가는 entry point 역할만 하게 했습니다.
 
-질문: "이 작업이 백엔드/DevOps 기술 설명에서 어떤 의미가 있나요?"
+기준: "이 작업의 기술적 의미"
 
-답변:
+정리:
 
 > 기능 구현만큼 중요한 것은 검증 경계와 운영 가능 범위를 명확히 하는 것입니다. Phase 10에서는 CI-safe check, local/manual evidence, future work를 분리해 재현 가능한 검증 체계를 정리했습니다.
 

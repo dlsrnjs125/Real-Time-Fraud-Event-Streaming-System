@@ -1253,6 +1253,13 @@ make verify-v2-phase13
 make final-check
 ```
 
+Results:
+
+- `py_compile`: PASS
+- `make verify-v2-phase13`: PASS. Included 109 Python data script tests, data policy check, and Phase 7/8/9/11/12 data/evaluation contract verifiers.
+- `./gradlew test`: PASS. Required local Gradle wrapper/cache access outside the restricted sandbox.
+- `make final-check`: PASS. Required local Gradle/Docker validation access outside the restricted sandbox.
+
 ### 의도적으로 제외한 것
 
 - Fraud detection rule/threshold 변경
@@ -1326,7 +1333,58 @@ make final-check
 - All-time ruleVersion summary는 production dashboard로 쓰기 전에 bounded query와 index strategy가 필요합니다.
 - Rollback automation은 future work입니다.
 
+## V2 Phase 15 Review
+
+### 잘한 점
+
+- 기능을 계속 추가하기보다 V2 Phase 7~14 evidence를 닫는 최종 요약 문서를 추가했습니다.
+- README를 변경하지 않고, 상세 evidence map과 Decision Notes를 `docs/39-v2-final-evidence-closure.md`로 분리했습니다.
+- Phase별 problem, decision, output, verification, limitation을 한 표에서 추적할 수 있게 했습니다.
+- implemented, local/manual, future work를 분리해 완료 범위를 과장하지 않았습니다.
+- `make final-check`가 readiness guardrail이며 production fraud quality를 보장하지 않는다고 명시했습니다.
+- ruleVersion traceability와 fraud detection quality를 분리했습니다.
+- AI-assisted 문서 초안에서 과장 표현, README 비대화, implemented/future work 혼동을 검토하는 항목을 남겼습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] README가 entry point 수준으로 유지되었는가
+- [ ] Phase 7~14 evidence link가 누락되지 않았는가
+- [ ] implemented / local-manual / future work가 분리되었는가
+- [ ] production performance overclaim이 없는가
+- [ ] `make final-check` 의미와 한계가 분명한가
+- [ ] ruleVersion traceability와 fraud quality가 섞이지 않는가
+- [ ] local/manual check와 CI-safe verifier가 분리되었는가
+- [ ] raw/full PaySim data, local DB export, 대용량 report가 staged/tracked 되지 않았는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase13
+./gradlew test
+make final-check
+```
+
+### 의도적으로 제외한 것
+
+- Fraud detection rule/threshold 변경
+- New API endpoint or DB migration
+- Makefile verifier 추가
+- Automatic rollback 구현
+- Grafana dashboard와 production alert
+- Full PaySim replay/evaluation output commit
+- README 상세화
+
 ### 남은 한계
 
-- Phase 10은 documentation/readiness consistency 작업입니다.
-- Full replay, local detection result export evaluation, threshold before/after comparison report는 local/manual 또는 future work입니다.
+- Phase 15는 documentation/evidence closure입니다.
+- Full PaySim local evidence는 raw data와 local infra가 필요합니다.
+- Final summary는 production fraud model validation이 아닙니다.
+- Dashboard, deployment changelog, alerting, historical backfill은 future work입니다.

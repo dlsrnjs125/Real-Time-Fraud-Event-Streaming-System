@@ -102,7 +102,7 @@ make final-check
 
 `make final-check`는 build, Docker Compose config, shell script syntax check를 함께 실행한다.
 
-## 6. 이 프로젝트에서 포트폴리오로 설명할 수 있는 점
+## 6. 기술적으로 설명할 수 있는 점
 
 이 프로젝트의 핵심은 단순 CRUD가 아니라 비동기 이벤트 처리의 운영 기준을 끝까지 설명하는 것이다.
 

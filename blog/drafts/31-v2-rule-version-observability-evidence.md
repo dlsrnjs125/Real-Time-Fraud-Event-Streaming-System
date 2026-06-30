@@ -92,20 +92,20 @@ Active version은 현재 실행 중인 consumer 기준이다. Stored result vers
 - RuleVersion filter는 기존 list API가 실제 query로 바뀐 뒤 추가하는 편이 낫다.
 - Grafana panel과 alert는 future work다.
 
-## Review Q&A
+## 남긴 기준
 
-질문: 이 단계에서 무엇을 구현했나요?
+기준: 이 단계에서 무엇을 구현했나요?
 
-답변: app-consumer Actuator info에 현재 active ruleVersion을 노출했고, app-api admin API에 stored fraud result ruleVersion summary를 추가했습니다. Runtime version과 historical result version을 구분하는 운영 추적성 evidence입니다.
+정리: app-consumer Actuator info에 현재 active ruleVersion을 노출했고, app-api admin API에 stored fraud result ruleVersion summary를 추가했습니다. Runtime version과 historical result version을 구분하는 운영 추적성 evidence입니다.
 
-질문: 왜 result ruleVersion 저장만으로는 부족하다고 봤나요?
+기준: 왜 result ruleVersion 저장만으로는 부족하다고 봤나요?
 
-답변: Stored result version은 과거 결과의 생성 기준이고, active version은 현재 consumer runtime 기준입니다. Rule 배포 전후를 분석하려면 두 관점을 따로 봐야 합니다.
+정리: Stored result version은 과거 결과의 생성 기준이고, active version은 현재 consumer runtime 기준입니다. Rule 배포 전후를 분석하려면 두 관점을 따로 봐야 합니다.
 
-질문: metric cardinality는 어떻게 고려했나요?
+기준: metric cardinality는 어떻게 고려했나요?
 
-답변: `ruleVersion`은 bounded라 future metric tag 후보가 될 수 있지만, 이번 Phase에서는 metric을 추가하지 않았습니다. `userId`, `eventId`, `traceId` 같은 high-cardinality 값은 tag로 금지했습니다.
+정리: `ruleVersion`은 bounded라 future metric tag 후보가 될 수 있지만, 이번 Phase에서는 metric을 추가하지 않았습니다. `userId`, `eventId`, `traceId` 같은 high-cardinality 값은 tag로 금지했습니다.
 
-질문: endpoint 보안은 어떻게 고려했나요?
+기준: endpoint 보안은 어떻게 고려했나요?
 
-답변: consumer에는 새 custom endpoint를 만들지 않고 기존 Actuator info를 활용했습니다. app-api summary는 기존 admin token 보호 범위의 `/api/v1/admin` 아래에 두었습니다.
+정리: consumer에는 새 custom endpoint를 만들지 않고 기존 Actuator info를 활용했습니다. app-api summary는 기존 admin token 보호 범위의 `/api/v1/admin` 아래에 두었습니다.

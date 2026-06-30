@@ -103,29 +103,29 @@ Replay input에는 rejected된 `DEBIT`가 있을 수 있지만, evaluation denom
 
 Mapping policy가 달라지면 denominator가 달라진다. 그래서 precision/recall을 비교할 때는 반드시 `mappingPolicyVersion`과 native type distribution을 함께 봐야 한다.
 
-## 6. 면접 답변으로 연결하기
+## 6. 설계 판단으로 정리하기
 
-질문: "왜 PaySim type을 Java enum에 바로 추가하지 않았나요?"
+기준: "왜 PaySim type을 Java enum에 바로 추가하지 않았나요?"
 
-답변:
+정리:
 
 > PaySim native type은 synthetic dataset의 타입이고, 현재 production API transaction type과 의미가 완전히 같지 않습니다. 그래서 enum을 확장해 운영 계약을 넓히기보다 replay/evaluation mapping policy로 분리했습니다. `CASH_OUT`과 `CASH_IN`은 replay-supported로 매핑하고, `DEBIT`는 unsupported로 제외해 과대 해석과 default low-risk 처리를 피했습니다.
 
-질문: "이번 단계에서 실제로 검증한 것은 무엇인가요?"
+기준: "이번 단계에서 실제로 검증한 것은 무엇인가요?"
 
-답변:
+정리:
 
 > Raw PaySim이나 local DB export 없이 fixture 기반으로 native type mapping consistency, input/accepted/rejected distribution, evaluated denominator distribution, unsupported type exclusion, evaluation report propagation을 검증했습니다. `make verify-v2-phase8`가 CI-safe contract check 역할을 합니다.
 
-질문: "이 평가 지표를 이전 Phase와 비교할 수 있나요?"
+기준: "이 평가 지표를 이전 Phase와 비교할 수 있나요?"
 
-답변:
+정리:
 
 > 같은 mapping policy version일 때만 직접 비교할 수 있습니다. Phase 8부터는 `mappingPolicyVersion`, `replayNativeTypeDistribution`, `evaluatedNativeTypeDistribution`, `excludedByType`을 함께 보고 denominator가 바뀌었는지 확인해야 합니다. Rule version과 threshold version도 후속 evidence에서 함께 비교해야 합니다.
 
-질문: "Phase 8에서 ruleVersion과 thresholdVersion은 어떻게 해석하나요?"
+기준: "Phase 8에서 ruleVersion과 thresholdVersion은 어떻게 해석하나요?"
 
-답변:
+정리:
 
 > Phase 8에서는 mappingPolicyVersion과 evaluationContractVersion만 고정했습니다. Rule/threshold 비교 기준은 Phase 9 evaluation evidence에서 `ruleVersion`과 `thresholdVersion`으로 채웠고, 실제 Consumer Rule Engine version 자동 연결은 후속 단계로 남겼습니다.
 
