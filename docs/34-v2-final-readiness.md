@@ -4,7 +4,7 @@
 
 V2 Phase 10 started as a readiness and documentation consistency phase for the PaySim-based data, replay, and evaluation workflow completed through V2 Phase 9.
 
-This document now acts as the living V2 readiness index through V2 Phase 13. Detailed implementation evidence remains in the phase-specific docs.
+This document now acts as the living V2 readiness index through V2 Phase 14. Detailed implementation evidence remains in the phase-specific docs.
 
 It does not add a new fraud detection model or claim better detection performance. It checks that the repository separates README entry-point content from detailed evidence docs, keeps CI-safe checks distinct from local/manual checks, and describes implemented scope, limitations, and future work without overclaiming.
 
@@ -27,6 +27,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 | V2 Phase 11 | rule version integration evidence | app-consumer baseline `ruleVersion` and evaluator drift check | `make verify-paysim-rule-version-contract` | `docs/35-v2-rule-version-integration-evidence.md` | Done | Phase 12 adds per-result propagation |
 | V2 Phase 12 | per-result rule version propagation | detection result `ruleVersion` persistence/API response and evaluator strict mode | `make verify-paysim-result-rule-version-contract` | `docs/36-v2-result-rule-version-propagation-evidence.md` | Done | automated DB export remains future work |
 | V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make final-check` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric, bounded summary query, and deployment changelog remain future work |
+| V2 Phase 14 | rule version change runbook | pre/post checklist, rollback/hold criteria, evidence template | `make final-check`, `./gradlew test` | `docs/38-v2-rule-version-change-runbook.md` | Done | automatic rollback and deployment automation remain future work |
 
 ## 3. Completed Scope
 
@@ -47,6 +48,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - per-result ruleVersion persistence/API response and evaluator strict mode
 - runtime active ruleVersion metadata through app-consumer Actuator info
 - stored result ruleVersion summary through app-api admin API
+- ruleVersion change runbook, rollback/hold criteria, and evidence template
 - local/manual evidence command separation
 - README slimdown with details delegated to docs and `scripts/data/README.md`
 
@@ -58,6 +60,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - replay-supported PaySim types are not production-supported transaction semantics.
 - contract-level `ruleVersion`, per-result `ruleVersion`, and runtime active `ruleVersion` are separate evidence dimensions.
 - Phase 13 runtime/admin observability improves traceability, not production fraud performance.
+- Phase 14 rollback readiness is decision criteria and evidence capture, not automatic rollback implementation.
 
 ## 5. Verification Matrix
 
@@ -73,7 +76,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | `make verify-paysim-rule-version-contract` | Phase 11 rule version contract | Yes | No | No | No | Java baseline and evaluator rule version match; mismatched per-result versions fail | creates temp files only |
 | `make verify-paysim-result-rule-version-contract` | Phase 12 per-result ruleVersion contract | Yes | No | No | No | coverage/readiness/strict-mode fixtures pass | creates temp files only |
 | `make verify-v2-phase13` | V2 data/evaluation guardrails through Phase 12 | Yes | No | No | No | data tests, policy check, and all data/evaluation verifiers pass | CI-safe alias; does not run Phase 13 Java tests by itself |
-| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase13` pass | includes Phase 13 Java tests through Gradle build; requires Java/Python/Docker tooling |
+| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase13` pass | includes Java tests through Gradle build; requires Java/Python/Docker tooling |
 | `make validate-paysim` | local processed output validation | No | No | Yes | No | local processed output/report contract is valid | fails if local processed outputs are stale |
 | `make replay-paysim-sample` | actual sample replay | No | Yes | No | No | local app-api accepts/rejects according to replay contract | requires local infra and app-api |
 | `make evaluate-paysim-replay` | local detection result evaluation | No | No | No | Yes | strict evaluation report is generated | does not export DB rows itself |
@@ -95,7 +98,8 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | Rule version integration evidence | `docs/35-v2-rule-version-integration-evidence.md` | Phase 11 app-consumer/evaluator ruleVersion drift check |
 | Result rule version propagation evidence | `docs/36-v2-result-rule-version-propagation-evidence.md` | Phase 12 per-result ruleVersion propagation and strict verifier |
 | Runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | Phase 13 active/stored ruleVersion runtime/admin traceability |
-| Blog drafts | `blog/25-*` through `blog/31-*` | narrative review and troubleshooting story |
+| Rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | Phase 14 ruleVersion change pre/post checklist and rollback/hold criteria |
+| Blog drafts | `blog/25-*` through `blog/32-*` | narrative review and troubleshooting story |
 | Generated local reports | `data/processed/*.json` | local/manual output, not committed |
 | Committed fixtures/samples | `data/samples/*`, script tests | small safe samples and fixture-based checks |
 
@@ -114,6 +118,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - Python data script tests pass.
 - Phase 7/8/9/11/12 fixture verifiers pass.
 - Phase 13 Java runtime/admin observability tests pass through Gradle.
+- Phase 14 runbook pre/post checklist and rollback/hold criteria are documented.
 - Gradle tests pass as part of `make final-check`.
 - README keeps V2 details minimal and links to docs/scripts README.
 - docs/blog links point to existing files.
@@ -130,6 +135,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - historical `rule_version` backfill remains future work.
 - runtime active ruleVersion exposure is not a deployment audit log.
 - ruleVersion summary is all-time local/admin traceability evidence; high-volume production use needs a bounded time range and index candidate such as `(rule_version, detected_at)`.
+- rollback readiness is documented decision support, not automatic rollback.
 - Full rejected event id export remains a future hardening item.
 - Grafana/dashboard integration for V2 evidence remains future work.
 - Model-based baseline comparison remains future work.
@@ -138,6 +144,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 
 - ruleVersion filter for the real fraud result list query
 - rule deployment changelog and rollback notes
+- automatic rollback design after manual decision criteria stabilize
 - runtime/stored ruleVersion dashboard panel
 - full replay rejected ids output
 - threshold before/after comparison report

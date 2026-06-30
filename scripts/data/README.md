@@ -113,6 +113,7 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 11: app-consumer Rule Engine baseline `ruleVersion` contract and Java/Python drift check
 - V2 Phase 12: per-result `ruleVersion` propagation, strict evaluator mode, and fixture-based coverage/readiness check
 - V2 Phase 13: runtime/admin ruleVersion observability for app-consumer active version and stored app-api result summaries
+- V2 Phase 14: ruleVersion change runbook and rollback readiness evidence; PaySim evaluator strict mode and contract verifiers are pre-change evidence, while actuator/admin checks remain local/manual
 
 ## Command Matrix
 
@@ -182,6 +183,20 @@ Phase 13 is centered on Java runtime/admin observability rather than PaySim eval
 - CI-safe checks remain `make verify-v2-phase13` for V2 data/evaluation guardrails and `make final-check` for the representative repository gate that also runs Java tests.
 
 Local/manual runtime checks, such as `curl http://localhost:8081/actuator/info` or admin summary queries, require local app startup and are intentionally kept out of CI-safe data commands.
+
+## Phase 14 Rule Version Change Runbook
+
+Phase 14 is centered on ruleVersion change readiness rather than PaySim evaluator feature changes.
+
+- PaySim evaluator `ruleVersion` strict mode and contract verifiers are pre-change evidence for version alignment.
+- `make verify-paysim-rule-version-contract` checks Java/Python ruleVersion drift.
+- `make verify-paysim-result-rule-version-contract` checks per-result coverage, mixed missing distribution behavior, and strict-mode failure on missing result versions.
+- `make verify-v2-phase13` remains the CI-safe V2 data/evaluation guardrail alias.
+- `make final-check` remains the representative repository readiness guardrail.
+- Runtime actuator/admin checks are local/manual because they require local app startup, network access, and possibly an admin token.
+- Full raw PaySim data is not required for Phase 14 runbook evidence.
+
+Detailed pre-change/post-change checklist, rollback/hold criteria, and evidence template are documented in `docs/38-v2-rule-version-change-runbook.md`.
 
 ### Local/Manual Commands
 
@@ -463,6 +478,17 @@ make verify-v2-phase13
 ```
 
 `make verify-v2-phase13` keeps the V2 data/evaluation contract verifier set CI-safe. It does not run Phase 13 Java tests by itself. Runtime metadata and admin summary contracts are validated by `./gradlew test` and `make final-check`; local curl checks are documented in `docs/37-v2-rule-version-observability-evidence.md`.
+
+For Phase 14 ruleVersion change readiness, use the Phase 11/12 verifiers as pre-change evidence and the Phase 14 runbook for post-change local/manual evidence capture:
+
+```bash
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase13
+make final-check
+```
+
+The actuator and admin summary curl checks are intentionally not added to this Makefile gate.
 
 Local/manual Phase 8 evidence uses an existing detection result export and replay report:
 
