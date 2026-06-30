@@ -2445,3 +2445,58 @@ Optional filter나 summary endpoint 추가가 기존 eventId 기반 admin fraud 
 
 해결:
 `/api/v1/admin/events/{eventId}/fraud-result`는 기존 contract를 유지합니다. RuleVersion summary는 `/api/v1/admin/fraud-results/rule-version-summary`로 분리하고, legacy null rows는 `legacyMissingResults`로 별도 집계합니다.
+
+## V2 Phase 14 ruleVersion 변경과 thresholdVersion 변경을 한 번에 섞는 문제
+
+문제:
+Rule logic과 threshold boundary가 동시에 바뀌면 precision, recall, workload 변화의 원인을 설명하기 어렵습니다.
+
+판단:
+`ruleVersion` 변경과 `thresholdVersion` 변경은 가능한 분리합니다. 같은 PR에서 바꾸는 경우에는 변경 이유, 예상 영향, metric 비교 기준을 명시해야 합니다.
+
+해결:
+V2 Phase 14 runbook의 pre-change checklist에 change type을 기록하고, rule logic 변경인지 threshold boundary 변경인지 먼저 분류합니다.
+
+## V2 Phase 14 active ruleVersion과 stored result summary가 다른 것을 무조건 장애로 오해하는 문제
+
+문제:
+Rule 배포 직후에는 기존 stored result가 이전 `ruleVersion`을 갖고 있을 수 있습니다.
+
+판단:
+app-consumer active version은 현재 runtime 기준이고, stored result version은 결과 생성 당시 기준입니다. 두 값이 다르다고 항상 장애는 아닙니다.
+
+해결:
+Runbook에서 정상 mixed state와 unexpected version을 구분합니다. 예상하지 않은 version이 신규 row에 저장되거나 신규 result에서 `ruleVersion`이 누락되면 조사 대상으로 봅니다.
+
+## V2 Phase 14 automatic rollback을 구현하지 않았는데 rollback readiness라고 과장하는 문제
+
+문제:
+Runbook과 decision criteria만 있는데 자동 rollback 기능이 구현된 것처럼 쓰면 운영 역량을 과장하게 됩니다.
+
+판단:
+V2 Phase 14는 rollback automation이 아니라 rollback/hold decision criteria와 evidence template 단계입니다.
+
+해결:
+`docs/38-v2-rule-version-change-runbook.md`의 completed/future work와 limitation에서 automatic rollback을 future work로 분리합니다.
+
+## V2 Phase 14 runtime curl check를 CI-safe로 오해하는 문제
+
+문제:
+Actuator/admin endpoint 확인은 local app startup, network, admin token이 필요할 수 있습니다.
+
+판단:
+CI-safe checks와 local/manual runtime drill은 분리해야 합니다.
+
+해결:
+Runbook과 scripts/data README에서 actuator/admin curl은 local/manual로만 기록하고, `make final-check`에는 넣지 않습니다.
+
+## V2 Phase 14 all-time ruleVersion summary를 production dashboard로 사용하는 문제
+
+문제:
+전체 `fraud_detection_results` table을 대상으로 하는 group by summary를 고빈도 dashboard query로 사용하면 DB 부하가 커질 수 있습니다.
+
+판단:
+Production dashboard 전환 전 bounded time range와 index strategy가 필요합니다.
+
+해결:
+Runbook과 readiness 문서에 time range filter, `(rule_version, detected_at)` index 후보, query latency 측정을 future work로 기록합니다.

@@ -40,6 +40,7 @@
 29. [V2 Phase 11 - Rule Version Drift를 Evidence Gate로 막기](29-v2-rule-version-integration-evidence.md)
 30. [V2 Phase 12 - report-level ruleVersion에서 per-result ruleVersion으로](30-v2-result-rule-version-propagation-evidence.md)
 31. [V2 Phase 13 - ruleVersion을 운영자가 확인할 수 있게 만든 이유](31-v2-rule-version-observability-evidence.md)
+32. [V2 Phase 14 - ruleVersion 변경 전에 확인해야 할 것들](32-v2-rule-version-change-runbook.md)
 
 ## 글 구조
 

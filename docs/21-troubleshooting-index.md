@@ -88,3 +88,8 @@
 - RuleVersion metric cardinality risk: `docs/11-troubleshooting-log.md#v2-phase-13-metric-tag-cardinality-폭증-문제`
 - Actuator endpoint overexposure risk: `docs/11-troubleshooting-log.md#v2-phase-13-actuator-endpoint-과다-노출-문제`
 - RuleVersion summary/list backward compatibility risk: `docs/11-troubleshooting-log.md#v2-phase-13-ruleversion-summary나-filter가-기존-admin-query를-깨뜨리는-문제`
+- RuleVersion and thresholdVersion mixed change risk: `docs/11-troubleshooting-log.md#v2-phase-14-ruleversion-변경과-thresholdversion-변경을-한-번에-섞는-문제`
+- Active/stored ruleVersion mismatch overreaction: `docs/11-troubleshooting-log.md#v2-phase-14-active-ruleversion과-stored-result-summary가-다른-것을-무조건-장애로-오해하는-문제`
+- Rollback readiness overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-14-automatic-rollback을-구현하지-않았는데-rollback-readiness라고-과장하는-문제`
+- Runtime curl check CI-safe confusion: `docs/11-troubleshooting-log.md#v2-phase-14-runtime-curl-check를-ci-safe로-오해하는-문제`
+- All-time ruleVersion summary dashboard risk: `docs/11-troubleshooting-log.md#v2-phase-14-all-time-ruleversion-summary를-production-dashboard로-사용하는-문제`

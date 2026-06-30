@@ -1112,6 +1112,13 @@ make final-check
 결과:
 
 - `py_compile`: PASS
+- `make verify-v2-phase13`: PASS, includes 109 data script tests, data policy, and Phase 7/8/9/11/12 verifiers
+- `./gradlew test`: PASS after allowing Gradle wrapper/cache access outside the restricted sandbox
+- `make final-check`: PASS after allowing Gradle/Docker access outside the restricted sandbox
+
+결과:
+
+- `py_compile`: PASS
 - `make test-data-scripts`: PASS, 109 tests
 - `make data-policy-check`: PASS
 - `make verify-paysim-evaluation-report-contract`: PASS
@@ -1261,6 +1268,63 @@ make final-check
 - Existing fraud result list API는 아직 stub이므로 ruleVersion filter는 future work입니다.
 - RuleVersion summary는 현재 all-time grouped query이므로 production dashboard 용도에는 bounded query와 index 보강이 필요합니다.
 - Actuator info exposure는 local/internal operational check 범위이며 public exposure 전 network-level control 또는 Spring Security hardening이 필요합니다.
+
+## V2 Phase 14 Review
+
+### 잘한 점
+
+- V2 Phase 14를 core streaming pipeline Phase 14와 구분해 ruleVersion 변경 관리 단계로 문서화했습니다.
+- RuleVersion 변경 전 pre-change checklist와 변경 후 post-change checklist를 분리했습니다.
+- Java/Python ruleVersion drift, per-result strict mode, data policy, final-check를 pre-change evidence로 연결했습니다.
+- app-consumer Actuator info와 app-api stored ruleVersion summary를 local/manual post-change evidence로 분리했습니다.
+- Rollback readiness를 automatic rollback 구현으로 과장하지 않고, hold/rollback decision criteria와 evidence template으로 제한했습니다.
+- active runtime ruleVersion과 stored historical ruleVersion의 정상 mixed state와 unexpected version 조사 기준을 구분했습니다.
+- app-api summary endpoint의 all-time group by 운영 비용과 bounded time range/index 필요성을 future work로 기록했습니다.
+- README에는 V2 Phase 14 상세를 추가하지 않고 docs/blog/scripts README로 분리했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] `ruleVersion` 변경과 `thresholdVersion` 변경이 분리되었거나, 같이 변경되는 이유와 영향이 기록되었는가
+- [ ] active runtime version과 stored historical version 의미 차이가 명확한가
+- [ ] CI-safe check와 local/manual runtime drill이 섞이지 않았는가
+- [ ] rollback readiness를 automatic rollback으로 과장하지 않았는가
+- [ ] app-api summary endpoint의 all-time group by 운영 비용 한계가 기록되었는가
+- [ ] Actuator/admin endpoint exposure가 local/internal scope로 제한되어 있는가
+- [ ] raw/full PaySim data, local DB export, 대용량 report가 staged/tracked 되지 않았는가
+- [ ] README 최소화 원칙이 유지되었는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase13
+./gradlew test
+make final-check
+```
+
+### 의도적으로 제외한 것
+
+- Fraud detection rule/threshold 변경
+- Automatic rollback 구현
+- Rule deployment automation
+- Grafana dashboard와 unexpected ruleVersion alert
+- Historical `rule_version` backfill
+- Full PaySim replay/evaluation output commit
+- Local/manual actuator/admin curl result claim
+
+### 남은 한계
+
+- Phase 14는 runbook-level readiness입니다.
+- Local/manual runtime drill은 실행 환경, network, admin token에 의존하므로 CI-safe evidence가 아닙니다.
+- All-time ruleVersion summary는 production dashboard로 쓰기 전에 bounded query와 index strategy가 필요합니다.
+- Rollback automation은 future work입니다.
 
 ### 남은 한계
 
