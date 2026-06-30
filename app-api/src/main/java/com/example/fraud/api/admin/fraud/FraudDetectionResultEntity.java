@@ -32,6 +32,9 @@ public class FraudDetectionResultEntity {
     @Column(name = "account_id", length = 100)
     private String accountId;
 
+    @Column(name = "rule_version", length = 100)
+    private String ruleVersion;
+
     @Column(name = "risk_score", nullable = false)
     private int riskScore;
 
@@ -75,6 +78,10 @@ public class FraudDetectionResultEntity {
 
     public String getAccountId() {
         return accountId;
+    }
+
+    public String getRuleVersion() {
+        return ruleVersion;
     }
 
     public int getRiskScore() {

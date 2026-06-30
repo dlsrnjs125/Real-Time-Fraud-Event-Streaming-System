@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.rule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.fraud.common.event.FraudDecision;
 import com.example.fraud.common.event.FraudRuleCode;
@@ -39,6 +40,21 @@ class FraudRuleEngineTest {
     }
 
     @Test
+    void ruleEngineResultRequiresRuleVersion() {
+        assertThatThrownBy(() -> new FraudRuleEngineResult(
+                " ",
+                0,
+                RiskLevel.LOW,
+                FraudDecision.APPROVE,
+                List.of(),
+                List.of(),
+                false,
+                "No fraud rule matched"
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ruleVersion is required");
+    }
+
+    @Test
     void evaluatesLowRiskTransaction() {
         FraudRuleEngineResult result = ruleEngine.evaluate(message(
                 BigDecimal.valueOf(10_000),
@@ -46,6 +62,7 @@ class FraudRuleEngineTest {
                 "2026-06-19T10:00:00Z"
         ));
 
+        assertThat(result.ruleVersion()).isEqualTo(FraudRuleVersions.ACTIVE_RULE_VERSION);
         assertThat(result.riskScore()).isZero();
         assertThat(result.riskLevel()).isEqualTo(RiskLevel.LOW);
         assertThat(result.decision()).isEqualTo(FraudDecision.APPROVE);

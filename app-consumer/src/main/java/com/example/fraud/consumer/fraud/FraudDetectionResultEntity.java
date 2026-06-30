@@ -45,6 +45,9 @@ public class FraudDetectionResultEntity {
     @Column(name = "account_id", length = 100)
     private String accountId;
 
+    @Column(name = "rule_version", length = 100)
+    private String ruleVersion;
+
     @Column(name = "risk_score", nullable = false)
     private int riskScore;
 
@@ -89,6 +92,7 @@ public class FraudDetectionResultEntity {
         this.traceId = message.traceId();
         this.userId = message.userId();
         this.accountId = message.accountId();
+        this.ruleVersion = ruleResult.ruleVersion();
         this.riskScore = ruleResult.riskScore();
         this.riskLevel = ruleResult.riskLevel();
         this.decision = ruleResult.decision();
@@ -133,6 +137,10 @@ public class FraudDetectionResultEntity {
 
     public int getRiskScore() {
         return riskScore;
+    }
+
+    public String getRuleVersion() {
+        return ruleVersion;
     }
 
     public RiskLevel getRiskLevel() {

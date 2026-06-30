@@ -78,3 +78,8 @@
 - Java/Python version drift: `docs/11-troubleshooting-log.md#v2-phase-11-javapython-version-drift-문제`
 - Per-result ruleVersion overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-11-per-result-ruleversion-없이-이벤트별-rule-consistency를-보장하는-것처럼-말하는-문제`
 - Rule version integration performance overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-11-rule-version-integration을-fraud-성능-개선으로-오해하는-문제`
+- Report-level ruleVersion row-level overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-12-report-level-ruleversion만-보고-row-level-consistency를-과장하는-문제`
+- Legacy export strict mode failure: `docs/11-troubleshooting-log.md#v2-phase-12-legacy-export에-ruleversion이-없어-strict-mode가-실패하는-문제`
+- Mixed ruleVersion distribution pollution: `docs/11-troubleshooting-log.md#v2-phase-12-mixed-presentmissing-ruleversion에서-distribution이-오염되는-문제`
+- Persistence/export scope overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-12-ruleversion-persistence-범위를-과장하는-문제`
+- Report schema version drift: `docs/11-troubleshooting-log.md#v2-phase-12-reportschemaversion을-올리지-않고-새-필드를-추가하는-문제`

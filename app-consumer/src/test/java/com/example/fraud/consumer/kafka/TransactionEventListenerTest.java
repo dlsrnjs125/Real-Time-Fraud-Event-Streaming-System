@@ -24,6 +24,7 @@ import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
+import com.example.fraud.consumer.rule.FraudRuleVersions;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -314,6 +315,7 @@ class TransactionEventListenerTest {
         )).thenReturn(ProcessingLogResult.processed());
         RecentTransactionWindowResult windowResult = RecentTransactionWindowResult.degraded("Redis unavailable");
         FraudRuleEngineResult ruleResult = new FraudRuleEngineResult(
+                FraudRuleVersions.ACTIVE_RULE_VERSION,
                 0,
                 RiskLevel.LOW,
                 FraudDecision.APPROVE,
@@ -382,6 +384,7 @@ class TransactionEventListenerTest {
 
     private FraudRuleEngineResult lowRiskResult() {
         return new FraudRuleEngineResult(
+                FraudRuleVersions.ACTIVE_RULE_VERSION,
                 0,
                 RiskLevel.LOW,
                 FraudDecision.APPROVE,

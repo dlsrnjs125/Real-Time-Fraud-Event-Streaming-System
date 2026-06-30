@@ -49,7 +49,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - V2 evaluation results are not production fraud model performance guarantees.
 - Rule/threshold regression checks validate report semantics and change impact, not real-world fraud prevention quality.
 - replay-supported PaySim types are not production-supported transaction semantics.
-- contract-level `ruleVersion` is checked against the app-consumer baseline, but per-result persistence/export is still future work.
+- contract-level `ruleVersion` is checked against the app-consumer baseline; Phase 12 adds per-result persistence/API response propagation for new detection results, while automated DB export remains future work.
 
 ## 5. Verification Matrix
 
@@ -63,8 +63,9 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | `make verify-paysim-native-replay-contract` | Phase 8 native mapping contract | Yes | No | No | No | mapping/distribution/exclusion contract matches | creates temp files only |
 | `make verify-paysim-rule-threshold-regression` | Phase 9 threshold regression contract | Yes | No | No | No | version fields, fallback, workload, and fixture metrics match | creates temp files only |
 | `make verify-paysim-rule-version-contract` | Phase 11 rule version contract | Yes | No | No | No | Java baseline and evaluator rule version match; mismatched per-result versions fail | creates temp files only |
-| `make verify-v2-phase11` | aggregate V2 Phase 7/8/9/11 checks | Yes | No | No | No | data tests, policy check, and all verifiers pass | current V2 CI-safe gate |
-| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase11` pass | requires Java/Python/Docker tooling |
+| `make verify-paysim-result-rule-version-contract` | Phase 12 per-result ruleVersion contract | Yes | No | No | No | coverage/readiness/strict-mode fixtures pass | creates temp files only |
+| `make verify-v2-phase12` | aggregate V2 Phase 7/8/9/11/12 checks | Yes | No | No | No | data tests, policy check, and all verifiers pass | current V2 CI-safe gate |
+| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase12` pass | requires Java/Python/Docker tooling |
 | `make validate-paysim` | local processed output validation | No | No | Yes | No | local processed output/report contract is valid | fails if local processed outputs are stale |
 | `make replay-paysim-sample` | actual sample replay | No | Yes | No | No | local app-api accepts/rejects according to replay contract | requires local infra and app-api |
 | `make evaluate-paysim-replay` | local detection result evaluation | No | No | No | Yes | strict evaluation report is generated | does not export DB rows itself |
@@ -84,7 +85,8 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | Native replay contract | `docs/32-v2-paysim-native-replay-contract.md` | Phase 8 mapping policy and denominator scope |
 | Rule threshold regression evidence | `docs/33-v2-rule-threshold-regression-evidence.md` | Phase 9 threshold/version/workload evidence |
 | Rule version integration evidence | `docs/35-v2-rule-version-integration-evidence.md` | Phase 11 app-consumer/evaluator ruleVersion drift check |
-| Blog drafts | `blog/25-*` through `blog/28-*` | narrative review and troubleshooting story |
+| Result rule version propagation evidence | `docs/36-v2-result-rule-version-propagation-evidence.md` | Phase 12 per-result ruleVersion propagation and strict verifier |
+| Blog drafts | `blog/25-*` through `blog/30-*` | narrative review and troubleshooting story |
 | Generated local reports | `data/processed/*.json` | local/manual output, not committed |
 | Committed fixtures/samples | `data/samples/*`, script tests | small safe samples and fixture-based checks |
 

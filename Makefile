@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -41,10 +41,12 @@ help:
 	@echo "  make verify-paysim-native-replay-contract - Verify Phase 8 native type contract with fixtures"
 	@echo "  make verify-paysim-rule-threshold-regression - Verify Phase 9 rule/threshold regression contract"
 	@echo "  make verify-paysim-rule-version-contract - Verify Phase 11 Java/Python ruleVersion contract"
+	@echo "  make verify-paysim-result-rule-version-contract - Verify Phase 12 per-result ruleVersion contract"
 	@echo "  make verify-v2-phase7 - Run CI-safe Phase 7 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase8 - Run CI-safe Phase 8 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase9 - Run CI-safe Phase 9 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase11 - Run CI-safe Phase 11 checks without full PaySim/local DB export"
+	@echo "  make verify-v2-phase12 - Run CI-safe Phase 12 checks without full PaySim/local DB export"
 	@echo "  make v2-phase7-evidence - Generate local/manual Phase 7 evidence from existing detection result export"
 	@echo "  make v2-phase8-evidence - Generate local/manual Phase 8 evidence from existing detection result export"
 	@echo "  make v2-phase9-evidence - Generate local/manual Phase 9 evidence from existing detection result export"
@@ -199,6 +201,9 @@ verify-paysim-rule-threshold-regression: data-env
 verify-paysim-rule-version-contract: data-env
 	$(DATA_PYTHON) scripts/data/verify_paysim_rule_version_contract.py
 
+verify-paysim-result-rule-version-contract: data-env
+	$(DATA_PYTHON) scripts/data/verify_paysim_result_rule_version_contract.py
+
 verify-v2-phase7: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract
 
 verify-v2-phase8: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract
@@ -206,6 +211,8 @@ verify-v2-phase8: test-data-scripts data-policy-check verify-paysim-evaluation-r
 verify-v2-phase9: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression
 
 verify-v2-phase11: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract
+
+verify-v2-phase12: test-data-scripts data-policy-check verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract
 
 v2-phase7-evidence: evaluate-paysim-replay
 
@@ -241,4 +248,4 @@ k6-duplicate-check:
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
-final-check: build infra-config scripts-check verify-v2-phase11
+final-check: build infra-config scripts-check verify-v2-phase12

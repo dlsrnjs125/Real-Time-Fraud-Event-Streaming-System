@@ -80,6 +80,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             "include_missing_results": False,
             "force": True,
             "strict": True,
+            "require_per_result_rule_version": False,
         }
         value.update(overrides)
         return SimpleNamespace(**value)
@@ -124,7 +125,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
         self.assertEqual("fail_fast_before_report_generation", report["recordFailurePolicy"])
-        self.assertEqual("2026-06-v2-phase11", report["reportSchemaVersion"])
+        self.assertEqual("2026-06-v2-phase12", report["reportSchemaVersion"])
         self.assertEqual("v2-phase9-evaluation-contract-v1", report["evaluationContractVersion"])
         self.assertEqual("evaluation-policy-v1", report["evaluationPolicyVersion"])
         self.assertEqual("rule-v2-baseline-v1", report["ruleVersion"])
@@ -159,6 +160,8 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             },
             report["ruleVersionCoverage"],
         )
+        self.assertFalse(report["requirePerResultRuleVersion"])
+        self.assertEqual("contract_level_only", report["ruleVersionReadiness"])
         self.assertEqual({}, report["ruleVersionDistribution"])
         self.assertIn(
             "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
@@ -284,6 +287,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
             report["ruleVersionCoverage"],
         )
         self.assertEqual({"rule-v2-baseline-v1": 2}, report["ruleVersionDistribution"])
+        self.assertEqual("per_result_verified", report["ruleVersionReadiness"])
         self.assertNotIn(
             "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
             report["warnings"],
@@ -301,10 +305,31 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(1, report["ruleVersionCoverage"]["resultsWithoutRuleVersion"])
         self.assertEqual(0.5, report["ruleVersionCoverage"]["coverageRate"])
         self.assertEqual({"rule-v2-baseline-v1": 1}, report["ruleVersionDistribution"])
+        self.assertEqual("contract_level_with_partial_per_result_coverage", report["ruleVersionReadiness"])
         self.assertIn(
             "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion.",
             report["warnings"],
         )
+
+    def test_require_per_result_rule_version_fails_on_legacy_missing_rows(self):
+        self.write_fixture(
+            [self.label("paysim-1", True)],
+            [self.result("paysim-1", "HIGH")],
+        )
+
+        with self.assertRaises(evaluate.EvaluationError):
+            evaluate.evaluate(self.args(require_per_result_rule_version=True))
+
+    def test_require_per_result_rule_version_passes_when_all_evaluated_rows_have_version(self):
+        report = self.evaluate_fixture(
+            [self.label("paysim-1", True)],
+            [self.result("paysim-1", "HIGH", ruleVersion="rule-v2-baseline-v1")],
+            require_per_result_rule_version=True,
+        )
+
+        self.assertTrue(report["requirePerResultRuleVersion"])
+        self.assertEqual("per_result_verified", report["ruleVersionReadiness"])
+        self.assertEqual({"rule-v2-baseline-v1": 1}, report["ruleVersionDistribution"])
 
     def test_threshold_policy_changes_workload_summary(self):
         labels = [self.label("paysim-1", True), self.label("paysim-2", False), self.label("paysim-3", False)]

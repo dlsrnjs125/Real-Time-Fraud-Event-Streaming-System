@@ -26,6 +26,7 @@ public class FraudDetectionResultQueryService {
                 result.getTraceId(),
                 result.getUserId(),
                 result.getAccountId(),
+                result.getRuleVersion(),
                 result.getRiskScore(),
                 result.getRiskLevel(),
                 result.getDecision(),

@@ -6,6 +6,7 @@ import com.example.fraud.common.event.RiskLevel;
 import java.util.List;
 
 public record FraudRuleEngineResult(
+        String ruleVersion,
         int riskScore,
         RiskLevel riskLevel,
         FraudDecision decision,
@@ -14,4 +15,9 @@ public record FraudRuleEngineResult(
         boolean degraded,
         String reason
 ) {
+    public FraudRuleEngineResult {
+        if (ruleVersion == null || ruleVersion.isBlank()) {
+            throw new IllegalArgumentException("ruleVersion is required");
+        }
+    }
 }

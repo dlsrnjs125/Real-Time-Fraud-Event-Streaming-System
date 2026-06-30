@@ -56,7 +56,9 @@ REQUIRED_TOP_LEVEL_FIELDS = {
     "operatorWorkloadSummary",
     "riskScoreCoverage",
     "ruleVersionCoverage",
+    "ruleVersionReadiness",
     "ruleVersionDistribution",
+    "requirePerResultRuleVersion",
     "thresholdRegressionReliability",
     "evaluationExcludedRecords",
     "failedRecords",
@@ -135,7 +137,7 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         if actual != expected:
             raise ContractError(f"{key} expected {expected}, got {actual}")
     expected_versions = {
-        "reportSchemaVersion": "2026-06-v2-phase11",
+        "reportSchemaVersion": "2026-06-v2-phase12",
         "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "ruleVersion": "rule-v2-baseline-v1",
@@ -206,6 +208,7 @@ def main() -> int:
             include_missing_results=False,
             force=True,
             strict=True,
+            require_per_result_rule_version=False,
         )
         report = evaluate.evaluate(args)
         verify_report(report, output)

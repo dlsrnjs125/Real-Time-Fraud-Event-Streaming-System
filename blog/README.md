@@ -38,6 +38,7 @@
 27. [V2 Phase 9 - Threshold를 올리거나 낮추기 전에 Regression Evidence부터 만들기](27-v2-rule-threshold-regression-evidence.md)
 28. [V2 Phase 10 - README를 줄이고 Evidence를 정리한 이유](28-v2-final-readiness-and-readme-slimdown.md)
 29. [V2 Phase 11 - Rule Version Drift를 Evidence Gate로 막기](29-v2-rule-version-integration-evidence.md)
+30. [V2 Phase 12 - report-level ruleVersion에서 per-result ruleVersion으로](30-v2-result-rule-version-propagation-evidence.md)
 
 ## 글 구조
 

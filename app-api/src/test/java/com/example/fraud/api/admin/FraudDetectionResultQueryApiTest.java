@@ -48,6 +48,7 @@ class FraudDetectionResultQueryApiTest {
                 .andExpect(jsonPath("$.traceId").value("trace-fraud-query-001"))
                 .andExpect(jsonPath("$.userId").value("user-1001"))
                 .andExpect(jsonPath("$.accountId").value("acc-1001"))
+                .andExpect(jsonPath("$.ruleVersion").value("rule-v2-baseline-v1"))
                 .andExpect(jsonPath("$.riskScore").value(70))
                 .andExpect(jsonPath("$.riskLevel").value("HIGH"))
                 .andExpect(jsonPath("$.decision").value("BLOCK"))
@@ -81,6 +82,7 @@ class FraudDetectionResultQueryApiTest {
                             trace_id,
                             user_id,
                             account_id,
+                            rule_version,
                             risk_score,
                             risk_level,
                             decision,
@@ -89,12 +91,13 @@ class FraudDetectionResultQueryApiTest {
                             detected_at,
                             created_at,
                             updated_at
-                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 eventId,
                 traceId,
                 "user-1001",
                 "acc-1001",
+                "rule-v2-baseline-v1",
                 riskScore,
                 riskLevel,
                 decision,

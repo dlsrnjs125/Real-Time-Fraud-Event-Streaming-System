@@ -1109,6 +1109,20 @@ make verify-v2-phase11
 make final-check
 ```
 
+결과:
+
+- `py_compile`: PASS
+- `make test-data-scripts`: PASS, 109 tests
+- `make data-policy-check`: PASS
+- `make verify-paysim-evaluation-report-contract`: PASS
+- `make verify-paysim-native-replay-contract`: PASS
+- `make verify-paysim-rule-threshold-regression`: PASS
+- `make verify-paysim-rule-version-contract`: PASS
+- `make verify-paysim-result-rule-version-contract`: PASS
+- `make verify-v2-phase12`: PASS
+- `./gradlew test`: PASS
+- `make final-check`: PASS after allowing Gradle wrapper/cache access outside the restricted sandbox
+
 ### 의도적으로 제외한 것
 
 - 새 PaySim-specific Java fraud rule 구현
@@ -1121,6 +1135,63 @@ make final-check
 
 - Phase 11은 contract-level version alignment를 검증합니다. Per-event rule version evidence는 detection result export에 `ruleVersion`이 들어간 이후 더 강해집니다.
 - Full replay rejected eventId export는 후속 hardening입니다.
+
+## V2 Phase 12 Review
+
+### 잘한 점
+
+- `FraudRuleEngineResult`에 active `ruleVersion`을 포함해 in-memory detection result 단위 추적성을 높였습니다.
+- 신규 `fraud_detection_results` 저장 경로가 `rule_version`을 저장하도록 했습니다.
+- app-api admin fraud result response에 nullable `ruleVersion`을 노출해 조회 contract까지 이어지게 했습니다.
+- 기존 row 호환성을 위해 DB column은 nullable로 추가하고, 신규 저장 경로는 테스트로 non-null을 확인했습니다.
+- Python evaluator에 `--require-per-result-rule-version`, `ruleVersionReadiness`, `requirePerResultRuleVersion`을 추가했습니다.
+- Missing per-result `ruleVersion`은 default mode에서 warning/coverage로 처리하고, strict mode에서는 fail-fast 하도록 분리했습니다.
+- Mixed present/missing fixture에서 missing value가 `ruleVersionDistribution`에 들어가지 않도록 verifier를 추가했습니다.
+- `reportSchemaVersion`은 Phase 12로 올렸고, `evaluationContractVersion`은 denominator semantics가 바뀌지 않아 유지했습니다.
+- `make final-check`가 Phase 12 CI-safe aggregate verifier를 포함하도록 업데이트했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] `ruleVersion` 저장이 새 detection result 생성 경로에서 빠지지 않는가
+- [ ] DB column nullable 정책이 legacy row 호환성과 신규 row evidence를 모두 설명하는가
+- [ ] API response의 nullable `ruleVersion`이 legacy data를 과장하지 않는가
+- [ ] Strict mode가 missing per-result `ruleVersion`에서 fail-fast 하는가
+- [ ] `ruleVersionDistribution`에 missing/null 값이 들어가지 않는가
+- [ ] `ruleVersion`과 `thresholdVersion`이 계속 분리되어 있는가
+- [ ] `reportSchemaVersion` 변경과 verifier 기대값이 일치하는가
+- [ ] `final-check`에 raw PaySim, local app-api, detection export 의존 명령이 섞이지 않았는가
+- [ ] Raw/full PaySim data나 local report/export가 staged/tracked 되지 않았는가
+- [ ] Per-result traceability를 fraud performance improvement처럼 표현하지 않는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase12
+./gradlew test
+make final-check
+```
+
+### 의도적으로 제외한 것
+
+- 새 fraud rule 또는 threshold tuning
+- Historical `fraud_detection_results.rule_version` backfill
+- DB detection result export 자동화
+- Full PaySim replay/evaluation report commit
+- Production fraud model performance claim
+
+### 남은 한계
+
+- Legacy rows may have null `rule_version`.
+- Full replay and detection result export remain local/manual evidence.
+- Per-result `ruleVersion` improves traceability but does not prove rule quality.
 
 ### 남은 한계
 

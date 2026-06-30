@@ -25,7 +25,7 @@ from paysim_native_type_mapping import mapping_for
 
 
 SCRIPT_VERSION = "paysim-evaluation-v1"
-REPORT_SCHEMA_VERSION = "2026-06-v2-phase11"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase12"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
@@ -136,6 +136,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exclude-missing-results", dest="include_missing_results", action="store_false")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--require-per-result-rule-version", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -375,6 +376,14 @@ def sorted_distribution(counter: Counter[str]) -> dict[str, int]:
     return dict(sorted(counter.items()))
 
 
+def rule_version_readiness(stats: EvaluationStats) -> str:
+    if stats.evaluated_results_with_rule_version == 0:
+        return "contract_level_only"
+    if stats.evaluated_results_without_rule_version > 0:
+        return "contract_level_with_partial_per_result_coverage"
+    return "per_result_verified"
+
+
 def normalized_type_for_source(source_type: str | None) -> str | None:
     if not source_type:
         return None
@@ -595,6 +604,7 @@ def build_report(
         "eventIdPrefix": event_id_prefix,
         "excludeReplayRejected": args.exclude_replay_rejected,
         "includeMissingResults": args.include_missing_results,
+        "requirePerResultRuleVersion": args.require_per_result_rule_version,
         "missingResultTreatment": "fraud_missing_as_FN_non_fraud_missing_as_TN"
         if args.include_missing_results
         else "missing_results_excluded_from_denominator",
@@ -666,6 +676,7 @@ def build_report(
             "coverageScope": "evaluated_results_only",
             "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
         },
+        "ruleVersionReadiness": rule_version_readiness(stats),
         "ruleVersionDistribution": dict(sorted(stats.rule_version_distribution.items())),
         "thresholdRegressionReliability": "full_risk_score_coverage"
         if stats.evaluated_results_without_risk_score == 0
@@ -748,6 +759,11 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     replay_payload_rejected = replay_payload_rejected_count(replay_report)
     threshold_policy = threshold_policy_for(args.threshold_version)
     stats = evaluate_rows(labels, results, rejected_event_ids, threshold_policy, args.include_missing_results)
+    if args.require_per_result_rule_version and stats.evaluated_results_without_rule_version > 0:
+        raise EvaluationError(
+            "per-result ruleVersion is required but missing for "
+            f"{stats.evaluated_results_without_rule_version} evaluated result row(s)"
+        )
     warnings = build_warnings(
         label_warnings + result_warnings,
         stats,
