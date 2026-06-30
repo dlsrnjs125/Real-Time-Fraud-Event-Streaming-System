@@ -28,8 +28,8 @@ Phase 13 keeps app-consumer runtime metadata and app-api stored-result queries s
 - app-api adds an admin ruleVersion summary endpoint for stored fraud detection results.
 - The summary endpoint counts non-null stored `ruleVersion` values and reports legacy null rows separately.
 - Existing event fraud result response keeps nullable `ruleVersion` for single-result traceability.
-- `verify-v2-phase13` is added as a CI-safe aggregate alias for existing V2 data verifiers.
-- `final-check` now points at `verify-v2-phase13`.
+- `verify-v2-phase13` is added as a CI-safe aggregate alias for existing V2 data/evaluation verifiers.
+- `final-check` points at `verify-v2-phase13` and also runs Phase 13 Java observability tests through Gradle build.
 
 Not implemented:
 
@@ -96,6 +96,12 @@ Response shape:
 
 Admin APIs require the existing local admin token filter. These curl commands are local/manual checks and are not part of CI-safe verification.
 
+This phase adds a stored-result ruleVersion summary endpoint, not a full fraud result list query or ruleVersion filter.
+
+The ruleVersion summary endpoint is intended as local/admin traceability evidence. For high-volume production usage, add a bounded time range and an index candidate such as `(rule_version, detected_at)`.
+
+Actuator info exposure is intended for local/internal operational checks. Do not expose it publicly without network-level controls or Spring Security hardening.
+
 ## 6. Metrics Cardinality Decision
 
 No new ruleVersion metric is added in Phase 13.
@@ -120,7 +126,7 @@ Only add it if dashboard or alerting requirements need it.
 | Command | Scope | CI-safe | Requires local infra | Requires auth | Pass Criteria |
 |---|---|---:|---:|---:|---|
 | `./gradlew test` | Java API/consumer unit and slice tests | Yes | No | No | Actuator info and admin summary tests pass |
-| `make verify-v2-phase13` | V2 data/evaluation contract guardrails | Yes | No | No | Phase 7/8/9/11/12 verifiers pass; Java runtime/admin contracts are covered by Gradle tests |
+| `make verify-v2-phase13` | V2 data/evaluation contract guardrails | Yes | No | No | Phase 7/8/9/11/12 verifiers pass; Phase 13 Java tests are not run by this target alone |
 | `make final-check` | representative repository readiness | Yes | No | No | build, Docker config, scripts, Gradle tests, and V2 Phase 13 checks pass |
 | `curl http://localhost:8081/actuator/info` | local runtime active ruleVersion check | No | Yes | No | `fraudRule.activeRuleVersion` is visible |
 | `curl /api/v1/admin/fraud-results/rule-version-summary` | local stored result ruleVersion summary check | No | Yes | Yes | counts non-null versions and legacy null rows |
@@ -141,6 +147,7 @@ Only add it if dashboard or alerting requirements need it.
 - Stored result ruleVersion is traceability evidence, not fraud performance evidence.
 - Legacy rows may have null `ruleVersion`.
 - RuleVersion list filtering remains future work because the current fraud result list API is still a stub.
+- RuleVersion summary is currently an all-time grouped query; production dashboard usage needs bounded query parameters and an index candidate.
 - Grafana panels and alerts remain future work.
 - Admin security follows the existing local-token development scope.
 

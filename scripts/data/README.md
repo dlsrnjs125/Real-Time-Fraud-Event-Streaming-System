@@ -134,8 +134,8 @@ These commands do not require raw/full PaySim data, a running app-api, or a loca
 | `make verify-v2-phase9` | Aggregated V2 Phase 7/8/9 checks | No | No | No | terminal result | data tests, data policy, and all three verifiers pass |
 | `make verify-v2-phase11` | Aggregated V2 Phase 7/8/9/11 checks | No | No | No | terminal result | data tests, data policy, Phase 7/8/9 verifiers, and ruleVersion contract pass |
 | `make verify-v2-phase12` | Aggregated V2 Phase 7/8/9/11/12 checks | No | No | No | terminal result | data tests, data policy, Phase 7/8/9/11 verifiers, and per-result ruleVersion contract pass |
-| `make verify-v2-phase13` | Aggregated V2 Phase 7/8/9/11/12/13 checks | No | No | No | terminal result | CI-safe V2 verifier set passes; Java runtime/admin observability is covered by Gradle tests |
-| `make final-check` | Representative repository readiness gate | No | No | No | Gradle/Docker/script/test output | Gradle build, Docker config, scripts check, and `verify-v2-phase13` pass |
+| `make verify-v2-phase13` | CI-safe V2 data/evaluation guardrails through Phase 12 | No | No | No | terminal result | data tests, data policy, and Phase 7/8/9/11/12 verifiers pass; this target does not run Phase 13 Java tests by itself |
+| `make final-check` | Representative repository readiness gate | No | No | No | Gradle/Docker/script/test output | Gradle build, Docker config, scripts check, and `verify-v2-phase13` pass; includes Phase 13 Java tests through Gradle build |
 
 ## Phase 12 Per-result Rule Version Contract
 
@@ -179,7 +179,7 @@ Phase 13 is centered on Java runtime/admin observability rather than PaySim eval
 - app-consumer `activeRuleVersion` is runtime metadata exposed through Actuator info.
 - app-api stored result `ruleVersion` is historical per-result metadata exposed through admin result detail and summary APIs.
 - Full raw PaySim data is not required.
-- CI-safe checks remain `make verify-v2-phase13` and `make final-check`.
+- CI-safe checks remain `make verify-v2-phase13` for V2 data/evaluation guardrails and `make final-check` for the representative repository gate that also runs Java tests.
 
 Local/manual runtime checks, such as `curl http://localhost:8081/actuator/info` or admin summary queries, require local app startup and are intentionally kept out of CI-safe data commands.
 
@@ -462,7 +462,7 @@ For Phase 13 runtime/admin observability checks that do not require full PaySim 
 make verify-v2-phase13
 ```
 
-`make verify-v2-phase13` keeps the V2 data/evaluation contract verifier set CI-safe. Runtime metadata and admin summary contracts are validated by Java tests and `make final-check`; local curl checks are documented in `docs/37-v2-rule-version-observability-evidence.md`.
+`make verify-v2-phase13` keeps the V2 data/evaluation contract verifier set CI-safe. It does not run Phase 13 Java tests by itself. Runtime metadata and admin summary contracts are validated by `./gradlew test` and `make final-check`; local curl checks are documented in `docs/37-v2-rule-version-observability-evidence.md`.
 
 Local/manual Phase 8 evidence uses an existing detection result export and replay report:
 

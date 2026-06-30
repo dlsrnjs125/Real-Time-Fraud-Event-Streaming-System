@@ -33,7 +33,7 @@
 | V2 Phase 10 | Done | Final readiness and documentation consistency 완료 | README slimdown, final readiness matrix, evidence/troubleshooting 정리 | Rule version integration evidence |
 | V2 Phase 11 | Done | Rule version integration evidence 구현 완료 | Java/Python ruleVersion drift verifier, contract-level alignment, docs/blog | Per-result ruleVersion propagation |
 | V2 Phase 12 | Done | Per-result rule version propagation evidence 구현 완료 | detection result ruleVersion 저장/조회, strict evaluator mode, Phase 12 verifier, docs/blog | DB export automation/backfill policy |
-| V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe Phase 13 gate, docs/blog | ruleVersion filter/dashboard/deployment changelog |
+| V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe data/evaluation gate, Gradle tests, docs/blog | ruleVersion filter/dashboard/deployment changelog |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -1003,7 +1003,7 @@ V2는 Rule Engine부터 시작하지 않습니다. Kaggle 데이터를 직접 �
 | V2 Phase 10 | Final Readiness and Documentation Consistency | `docs/34-v2-final-readiness.md`, README slimdown, evidence/troubleshooting index 정리 | DONE. completed/local/manual/future scope와 representative readiness gate를 문서화 |
 | V2 Phase 11 | Rule Version Integration Evidence | app-consumer `FraudRuleVersions`, evaluator per-result `ruleVersion` parser, CI-safe drift verifier | DONE. Java Rule Engine baseline과 Python evaluator `ruleVersion` 일치 여부를 fixture gate로 검증 |
 | V2 Phase 12 | Per-result Rule Version Propagation Evidence | detection result `ruleVersion` persistence/API response, evaluator strict mode, per-result coverage verifier | DONE. 신규 result ruleVersion 저장/조회와 legacy export compatibility/strict mode를 검증 |
-| V2 Phase 13 | Runtime Rule Version Observability Evidence | app-consumer Actuator info, app-api stored result ruleVersion summary, CI-safe Phase 13 gate | DONE. active ruleVersion과 stored result ruleVersion 의미를 분리하고 운영 추적성을 검증 |
+| V2 Phase 13 | Runtime Rule Version Observability Evidence | app-consumer Actuator info, app-api stored result ruleVersion summary, CI-safe data/evaluation gate, Gradle tests | DONE. active ruleVersion과 stored result ruleVersion 의미를 분리하고 운영 추적성을 검증 |
 | V2 Phase 14 | Rule Engine V2 for PaySim Patterns | `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` 후보 | Rule unit test와 score/risk mapping 통과 |
 | V2 Phase 15 | PaySim Label-based Rule Evaluation | Java Rule Engine 기반 offline evaluation, confusion matrix, precision/recall/f1 coverage report | offline/online이 같은 rule version을 사용하고, missed/false positive 예시 문서화 |
 | V2 Phase 16 | Fraud Action Decision Engine | `fraud_action_decisions`, action policy, admin query API | `unique(event_id, action_type)` 기준 action decision 생성 |
@@ -1589,7 +1589,7 @@ Done
 - app-api stored fraud result ruleVersion summary endpoint 추가
 - legacy null `ruleVersion` row를 `legacyMissingResults`로 분리
 - admin single-result response의 nullable legacy ruleVersion behavior 테스트 보강
-- `verify-v2-phase13` Makefile target 추가
+- `verify-v2-phase13` Makefile target 추가. 이 target은 V2 data/evaluation guardrail alias이며, Phase 13 Java runtime/admin observability tests는 `./gradlew test`와 `make final-check`에서 실행됩니다.
 - `make final-check`가 Phase 13 aggregate gate를 사용하도록 갱신
 - Phase 13 evidence docs, troubleshooting, scripts README, blog draft 업데이트
 
@@ -1614,7 +1614,7 @@ make final-check
 | Check | Result | Notes |
 |---|---|---|
 | Python compile | PASS | `PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py` |
-| V2 aggregate verifier | PASS | `make verify-v2-phase13`; includes data tests, data policy, and Phase 7/8/9/11/12 verifiers |
+| V2 data/evaluation verifier | PASS | `make verify-v2-phase13`; includes data tests, data policy, and Phase 7/8/9/11/12 verifiers |
 | app-api module tests | PASS | `./gradlew :app-api:test` |
 | app-consumer module tests | PASS | `./gradlew :app-consumer:test` |
 | Gradle tests | PASS | `./gradlew test` |
@@ -1623,6 +1623,7 @@ make final-check
 ### Remaining TODOs
 
 - RuleVersion filter for the fraud result list API once the list API is no longer a stub
+- Bounded time range and index candidate such as `(rule_version, detected_at)` before using the ruleVersion summary as a high-volume production dashboard query
 - Grafana panel for active/stored ruleVersion distribution
 - Deployment changelog and rollback checks
 - Historical `rule_version` backfill policy

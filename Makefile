@@ -47,7 +47,7 @@ help:
 	@echo "  make verify-v2-phase9 - Run CI-safe Phase 9 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase11 - Run CI-safe Phase 11 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase12 - Run CI-safe Phase 12 checks without full PaySim/local DB export"
-	@echo "  make verify-v2-phase13 - Run CI-safe Phase 13 checks without local runtime curl checks"
+	@echo "  make verify-v2-phase13 - Run CI-safe V2 data/evaluation guardrails; Phase 13 Java tests run through Gradle build/final-check"
 	@echo "  make v2-phase7-evidence - Generate local/manual Phase 7 evidence from existing detection result export"
 	@echo "  make v2-phase8-evidence - Generate local/manual Phase 8 evidence from existing detection result export"
 	@echo "  make v2-phase9-evidence - Generate local/manual Phase 9 evidence from existing detection result export"

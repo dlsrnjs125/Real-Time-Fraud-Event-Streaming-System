@@ -1213,14 +1213,17 @@ make final-check
 - Legacy null `ruleVersion` row는 summary distribution에 섞지 않고 `legacyMissingResults`로 분리했습니다.
 - 기존 eventId 기반 admin fraud result query contract를 유지했습니다.
 - RuleVersion metric은 추가하지 않고, metric cardinality 판단을 future work로 문서화했습니다.
-- `verify-v2-phase13`과 `final-check`는 local app startup/curl 없이 CI-safe 경로를 유지합니다.
+- `verify-v2-phase13`은 V2 data/evaluation guardrail alias로 유지하고, Phase 13 Java observability tests는 `./gradlew test`와 `make final-check`에서 실행되도록 분리했습니다.
+- RuleVersion summary endpoint는 local/admin traceability evidence로 제한하고, high-volume production dashboard 사용 전 bounded time range와 `(rule_version, detected_at)` index 후보가 필요함을 문서화했습니다.
 
 ### 사람 검토 체크리스트
 
 - [ ] active ruleVersion과 stored result ruleVersion의 의미 차이가 문서화되었는가
 - [ ] app-consumer runtime metadata와 app-api stored query 책임이 섞이지 않는가
 - [ ] Actuator info endpoint가 과도하게 확장되지 않았는가
+- [ ] Actuator info가 public exposure 전 network-level control 또는 Spring Security hardening이 필요하다고 문서화되었는가
 - [ ] Admin endpoint는 기존 admin token 보호 범위 안에 있는가
+- [ ] RuleVersion summary endpoint가 full list query/filter가 아니며, all-time group by 운영 비용 한계가 문서화되었는가
 - [ ] Metric tag에 userId/eventId/traceId 같은 high-cardinality 값이 들어가지 않는가
 - [ ] Legacy null ruleVersion row가 신규 propagation failure처럼 과장되지 않는가
 - [ ] final-check에 local/manual curl command가 섞이지 않았는가
@@ -1256,6 +1259,8 @@ make final-check
 - Actuator info는 현재 runtime metadata이지 deployment history가 아닙니다.
 - RuleVersion summary는 stored result traceability를 돕지만 model quality를 증명하지 않습니다.
 - Existing fraud result list API는 아직 stub이므로 ruleVersion filter는 future work입니다.
+- RuleVersion summary는 현재 all-time grouped query이므로 production dashboard 용도에는 bounded query와 index 보강이 필요합니다.
+- Actuator info exposure는 local/internal operational check 범위이며 public exposure 전 network-level control 또는 Spring Security hardening이 필요합니다.
 
 ### 남은 한계
 

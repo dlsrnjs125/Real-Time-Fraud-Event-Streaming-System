@@ -38,7 +38,7 @@ app-consumer는 active ruleVersion의 source다.
 
 app-api는 stored result query의 owner다.
 
-그래서 app-api에는 stored fraud result의 ruleVersion summary를 추가했다. 여기서도 legacy null row를 version distribution에 섞지 않고 `legacyMissingResults`로 분리했다.
+그래서 app-api에는 stored fraud result의 ruleVersion summary를 추가했다. 여기서도 legacy null row를 version distribution에 섞지 않고 `legacyMissingResults`로 분리했다. 이 endpoint는 full list query나 ruleVersion filter가 아니라 local/admin traceability evidence이며, production dashboard로 쓰려면 bounded time range와 `(rule_version, detected_at)` index 후보가 필요하다.
 
 Metric은 추가하지 않았다. `ruleVersion` 자체는 bounded라 tag 후보가 될 수 있지만, 이번 Phase에서는 Actuator info와 admin summary로 충분했다. 특히 `userId`, `eventId`, `traceId` 같은 값은 metric tag에 넣으면 cardinality가 폭증하므로 명확히 금지 기준으로 남겼다.
 
@@ -51,6 +51,8 @@ CI-safe 검증은 local app startup이나 curl 없이 돌아간다.
 make verify-v2-phase13
 make final-check
 ```
+
+`make verify-v2-phase13`은 data/evaluation guardrail alias다. Phase 13 Java observability tests는 `./gradlew test`와 `make final-check`에서 실행된다.
 
 Java test는 다음을 확인한다.
 
@@ -85,7 +87,7 @@ Active version은 현재 실행 중인 consumer 기준이다. Stored result vers
 
 ## 남은 한계
 
-- Actuator info는 deployment audit log가 아니다.
+- Actuator info는 deployment audit log가 아니며, public exposure 전 network-level control 또는 Spring Security hardening이 필요하다.
 - Stored result summary는 traceability evidence이지 fraud quality evidence가 아니다.
 - RuleVersion filter는 기존 list API가 실제 query로 바뀐 뒤 추가하는 편이 낫다.
 - Grafana panel과 alert는 future work다.

@@ -26,7 +26,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 | V2 Phase 10 | final readiness | README slimdown, final readiness matrix, evidence/troubleshooting links | `make final-check` | this document | Done | readiness check is not a production model guarantee |
 | V2 Phase 11 | rule version integration evidence | app-consumer baseline `ruleVersion` and evaluator drift check | `make verify-paysim-rule-version-contract` | `docs/35-v2-rule-version-integration-evidence.md` | Done | Phase 12 adds per-result propagation |
 | V2 Phase 12 | per-result rule version propagation | detection result `ruleVersion` persistence/API response and evaluator strict mode | `make verify-paysim-result-rule-version-contract` | `docs/36-v2-result-rule-version-propagation-evidence.md` | Done | automated DB export remains future work |
-| V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make verify-v2-phase13` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric and deployment changelog remain future work |
+| V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make final-check` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric, bounded summary query, and deployment changelog remain future work |
 
 ## 3. Completed Scope
 
@@ -72,8 +72,8 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | `make verify-paysim-rule-threshold-regression` | Phase 9 threshold regression contract | Yes | No | No | No | version fields, fallback, workload, and fixture metrics match | creates temp files only |
 | `make verify-paysim-rule-version-contract` | Phase 11 rule version contract | Yes | No | No | No | Java baseline and evaluator rule version match; mismatched per-result versions fail | creates temp files only |
 | `make verify-paysim-result-rule-version-contract` | Phase 12 per-result ruleVersion contract | Yes | No | No | No | coverage/readiness/strict-mode fixtures pass | creates temp files only |
-| `make verify-v2-phase13` | aggregate V2 Phase 7/8/9/11/12/13 checks | Yes | No | No | No | data tests, policy check, and all verifiers pass | current V2 CI-safe gate |
-| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase13` pass | requires Java/Python/Docker tooling |
+| `make verify-v2-phase13` | V2 data/evaluation guardrails through Phase 12 | Yes | No | No | No | data tests, policy check, and all data/evaluation verifiers pass | CI-safe alias; does not run Phase 13 Java tests by itself |
+| `make final-check` | representative repository readiness gate | Yes | No | No | No | Gradle build, Docker config, script syntax, and `verify-v2-phase13` pass | includes Phase 13 Java tests through Gradle build; requires Java/Python/Docker tooling |
 | `make validate-paysim` | local processed output validation | No | No | Yes | No | local processed output/report contract is valid | fails if local processed outputs are stale |
 | `make replay-paysim-sample` | actual sample replay | No | Yes | No | No | local app-api accepts/rejects according to replay contract | requires local infra and app-api |
 | `make evaluate-paysim-replay` | local detection result evaluation | No | No | No | Yes | strict evaluation report is generated | does not export DB rows itself |
@@ -129,6 +129,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - automated DB detection result export remains future work.
 - historical `rule_version` backfill remains future work.
 - runtime active ruleVersion exposure is not a deployment audit log.
+- ruleVersion summary is all-time local/admin traceability evidence; high-volume production use needs a bounded time range and index candidate such as `(rule_version, detected_at)`.
 - Full rejected event id export remains a future hardening item.
 - Grafana/dashboard integration for V2 evidence remains future work.
 - Model-based baseline comparison remains future work.
