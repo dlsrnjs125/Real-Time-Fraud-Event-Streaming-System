@@ -93,3 +93,8 @@
 - Rollback readiness overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-14-automatic-rollback을-구현하지-않았는데-rollback-readiness라고-과장하는-문제`
 - Runtime curl check CI-safe confusion: `docs/11-troubleshooting-log.md#v2-phase-14-runtime-curl-check를-ci-safe로-오해하는-문제`
 - All-time ruleVersion summary dashboard risk: `docs/11-troubleshooting-log.md#v2-phase-14-all-time-ruleversion-summary를-production-dashboard로-사용하는-문제`
+- Final summary README bloat risk: `docs/11-troubleshooting-log.md#v2-phase-15-최종-요약이-readme를-다시-비대하게-만드는-문제`
+- final-check production performance overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-15-final-check를-production-fraud-성능-보장으로-오해하는-문제`
+- Implemented/future work closure risk: `docs/11-troubleshooting-log.md#v2-phase-15-implemented와-future-work가-섞이는-문제`
+- RuleVersion traceability quality overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-15-ruleversion-traceability를-fraud-detection-quality로-과장하는-문제`
+- Core Phase 14 and V2 Phase 15 numbering confusion: `docs/11-troubleshooting-log.md#v2-phase-15-core-phase-14와-v2-phase-15-numbering이-혼동되는-문제`

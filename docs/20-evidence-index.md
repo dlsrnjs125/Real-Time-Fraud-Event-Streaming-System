@@ -30,6 +30,7 @@
 | V2 Phase 12 | Per-result rule version propagation evidence | `make verify-v2-phase12` | `docs/36-v2-result-rule-version-propagation-evidence.md` |
 | V2 Phase 13 | Runtime rule version observability evidence | `./gradlew test`, `make final-check`; `make verify-v2-phase13` for data/evaluation guardrails | `docs/37-v2-rule-version-observability-evidence.md` |
 | V2 Phase 14 | Rule version change runbook and rollback readiness evidence | `make final-check`, `./gradlew test`; local/manual actuator/admin checks documented in runbook | `docs/38-v2-rule-version-change-runbook.md` |
+| V2 Phase 15 | Final portfolio evidence closure | `make final-check`; documentation review | `docs/39-v2-final-portfolio-summary.md` |
 
 ## CI / Build
 
@@ -98,6 +99,7 @@
 | V2 result rule version propagation evidence | `docs/36-v2-result-rule-version-propagation-evidence.md` | 신규 detection result 단위 ruleVersion 저장/조회와 evaluator strict mode |
 | V2 runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | active ruleVersion runtime metadata와 stored result ruleVersion summary |
 | V2 rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | ruleVersion 변경 전후 checklist, rollback/hold 기준, evidence template |
+| V2 final portfolio summary | `docs/39-v2-final-portfolio-summary.md` | V2 Phase 7~14 evidence map, implemented/local-manual/future work, anti-overclaim guardrails |
 
 ## V2 PaySim Evidence
 
@@ -112,4 +114,5 @@
 | V2 Runtime Rule Version Observability Check | `./gradlew test`, `make final-check` | Java tests and representative readiness output | app-consumer active ruleVersion metadata test passes, app-api stored ruleVersion summary test passes, final-check passes | CI-safe; runtime/admin traceability check, not production fraud model performance |
 | V2 Data/Evaluation Guardrail Check | `make verify-v2-phase13` | V2 fixture verifier output | data tests, data policy, and Phase 7/8/9/11/12 verifiers pass | CI-safe alias; does not run Phase 13 Java tests by itself |
 | V2 Rule Version Change Runbook Evidence | `make final-check`, `./gradlew test` | readiness output and runbook checklist | final-check passes, ruleVersion contract verifiers pass, runbook pre/post checklist exists, rollback/hold criteria documented, local/manual runtime checks are separated | validates change readiness and rollback decision criteria, not automatic rollback or production fraud model performance |
+| V2 Final Portfolio Evidence Closure | `make final-check` | final summary and readiness output | final summary exists, Phase 7~14 evidence map is complete, implemented/local-manual/future work are separated, final-check limits are documented, README remains minimal | validates evidence traceability, not production fraud model performance |
 | V2 Final Readiness Check | `make final-check` | Gradle/Docker/script/data verifier output | Gradle build passes, Docker Compose config passes, scripts syntax passes, data policy and V2 data/evaluation verifiers pass, README stays minimal and links to detailed docs | CI-safe with required Java/Python/Docker tooling; validates readiness guardrails, not production fraud model performance |

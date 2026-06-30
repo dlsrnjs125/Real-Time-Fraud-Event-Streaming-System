@@ -35,6 +35,7 @@
 | V2 Phase 12 | Done | Per-result rule version propagation evidence 구현 완료 | detection result ruleVersion 저장/조회, strict evaluator mode, Phase 12 verifier, docs/blog | DB export automation/backfill policy |
 | V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe data/evaluation gate, Gradle tests, docs/blog | ruleVersion filter/dashboard/deployment changelog |
 | V2 Phase 14 | Done | Rule version change runbook / rollback readiness evidence 문서화 완료 | pre/post checklist, rollback/hold criteria, evidence template, troubleshooting/blog | deployment changelog, bounded summary query, alert/automation |
+| V2 Phase 15 | Done | Final portfolio summary / evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails, blog | optional dashboard/runbook automation |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -1006,11 +1007,12 @@ V2는 Rule Engine부터 시작하지 않습니다. Kaggle 데이터를 직접 �
 | V2 Phase 12 | Per-result Rule Version Propagation Evidence | detection result `ruleVersion` persistence/API response, evaluator strict mode, per-result coverage verifier | DONE. 신규 result ruleVersion 저장/조회와 legacy export compatibility/strict mode를 검증 |
 | V2 Phase 13 | Runtime Rule Version Observability Evidence | app-consumer Actuator info, app-api stored result ruleVersion summary, CI-safe data/evaluation gate, Gradle tests | DONE. active ruleVersion과 stored result ruleVersion 의미를 분리하고 운영 추적성을 검증 |
 | V2 Phase 14 | Rule Version Change Runbook / Rollback Readiness | `docs/38-v2-rule-version-change-runbook.md`, pre/post checklist, rollback/hold criteria, evidence template | DONE. ruleVersion 변경 관리 기준과 CI-safe/local-manual boundary를 문서화 |
-| V2 Phase 15 | Rule Engine V2 for PaySim Patterns | `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` 후보 | Rule unit test와 score/risk mapping 통과 |
-| V2 Phase 16 | PaySim Label-based Rule Evaluation | Java Rule Engine 기반 offline evaluation, confusion matrix, precision/recall/f1 coverage report | offline/online이 같은 rule version을 사용하고, missed/false positive 예시 문서화 |
-| V2 Phase 17 | Fraud Action Decision Engine | `fraud_action_decisions`, action policy, admin query API | `unique(event_id, action_type)` 기준 action decision 생성 |
-| V2 Phase 18 | Fraud Case Management | `fraud_cases`, list/detail/resolve API, audit action 확장 | HIGH/CRITICAL case 생성, resolved 상태 충돌 방어, audit log 저장 |
-| V2 Phase 19 | Evidence and Visualization | result evidence doc, charts/tables, README/blog 정리 | risk/rule/action/case/confusion matrix evidence 작성 |
+| V2 Phase 15 | Final Portfolio Summary / Evidence Closure | `docs/39-v2-final-portfolio-summary.md`, Phase 7~14 evidence map, implemented/local-manual/future work separation | DONE. 최종 evidence closure와 anti-overclaim guardrail을 문서화 |
+| V2 Phase 16 | Rule Engine V2 for PaySim Patterns | `BALANCE_DRAIN`, `ZERO_BALANCE_AFTER_TRANSFER`, `TRANSFER_CASHOUT_PATTERN` 후보 | Rule unit test와 score/risk mapping 통과 |
+| V2 Phase 17 | PaySim Label-based Rule Evaluation | Java Rule Engine 기반 offline evaluation, confusion matrix, precision/recall/f1 coverage report | offline/online이 같은 rule version을 사용하고, missed/false positive 예시 문서화 |
+| V2 Phase 18 | Fraud Action Decision Engine | `fraud_action_decisions`, action policy, admin query API | `unique(event_id, action_type)` 기준 action decision 생성 |
+| V2 Phase 19 | Fraud Case Management | `fraud_cases`, list/detail/resolve API, audit action 확장 | HIGH/CRITICAL case 생성, resolved 상태 충돌 방어, audit log 저장 |
+| V2 Phase 20 | Evidence and Visualization | result evidence doc, charts/tables, README/blog 정리 | risk/rule/action/case/confusion matrix evidence 작성 |
 
 ### V2 Phase 1 완료 기록
 
@@ -1685,6 +1687,59 @@ make final-check
 - Automatic rollback after manual decision criteria stabilize
 - Historical `rule_version` backfill policy
 
+## V2 Phase 15. Final Portfolio Summary / Evidence Closure
+
+### Status
+
+Done
+
+### Completed
+
+- `docs/39-v2-final-portfolio-summary.md` 추가
+- V2 Phase 7~14 evidence map 정리
+- implemented / local-manual / future work 분리
+- `make final-check`가 보장하는 것과 보장하지 않는 것 정리
+- PaySim synthetic dataset, ruleVersion traceability, rollback readiness overclaim 방지 기준 정리
+- Interview answer pack 추가
+- Evidence index, troubleshooting index, review 기록, scripts/data README, blog draft 업데이트
+- README는 V2 Phase 15 상세를 추가하지 않고 최소 상태 유지
+
+### Verification Commands
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase13
+./gradlew test
+make final-check
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Python compile | PASS | `PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py` |
+| Data script tests | PASS | `make verify-v2-phase13` included 109 Python data script tests |
+| Data policy | PASS | `make verify-v2-phase13` included `check-data-policy.sh` |
+| V2 data/evaluation verifier | PASS | `make verify-v2-phase13` ran Phase 7/8/9/11/12 data/evaluation contract verifiers |
+| Gradle tests | PASS | `./gradlew test`; required local Gradle wrapper/cache access outside restricted sandbox |
+| Representative readiness | PASS | `make final-check`; required local Gradle/Docker validation access outside restricted sandbox |
+
+### Remaining TODOs
+
+- Optional dashboard/runbook automation
+- Rule deployment changelog persistence
+- Unexpected ruleVersion alert
+- Historical `rule_version` backfill
+- Time-bounded ruleVersion summary query and index review
+- PaySim-specific Rule Engine V2 rules
+
 ### V2 다음 단계별 진행 순서
 
 | Step | Phase | 작업 |
@@ -1704,11 +1759,12 @@ make final-check
 | Step 13 | V2 Phase 12 | Per-result ruleVersion propagation evidence |
 | Step 14 | V2 Phase 13 | Runtime ruleVersion observability evidence |
 | Step 15 | V2 Phase 14 | Rule version change runbook / rollback readiness |
-| Step 16 | V2 Phase 15 | Rule Engine V2 초기 rule 구현 |
-| Step 17 | V2 Phase 16 | Rule evaluation confusion matrix |
-| Step 18 | V2 Phase 17 | Action Decision Engine |
-| Step 19 | V2 Phase 18 | Fraud Case Management |
-| Step 20 | V2 Phase 19 | visualization/evidence, README, docs, blog 정리 |
+| Step 16 | V2 Phase 15 | Final portfolio summary / evidence closure |
+| Step 17 | V2 Phase 16 | Rule Engine V2 초기 rule 구현 |
+| Step 18 | V2 Phase 17 | Rule evaluation confusion matrix |
+| Step 19 | V2 Phase 18 | Action Decision Engine |
+| Step 20 | V2 Phase 19 | Fraud Case Management |
+| Step 21 | V2 Phase 20 | visualization/evidence, README, docs, blog 정리 |
 
 ### V2 첫 구현 PR 권장 범위
 
@@ -1799,6 +1855,6 @@ Action and case:
 
 ### 현재 상태
 
-V2 Phase 1~14까지 구현했습니다. 현재 구현된 V2 범위는 PaySim data guardrail, preprocessing/validation/sample generation, replay/evaluation toolchain, native mapping contract, rule/threshold regression evidence, Java/Python ruleVersion drift check, per-result ruleVersion propagation, runtime/admin ruleVersion observability, 그리고 ruleVersion change runbook / rollback readiness evidence입니다.
+V2 Phase 1~15까지 구현했습니다. 현재 구현된 V2 범위는 PaySim data guardrail, preprocessing/validation/sample generation, replay/evaluation toolchain, native mapping contract, rule/threshold regression evidence, Java/Python ruleVersion drift check, per-result ruleVersion propagation, runtime/admin ruleVersion observability, ruleVersion change runbook / rollback readiness evidence, 그리고 final portfolio summary / evidence closure입니다.
 
 아직 구현하지 않은 범위는 PaySim-specific Rule Engine V2 rule 추가, ruleVersion filter가 포함된 실제 fraud result list query, historical `rule_version` backfill, persisted deployment changelog, automatic rollback, Grafana dashboard/alert, action decision/case management 고도화입니다.
