@@ -111,13 +111,31 @@ Start here:
 
 ## 현재 구현 범위
 
-현재 core runtime 구현 범위는 Phase 14까지 완료된 상태입니다. Phase 14에서는 Admin API 최소 보호, DLT 재처리/폐기 audit log, max reprocess attempts 정책을 추가해 운영 조작의 보안성과 감사 가능성을 강화했습니다.
+이 프로젝트는 대량 거래 이벤트를 API에서 접수한 뒤 Kafka를 통해 Consumer로 전달하고, Consumer가 Redis 기반 최근 거래 패턴과 Rule Engine을 이용해 이상거래 결과를 계산한 뒤 PostgreSQL에 저장하는 구조까지 구현했습니다.
 
-V2 evidence closure는 Phase 15까지 정리했고, 현재 문서화 작업은 최종 blog/docs publication candidate와 image plan을 정리하는 단계입니다.
+운영 관점에서는 다음 범위를 검증 대상으로 포함했습니다.
 
-운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
+- Kafka Consumer manual ack와 processing log 기반 처리 추적
+- PostgreSQL unique constraint 기반 idempotency 보장
+- Redis sliding window rule과 Redis 장애 시 degraded/skipped rule 기록
+- DLT 격리, 재처리, 폐기, audit log, max reprocess attempts 정책
+- Consumer Lag, detection latency, degraded count, DLT count 중심의 관측 기준
+- k6 기반 normal/peak/duplicate/Redis down 부하·장애 테스트 기준
+- `make final-check` 기반 repository readiness guardrail
 
-V2 문서는 PaySim 기반 replay/evaluation evidence와 후속 확장 계획을 함께 다룹니다. 완료된 evidence contract, local/manual 검증, future work의 구분은 [V2 Final Readiness](docs/34-v2-final-readiness.md)에 정리합니다.
+V2에서는 운영 데이터가 아닌 PaySim 기반 synthetic transaction data를 사용해 replay/evaluation 흐름을 추가했습니다. 목적은 실제 금융 fraud model 성능을 주장하는 것이 아니라, rule baseline 변경 시 동일한 입력 데이터와 동일한 evaluation contract로 결과를 비교할 수 있게 만드는 것입니다.
+
+V2 범위에는 다음 내용이 포함됩니다.
+
+- raw/full PaySim data를 저장소에 커밋하지 않는 data provenance 정책
+- HMAC 기반 identifier hashing과 salt policy
+- fixture/sample 기반 CI-safe preprocessing, replay, evaluation 검증
+- full PaySim replay/evaluation은 local/manual evidence로 분리
+- denominator, missing result, unsupported type, rejected row를 분리한 evaluation report
+- Java Rule Engine과 Python evaluator 사이의 ruleVersion drift 검증
+- active runtime ruleVersion, stored result ruleVersion, evaluator expected ruleVersion 분리
+
+구현된 기능, local/manual 검증, future work의 구분은 [V2 Final Readiness](docs/34-v2-final-readiness.md)에 정리했습니다.
 
 ## V2 PaySim Evaluation
 

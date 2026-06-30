@@ -101,7 +101,7 @@
 | V2 runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | active ruleVersion runtime metadata와 stored result ruleVersion summary |
 | V2 rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | ruleVersion 변경 전후 checklist, rollback/hold 기준, evidence template |
 | V2 final evidence closure | `docs/39-v2-final-evidence-closure.md` | V2 Phase 7~14 evidence map, implemented/local-manual/future work, anti-overclaim guardrails |
-| Blog series plan | `blog/README.md` | final 11-post series order, publication candidate body status, draft archive, image planning boundary |
+| Blog series plan | `blog/README.md` | final 12-post series order, publication candidate body status, draft archive, image planning boundary |
 
 ## V2 PaySim Evidence
 

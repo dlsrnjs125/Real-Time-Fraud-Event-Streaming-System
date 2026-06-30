@@ -9,7 +9,7 @@
 
 ## Directory Layout
 
-- `series/`: 11개 발행 후보 파일. 본문은 작성 완료 상태이며 이미지는 별도 작업으로 추가합니다.
+- `series/`: 12개 발행 후보 파일. 본문은 작성 완료 상태이며 이미지는 별도 작업으로 추가합니다.
 - `drafts/`: 기존 draft archive. 최종 발행 순서는 아닙니다.
 
 ## Series Order
@@ -26,7 +26,8 @@
 | 8 | [raw PaySim을 커밋하지 않고 재현성을 남기기](series/08-paysim-replayable-events.md) | `drafts/18` through `drafts/23` | raw data를 커밋하지 않으면서 재현성을 어떻게 남길 것인가 |
 | 9 | [precision/recall을 믿기 전에 분모부터 고정했다](series/09-paysim-replay-evaluation-evidence.md) | `drafts/24` through `drafts/28` | precision/recall을 과장하지 않으려면 무엇을 기록해야 하는가 |
 | 10 | [active, stored, evaluator ruleVersion을 섞지 않기](series/10-rule-version-traceability.md) | `drafts/29` through `drafts/31` | Java/Python drift와 active/stored version 혼동을 어떻게 막을 것인가 |
-| 11 | [마지막 정리: 설명 가능한 변경만 남기기](series/11-rule-version-change-runbook-evidence-closure.md) | `drafts/32`, `drafts/33` | hold/rollback readiness와 automatic rollback을 어떻게 구분할 것인가 |
+| 11 | [ruleVersion 변경 runbook과 rollback readiness](series/11-rule-version-change-runbook-evidence-closure.md) | `drafts/32`, `drafts/33` | hold/rollback readiness와 automatic rollback을 어떻게 구분할 것인가 |
+| 12 | [회고: Kafka, Redis, PaySim보다 중요했던 것은 설명 가능한 기준이었다](series/12-project-retrospective.md) | `drafts/32`, `drafts/33`, series summary | 이 프로젝트에서 어떤 엔지니어링 기준을 얻었는가 |
 
 ## Image Planning
 

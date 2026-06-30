@@ -19,6 +19,7 @@ No bitmap image files have been added in this pass. Mermaid diagrams are embedde
 | 7 | 8 | PaySim preprocessing pipeline | Mermaid in post | N/A | raw -> processed -> sample -> replay 흐름 설명 | Done as Mermaid |
 | 8 | 10 | ruleVersion traceability flow | Mermaid in post | N/A | active -> stored -> admin/evaluator 연결 설명 | Done as Mermaid |
 | 9 | 11 | runbook decision flow | Mermaid in post | N/A | pre-check -> deploy/hold -> post-check -> rollback readiness 설명 | Done as Mermaid |
+| 10 | 12 | retrospective learning map | Mermaid in post | N/A | API latency, Consumer Lag, Redis degraded, DLT, PaySim evaluation, ruleVersion을 회고 관점으로 연결 | Done as Mermaid |
 
 ## First Screenshot Set
 

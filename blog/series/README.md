@@ -16,6 +16,8 @@ Each post should follow this flow:
 6. 검증
 7. 남은 한계
 
+`12-project-retrospective.md`는 회고 글이므로 common structure를 엄격히 따르지 않는다. 대신 프로젝트 전체에서 기준이 바뀐 지점, 가장 크게 배운 점, 아쉬웠던 점, 다음 보완 방향을 중심으로 작성한다.
+
 ## Include
 
 - 처음에는 어떤 방식으로 생각했는지
