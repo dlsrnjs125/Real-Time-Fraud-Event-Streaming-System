@@ -124,7 +124,7 @@ class EvaluatePaySimReplayResultsTest(unittest.TestCase):
         self.assertEqual(0, report["failedRecords"])
         self.assertEqual(0, report["invalidRecords"])
         self.assertEqual("fail_fast_before_report_generation", report["recordFailurePolicy"])
-        self.assertEqual("2026-06-v2-phase9", report["reportSchemaVersion"])
+        self.assertEqual("2026-06-v2-phase11", report["reportSchemaVersion"])
         self.assertEqual("v2-phase9-evaluation-contract-v1", report["evaluationContractVersion"])
         self.assertEqual("evaluation-policy-v1", report["evaluationPolicyVersion"])
         self.assertEqual("rule-v2-baseline-v1", report["ruleVersion"])

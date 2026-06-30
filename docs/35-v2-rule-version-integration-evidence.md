@@ -57,6 +57,7 @@ Evaluator behavior:
 
 Report fields added or strengthened in this phase:
 
+- `reportSchemaVersion`: `2026-06-v2-phase11`
 - `ruleVersionCoverage`
 - `ruleVersionDistribution`
 - warning when evaluated rows omit per-result `ruleVersion`
@@ -77,6 +78,7 @@ make verify-v2-phase11
 - Unsupported rule versions are rejected.
 - Fixture reports with per-result `ruleVersion` produce full coverage and distribution.
 - Fixture reports without per-result `ruleVersion` produce missing coverage and warning.
+- Mixed fixture reports exclude missing values from `ruleVersionDistribution` while recording partial coverage and a warning.
 - Fixture reports with mismatched per-result `ruleVersion` fail fast.
 
 `make verify-v2-phase11` runs the existing Phase 7/8/9 CI-safe checks plus the Phase 11 rule version contract.

@@ -29,6 +29,7 @@ JAVA_RULE_VERSION_SOURCE = (
     / "FraudRuleVersions.java"
 )
 ACTIVE_RULE_VERSION_CONSTANT = "ACTIVE_RULE_VERSION"
+EXPECTED_REPORT_SCHEMA_VERSION = "2026-06-v2-phase11"
 JAVA_STRING_CONSTANT_PATTERN = re.compile(
     r'public\s+static\s+final\s+String\s+([A-Z0-9_]+)\s*=\s*([^;]+)\s*;'
 )
@@ -138,6 +139,10 @@ def verify_evaluator_contract(java_version: str) -> None:
         )
         if report["ruleVersion"] != java_version:
             raise ContractError(f"report ruleVersion expected {java_version}, got {report['ruleVersion']}")
+        if report["reportSchemaVersion"] != EXPECTED_REPORT_SCHEMA_VERSION:
+            raise ContractError(
+                f"reportSchemaVersion expected {EXPECTED_REPORT_SCHEMA_VERSION}, got {report['reportSchemaVersion']}"
+            )
         if report["thresholdVersion"] != "threshold-v1":
             raise ContractError("thresholdVersion should remain separate from ruleVersion")
         if report["ruleVersionCoverage"] != {

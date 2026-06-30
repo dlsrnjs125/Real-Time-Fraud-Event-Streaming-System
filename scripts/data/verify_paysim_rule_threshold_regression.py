@@ -88,7 +88,7 @@ def assert_required_fields(report: dict[str, Any]) -> None:
 def verify_baseline(report: dict[str, Any]) -> None:
     assert_required_fields(report)
     expected = {
-        "reportSchemaVersion": "2026-06-v2-phase9",
+        "reportSchemaVersion": "2026-06-v2-phase11",
         "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "mappingPolicyVersion": "paysim-native-mapping-v1",

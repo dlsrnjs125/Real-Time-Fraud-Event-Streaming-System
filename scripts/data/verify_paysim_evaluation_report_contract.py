@@ -135,7 +135,7 @@ def verify_report(report: dict[str, Any], report_path: Path) -> None:
         if actual != expected:
             raise ContractError(f"{key} expected {expected}, got {actual}")
     expected_versions = {
-        "reportSchemaVersion": "2026-06-v2-phase9",
+        "reportSchemaVersion": "2026-06-v2-phase11",
         "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "ruleVersion": "rule-v2-baseline-v1",

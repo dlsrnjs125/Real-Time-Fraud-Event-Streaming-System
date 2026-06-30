@@ -25,7 +25,7 @@ from paysim_native_type_mapping import mapping_for
 
 
 SCRIPT_VERSION = "paysim-evaluation-v1"
-REPORT_SCHEMA_VERSION = "2026-06-v2-phase9"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase11"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
