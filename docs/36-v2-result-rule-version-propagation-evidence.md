@@ -31,6 +31,7 @@ Implemented scope:
 - `fraud_detection_results.rule_version` is added with a nullable migration for compatibility.
 - app-consumer saves `ruleVersion` for newly generated fraud detection results.
 - app-api admin fraud result response exposes nullable `ruleVersion`.
+- The API module remains the Flyway migration owner. app-consumer runs with JPA validate and expects app-api migrations, including `rule_version`, to be applied before consumer startup.
 - Python evaluator report schema is bumped to `2026-06-v2-phase12`.
 - Python evaluator adds `--require-per-result-rule-version`.
 - Default evaluation mode keeps legacy compatibility with warning and coverage fields.

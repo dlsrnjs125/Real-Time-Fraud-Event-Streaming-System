@@ -15,4 +15,9 @@ public record FraudRuleEngineResult(
         boolean degraded,
         String reason
 ) {
+    public FraudRuleEngineResult {
+        if (ruleVersion == null || ruleVersion.isBlank()) {
+            throw new IllegalArgumentException("ruleVersion is required");
+        }
+    }
 }

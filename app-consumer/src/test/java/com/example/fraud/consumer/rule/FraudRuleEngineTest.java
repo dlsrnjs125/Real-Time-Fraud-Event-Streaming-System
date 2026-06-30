@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.rule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.fraud.common.event.FraudDecision;
 import com.example.fraud.common.event.FraudRuleCode;
@@ -36,6 +37,21 @@ class FraudRuleEngineTest {
                 .isNotBlank();
         assertThat(FraudRuleVersions.ACTIVE_RULE_VERSION)
                 .isEqualTo(FraudRuleVersions.RULE_V2_BASELINE_V1);
+    }
+
+    @Test
+    void ruleEngineResultRequiresRuleVersion() {
+        assertThatThrownBy(() -> new FraudRuleEngineResult(
+                " ",
+                0,
+                RiskLevel.LOW,
+                FraudDecision.APPROVE,
+                List.of(),
+                List.of(),
+                false,
+                "No fraud rule matched"
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("ruleVersion is required");
     }
 
     @Test
