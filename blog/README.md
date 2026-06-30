@@ -10,7 +10,7 @@
 ## Directory Layout
 
 - `series/`: 11개 발행 후보 파일. 본문은 작성 완료 상태이며 이미지는 별도 작업으로 추가합니다.
-- `drafts/`: 기존 33개 draft 원본. 본문은 보존하고 source material로 사용합니다.
+- `drafts/`: 기존 draft archive. 최종 발행 순서는 아닙니다.
 
 ## Series Order
 
@@ -27,34 +27,6 @@
 | 9 | [precision/recall을 믿기 전에 분모부터 고정했다](series/09-paysim-replay-evaluation-evidence.md) | `drafts/24` through `drafts/28` | precision/recall을 과장하지 않으려면 무엇을 기록해야 하는가 |
 | 10 | [active, stored, evaluator ruleVersion을 섞지 않기](series/10-rule-version-traceability.md) | `drafts/29` through `drafts/31` | Java/Python drift와 active/stored version 혼동을 어떻게 막을 것인가 |
 | 11 | [마지막 정리: 설명 가능한 변경만 남기기](series/11-rule-version-change-runbook-evidence-closure.md) | `drafts/32`, `drafts/33` | hold/rollback readiness와 automatic rollback을 어떻게 구분할 것인가 |
-
-## Draft Archive
-
-The numbered files under `drafts/` remain as source material for the next blog cleanup step. They are not the final publication order.
-
-Core drafts: `drafts/01` through `drafts/17`
-
-V2 PaySim and ruleVersion drafts: `drafts/18` through `drafts/33`
-
-Historical duplicate-topic drafts kept for now:
-
-- `04-consumer-manual-ack-processing-log.md`
-- `05-fraud-result-rule-engine.md`
-- `07-redis-integration-test-and-metrics.md`
-- `08-failure-drill-consumer-recovery.md`
-- `09-retry-dlt-reprocessing.md`
-
-## 글 구조
-
-각 글은 아래 흐름을 기본으로 합니다.
-
-- 문제
-- 초기 설계
-- 구현
-- 측정 또는 재현
-- 발견한 문제
-- 변경한 설계
-- 남은 한계
 
 ## Image Planning
 

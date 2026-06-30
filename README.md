@@ -111,7 +111,9 @@ Start here:
 
 ## 현재 구현 범위
 
-현재는 Phase 14까지 완료된 상태입니다. Phase 14에서는 Admin API 최소 보호, DLT 재처리/폐기 audit log, max reprocess attempts 정책을 추가해 운영 조작의 보안성과 감사 가능성을 강화했습니다.
+현재 core runtime 구현 범위는 Phase 14까지 완료된 상태입니다. Phase 14에서는 Admin API 최소 보호, DLT 재처리/폐기 audit log, max reprocess attempts 정책을 추가해 운영 조작의 보안성과 감사 가능성을 강화했습니다.
+
+V2 evidence closure는 Phase 15까지 정리했고, 현재 문서화 작업은 최종 blog/docs publication candidate와 image plan을 정리하는 단계입니다.
 
 운영 관점에서 이 프로젝트는 Consumer manual ack, PostgreSQL unique constraint 기반 idempotency, Redis degraded mode, DLT 격리/재처리, metric tag cardinality 제한, failure drill 기반 검증을 핵심 판단 근거로 둡니다.
 

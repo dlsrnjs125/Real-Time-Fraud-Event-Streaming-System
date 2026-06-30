@@ -32,6 +32,8 @@ sequenceDiagram
 
 이 두 상황은 서로 반대 방향의 위험이다. 하나는 유실처럼 보이고, 다른 하나는 중복처럼 보인다. 이 프로젝트는 중복 가능성을 받아들이고 idempotent processing으로 막는 쪽을 선택했다.
 
+특히 DB 저장은 성공했지만 ack 직전에 Consumer가 종료되는 경우를 정상적인 재소비 가능성으로 보았다. 그래서 ack 재시도 자체보다 같은 `eventId`와 source offset이 다시 들어와도 결과가 중복 생성되지 않는지를 기준으로 검증했다.
+
 ## 트러블슈팅에서 남긴 판단
 
 `docs/11-troubleshooting-log.md`에는 auto commit을 쓰면 DB 저장 실패와 무관하게 offset이 commit될 수 있다고 정리했다. 그래서 manual ack를 선택했다. 다만 manual ack도 완벽하지 않다. DB 저장 성공 후 ack 직전에 죽으면 재소비가 발생한다.

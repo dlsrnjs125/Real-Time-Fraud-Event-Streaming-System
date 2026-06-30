@@ -34,13 +34,13 @@ No bitmap image files have been added in this pass. Mermaid diagrams are embedde
 
 ## Screenshot Capture Candidates
 
-| File | Capture Source | Must Hide |
-|---|---|---|
-| `blog/images/06-consumer-lag-detection-latency-dashboard.png` | Grafana dashboard or Prometheus graph after local run | host secrets, raw identifiers, tokens |
-| `blog/images/07-k6-load-failure-summary.png` | k6 terminal summary or Grafana load panel | local paths containing sensitive names, raw request payloads |
-| `blog/images/05-dlt-admin-audit-response.png` | sanitized admin response or DB summary | admin token, accountId, deviceId, raw payload |
-| `blog/images/04-redis-degraded-metrics.png` | Redis down drill metric/log screenshot | accountId, deviceId, raw payload |
-| `blog/images/09-paysim-evaluation-summary.png` | sanitized evaluation report summary | raw PaySim rows, raw identifiers, local salt |
+| File | Target Post Section | Capture Source | Must Hide |
+|---|---|---|---|
+| `blog/images/06-consumer-lag-detection-latency-dashboard.png` | `06`의 `확인한 증거` 섹션 | Grafana dashboard or Prometheus graph after local run | host secrets, raw identifiers, tokens |
+| `blog/images/07-k6-load-failure-summary.png` | `07`의 `검증` 섹션 | k6 terminal summary or Grafana load panel | local paths containing sensitive names, raw request payloads |
+| `blog/images/05-dlt-admin-audit-response.png` | `05`의 `확인한 증거` 섹션 | sanitized admin response or DB summary | admin token, accountId, deviceId, raw payload |
+| `blog/images/04-redis-degraded-metrics.png` | `04`의 `확인한 증거` 섹션 | Redis down drill metric/log screenshot | accountId, deviceId, raw payload |
+| `blog/images/09-paysim-evaluation-summary.png` | `09`의 `바꾼 설계` 섹션 | sanitized evaluation report summary | raw PaySim rows, raw identifiers, local salt |
 
 ## Boundaries
 

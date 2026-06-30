@@ -12,6 +12,8 @@
 
 Kafka는 단순 큐가 아니라 재처리 가능한 이벤트 로그로 보았다. Consumer가 잠시 멈추거나 장애가 나도 topic에 남은 이벤트와 offset을 기준으로 backlog, lag, 재처리 흐름을 설명할 수 있어야 했다.
 
+단순 작업 분배가 목적이었다면 Queue만으로도 충분하다. 하지만 이 프로젝트에서는 Consumer 중단 이후 offset, lag, replay 기준으로 처리 지연을 설명해야 했기 때문에 Kafka를 선택했다.
+
 ```mermaid
 flowchart LR
     Client[Client] --> API[app-api<br/>transaction intake]
