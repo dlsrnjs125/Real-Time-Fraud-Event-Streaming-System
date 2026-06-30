@@ -2,7 +2,9 @@
 
 ## 1. Purpose
 
-V2 Phase 10 is a readiness and documentation consistency phase for the PaySim-based data, replay, and evaluation workflow completed through V2 Phase 9.
+V2 Phase 10 started as a readiness and documentation consistency phase for the PaySim-based data, replay, and evaluation workflow completed through V2 Phase 9.
+
+This document now acts as the living V2 readiness index through V2 Phase 13. Detailed implementation evidence remains in the phase-specific docs.
 
 It does not add a new fraud detection model or claim better detection performance. It checks that the repository separates README entry-point content from detailed evidence docs, keeps CI-safe checks distinct from local/manual checks, and describes implemented scope, limitations, and future work without overclaiming.
 
@@ -21,8 +23,10 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 | V2 Phase 7 | replay evaluation evidence | fixture report contract | `make verify-paysim-evaluation-report-contract` | `docs/31-v2-replay-evaluation-evidence.md` | Done | not production fraud performance |
 | V2 Phase 8 | native replay contract | mapping policy and denominator type distributions | `make verify-paysim-native-replay-contract` | `docs/32-v2-paysim-native-replay-contract.md` | Done | PaySim replay-supported types are not production semantics |
 | V2 Phase 9 | rule/threshold regression evidence | rule/threshold/evaluation policy fields and workload summary | `make verify-paysim-rule-threshold-regression` | `docs/33-v2-rule-threshold-regression-evidence.md` | Done | Phase 11 adds consumer baseline drift check |
-| V2 Phase 10 | final readiness | README slimdown, final readiness matrix, evidence/troubleshooting links | `make final-check` | this document | This PR | readiness check is not a production model guarantee |
-| V2 Phase 11 | rule version integration evidence | app-consumer baseline `ruleVersion` and evaluator drift check | `make verify-paysim-rule-version-contract` | `docs/35-v2-rule-version-integration-evidence.md` | Done | per-result persistence/export remains follow-up |
+| V2 Phase 10 | final readiness | README slimdown, final readiness matrix, evidence/troubleshooting links | `make final-check` | this document | Done | readiness check is not a production model guarantee |
+| V2 Phase 11 | rule version integration evidence | app-consumer baseline `ruleVersion` and evaluator drift check | `make verify-paysim-rule-version-contract` | `docs/35-v2-rule-version-integration-evidence.md` | Done | Phase 12 adds per-result propagation |
+| V2 Phase 12 | per-result rule version propagation | detection result `ruleVersion` persistence/API response and evaluator strict mode | `make verify-paysim-result-rule-version-contract` | `docs/36-v2-result-rule-version-propagation-evidence.md` | Done | automated DB export remains future work |
+| V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make verify-v2-phase13` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric and deployment changelog remain future work |
 
 ## 3. Completed Scope
 
@@ -40,6 +44,9 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - `operatorWorkloadSummary`
 - CI-safe fixture verifiers for Phase 7, Phase 8, and Phase 9
 - CI-safe app-consumer/evaluator rule version drift check
+- per-result ruleVersion persistence/API response and evaluator strict mode
+- runtime active ruleVersion metadata through app-consumer Actuator info
+- stored result ruleVersion summary through app-api admin API
 - local/manual evidence command separation
 - README slimdown with details delegated to docs and `scripts/data/README.md`
 
@@ -49,7 +56,8 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - V2 evaluation results are not production fraud model performance guarantees.
 - Rule/threshold regression checks validate report semantics and change impact, not real-world fraud prevention quality.
 - replay-supported PaySim types are not production-supported transaction semantics.
-- contract-level `ruleVersion` is checked against the app-consumer baseline; Phase 12 adds per-result persistence/API response propagation for new detection results, while automated DB export remains future work.
+- contract-level `ruleVersion`, per-result `ruleVersion`, and runtime active `ruleVersion` are separate evidence dimensions.
+- Phase 13 runtime/admin observability improves traceability, not production fraud performance.
 
 ## 5. Verification Matrix
 
@@ -104,8 +112,8 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - `make final-check` passes.
 - data policy check passes.
 - Python data script tests pass.
-- Phase 7/8/9/11 fixture verifiers pass.
-- Phase 11 rule version contract verifier passes.
+- Phase 7/8/9/11/12 fixture verifiers pass.
+- Phase 13 Java runtime/admin observability tests pass through Gradle.
 - Gradle tests pass as part of `make final-check`.
 - README keeps V2 details minimal and links to docs/scripts README.
 - docs/blog links point to existing files.
@@ -118,14 +126,18 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - Full PaySim replay is local/manual.
 - Full raw dataset is not stored in this repository.
 - Detection results without `riskScore` use threshold policy risk-level fallback.
-- per-result app-consumer Rule Engine version persistence/export remains follow-up.
+- automated DB detection result export remains future work.
+- historical `rule_version` backfill remains future work.
+- runtime active ruleVersion exposure is not a deployment audit log.
 - Full rejected event id export remains a future hardening item.
 - Grafana/dashboard integration for V2 evidence remains future work.
 - Model-based baseline comparison remains future work.
 
 ## 10. Next Steps
 
-- per-result app-consumer Rule Engine version export
+- ruleVersion filter for the real fraud result list query
+- rule deployment changelog and rollback notes
+- runtime/stored ruleVersion dashboard panel
 - full replay rejected ids output
 - threshold before/after comparison report
 - Grafana dashboard integration
