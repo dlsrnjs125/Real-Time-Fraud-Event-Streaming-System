@@ -178,4 +178,5 @@ AI-assisted drafts were treated as candidates, not accepted blindly. The final d
 - V2 Rule Version Observability: `docs/37-v2-rule-version-observability-evidence.md`
 - V2 Rule Version Change Runbook: `docs/38-v2-rule-version-change-runbook.md`
 - PaySim Data Scripts: `scripts/data/README.md`
-- Blog Drafts: `blog/25-v2-paysim-replay-evaluation-evidence.md` through `blog/33-v2-final-evidence-closure.md`
+- Blog Series Plan: `blog/README.md`, `blog/series/*`
+- Blog Draft Archive: `blog/drafts/25-v2-paysim-replay-evaluation-evidence.md` through `blog/drafts/33-v2-final-evidence-closure.md`
