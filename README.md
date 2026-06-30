@@ -107,7 +107,7 @@ Start here:
 - [Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [V2 Final Readiness](docs/34-v2-final-readiness.md)
 - [PaySim Data Scripts](scripts/data/README.md)
-- [Blog Drafts](blog/README.md)
+- [Blog Series Plan](blog/README.md)
 
 ## 현재 구현 범위
 

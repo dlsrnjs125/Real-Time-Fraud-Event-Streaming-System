@@ -98,3 +98,10 @@
 - Implemented/future work closure risk: `docs/11-troubleshooting-log.md#v2-phase-15-implemented와-future-work가-섞이는-문제`
 - RuleVersion traceability quality overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-15-ruleversion-traceability를-fraud-detection-quality로-과장하는-문제`
 - Core Phase 14 and V2 Phase 15 numbering confusion: `docs/11-troubleshooting-log.md#v2-phase-15-core-phase-14와-v2-phase-15-numbering이-혼동되는-문제`
+
+## Final Docs / Blog Closure
+
+- Blog text vs image evidence confusion: `blog/image-plan.md`
+- Broken screenshot link risk: `blog/image-plan.md`
+- Blog series final order: `blog/README.md`, `blog/series/README.md`
+- Final closure scope and anti-overclaim boundary: `docs/39-v2-final-evidence-closure.md`

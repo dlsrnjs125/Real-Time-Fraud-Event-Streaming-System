@@ -1,15 +1,15 @@
-# Blog Writing Plan
+# Blog Series Plan
 
-이 폴더는 실시간 이상거래 탐지 시스템 개발 과정을 기술 기록 형태로 정리하기 위한 초안 공간입니다.
+이 폴더는 실시간 이상거래 탐지 시스템 개발 과정을 기술 기록 형태로 정리합니다.
 
-글은 홍보 문구보다 문제, 설계, 구현, 측정, 변경 기록을 중심으로 작성합니다.
+글은 기능 나열보다 문제, 설계 변경, 검증 증거, 남은 한계를 중심으로 작성합니다.
 
-> Status: Draft
-> `series/`는 다음 단계에서 채워 넣을 발행 후보 구조이고, `drafts/`는 기존 원본 draft archive입니다.
+> Status: Publication candidate text complete
+> `series/`는 최종 발행 후보 본문이고, `drafts/`는 기존 원본 draft archive입니다.
 
 ## Directory Layout
 
-- `series/`: 11개 발행 후보 파일. 다음 단계에서 본문과 이미지를 채워 넣습니다.
+- `series/`: 11개 발행 후보 파일. 본문은 작성 완료 상태이며 이미지는 별도 작업으로 추가합니다.
 - `drafts/`: 기존 33개 draft 원본. 본문은 보존하고 source material로 사용합니다.
 
 ## Series Order
@@ -60,4 +60,4 @@ Historical duplicate-topic drafts kept for now:
 
 이미지와 다이어그램 후보는 [Blog Image Plan](image-plan.md)에 정리합니다.
 
-현재 단계에서는 본문 재작성이나 이미지 생성을 진행하지 않습니다.
+현재 단계에서는 새 이미지 파일을 생성하지 않았습니다. Mermaid로 충분한 흐름은 본문에 직접 포함했고, 실제 screenshot이 필요한 항목은 image plan에 capture candidate로만 남깁니다.

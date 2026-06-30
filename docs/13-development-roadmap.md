@@ -19,7 +19,7 @@
 | Phase 12 | Done | Load Test Evidence and Performance Review | k6 normal/peak/duplicate/Redis down scenarios, result template | measured local results |
 | Phase 13 | Done | Load and Failure Test Evidence | Phase 13 result template, runbook, review, security note | follow-up metric/dashboard evidence |
 | Phase 14 | Done | Operational Security and Automation | admin token protection, audit log, max reprocess attempts | JWT/RBAC, audit query API, gateway rate limit |
-| Final Docs/Blog Closure | In Progress | Final docs/blog/image closure | docs index, blog series structure, draft archive, image plan | fill final blog posts and add selected images |
+| Final Docs/Blog Closure | In Progress | Blog series publication candidate text complete; image capture remains separate | docs index, blog series body, draft archive, image plan | add selected screenshots only when evidence images are captured |
 | V2 Planning | Done | PaySim preprocessing-first fraud workflow design 문서화 완료 | data provenance, preprocessing, validation, sampling, replay, Rule V2, action/case 설계 문서 | V2 Phase 1 data guardrail 구현 |
 | V2 Phase 1 | Done | PaySim raw/processed data guardrail 구현 완료 | `data/.gitkeep`, `.gitignore`, data policy check, `scripts/data` README, docs/blog | V2 Phase 2 preprocessing script |
 | V2 Phase 2 | Done | PaySim raw acquisition helper and preprocessing normalization 구현 완료 | KaggleHub helper, streaming normalization script, fixture unittest, Makefile targets, docs/blog | V2 Phase 3 validation/rejected/sampling 고도화 |
@@ -51,7 +51,7 @@ Phase numbering policy:
 - Final Docs/Blog Closure is not a numbered core runtime feature phase.
 - V2 Phase 15 is the V2 evidence closure subset that feeds the broader final docs/blog closure work.
 - `V2 Phase 15` can be marked done because the V2 evidence closure is complete.
-- `Final Docs/Blog Closure` remains in progress until final blog body writing and selected image capture are completed.
+- `Final Docs/Blog Closure` remains in progress until selected image capture is completed. Blog series publication candidate text is complete in `blog/series/`.
 - Production hardening beyond Phase 14 remains future follow-up and should be opened as separate feature PRs only when implemented.
 
 ## Phase 0. Initial Planning
