@@ -199,7 +199,7 @@ Phase 14 is centered on ruleVersion change readiness rather than PaySim evaluato
 
 Detailed pre-change/post-change checklist, rollback/hold criteria, and evidence template are documented in `docs/38-v2-rule-version-change-runbook.md`.
 
-## Phase 15 Final Evidence Closure
+## V2 Phase 15 Final Evidence Closure
 
 Phase 15 does not add a new PaySim data command.
 

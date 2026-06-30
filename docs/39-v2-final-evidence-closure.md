@@ -115,11 +115,11 @@ Local/manual actuator and admin curl checks are documented in `docs/37-v2-rule-v
 - Local/manual checks are not CI-safe unless explicitly automated.
 - README intentionally omits detailed V2 phase history.
 
-## 11. Review Q&A
+## 11. Decision FAQ
 
-### Why did you add V2?
+### Why was V2 added?
 
-V2 was added to make evaluation and evidence reproducible around the existing Kafka fraud pipeline. Instead of claiming better detection quality, it defines PaySim data provenance, replay/evaluation contracts, denominator policy, and version traceability so reviewers can see exactly what was measured and what was not.
+V2 was added to make evaluation and evidence reproducible around the existing Kafka fraud pipeline. Instead of claiming better detection quality, it defines PaySim data provenance, replay/evaluation contracts, denominator policy, and version traceability so readers can trace exactly what was measured and what was not.
 
 ### What limits did you consider when using PaySim?
 
@@ -149,11 +149,11 @@ Active runtime ruleVersion is the currently running app-consumer Rule Engine bas
 
 `make final-check` validates repository readiness guardrails: Gradle build/tests, Docker Compose config, shell syntax, data policy, and V2 fixture verifiers. It does not guarantee production fraud model accuracy, production latency, local runtime curl evidence, or full PaySim replay.
 
-### How does this project show backend and DevOps engineering skill?
+### Which engineering areas does this V2 closure cover?
 
 It combines asynchronous Kafka processing, idempotent PostgreSQL persistence, Redis degraded-mode handling, operational metrics, DLQ/reprocessing flow, data guardrails, CI-safe contract verifiers, and runbooks. V2 adds evidence discipline around evaluation, versioning, and release readiness.
 
-### How was AI used and verified?
+### How were AI-assisted drafts reviewed?
 
 AI-assisted drafts were treated as candidates, not accepted blindly. The final docs separate implemented, local/manual, and future work; preserve README minimalism; keep raw/full data excluded; and verify the repository with final-check, data policy, ruleVersion verifiers, evidence index, troubleshooting index, and roadmap updates.
 
@@ -179,4 +179,5 @@ AI-assisted drafts were treated as candidates, not accepted blindly. The final d
 - V2 Rule Version Change Runbook: `docs/38-v2-rule-version-change-runbook.md`
 - PaySim Data Scripts: `scripts/data/README.md`
 - Blog Series Plan: `blog/README.md`, `blog/series/*`
+- Blog Image Plan: `blog/image-plan.md`
 - Blog Draft Archive: `blog/drafts/25-v2-paysim-replay-evaluation-evidence.md` through `blog/drafts/33-v2-final-evidence-closure.md`

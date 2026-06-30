@@ -58,4 +58,6 @@ Historical duplicate-topic drafts kept for now:
 
 ## Image Planning
 
-이미지와 다이어그램은 다음 단계에서 별도로 정리합니다. 현재 단계에서는 본문 재작성이나 이미지 생성을 진행하지 않습니다.
+이미지와 다이어그램 후보는 [Blog Image Plan](image-plan.md)에 정리합니다.
+
+현재 단계에서는 본문 재작성이나 이미지 생성을 진행하지 않습니다.

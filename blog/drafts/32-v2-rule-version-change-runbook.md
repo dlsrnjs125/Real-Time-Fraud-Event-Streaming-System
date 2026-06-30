@@ -81,7 +81,7 @@ curl -H "X-Admin-Token: <local-admin-token>" \
 
 이번 문서 작업에서는 local app startup과 curl drill을 실행하지 않았다. Runbook에 실행 절차와 evidence template만 남겼다.
 
-## Review Q&A
+## 남긴 기준
 
 질문: 이 단계에서 무엇을 했나요?
 

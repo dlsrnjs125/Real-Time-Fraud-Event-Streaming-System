@@ -103,7 +103,7 @@ Replay input에는 rejected된 `DEBIT`가 있을 수 있지만, evaluation denom
 
 Mapping policy가 달라지면 denominator가 달라진다. 그래서 precision/recall을 비교할 때는 반드시 `mappingPolicyVersion`과 native type distribution을 함께 봐야 한다.
 
-## 6. 면접 답변으로 연결하기
+## 6. 설계 판단으로 정리하기
 
 질문: "왜 PaySim type을 Java enum에 바로 추가하지 않았나요?"
 

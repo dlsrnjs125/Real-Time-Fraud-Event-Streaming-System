@@ -92,7 +92,7 @@ Active version은 현재 실행 중인 consumer 기준이다. Stored result vers
 - RuleVersion filter는 기존 list API가 실제 query로 바뀐 뒤 추가하는 편이 낫다.
 - Grafana panel과 alert는 future work다.
 
-## Review Q&A
+## 남긴 기준
 
 질문: 이 단계에서 무엇을 구현했나요?
 

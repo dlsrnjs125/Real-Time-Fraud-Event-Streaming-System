@@ -24,7 +24,7 @@ README는 프로젝트 진입점으로 줄였다. 한 줄 설명, 문제 정의,
 
 docs는 evidence와 contract의 source로 둔다. Phase 7/8/9의 report field, mapping policy, threshold policy, denominator 해석은 README가 아니라 docs에 있어야 한다.
 
-blog는 트러블슈팅과 설명용 스토리를 담당한다. 왜 이런 분리를 했는지, 어떤 오해를 막으려 했는지, 면접에서 어떻게 설명할 수 있는지를 남긴다.
+blog는 트러블슈팅과 설명용 스토리를 담당한다. 왜 이런 분리를 했는지, 어떤 오해를 막으려 했는지, 어떤 기준으로 설명할 수 있는지를 남긴다.
 
 `make final-check`는 대표 readiness gate로 둔다. Gradle build, Docker Compose config, script syntax, data policy, Phase 7/8/9 verifier를 묶어 재현성과 contract guardrail을 확인한다. 이 명령은 production fraud 성능을 보장하지 않는다.
 
@@ -48,7 +48,7 @@ PaySim workflow에는 fixture만으로 돌릴 수 있는 command와 raw dataset,
 
 그래서 `docs/34-v2-final-readiness.md`에 "PaySim is synthetic", "not production fraud model performance guarantee", "replay-supported types are not production-supported semantics"를 분리해서 명시했다.
 
-## 5. 면접 답변으로 연결
+## 5. 설계 판단으로 정리
 
 질문: "왜 README를 줄였나요?"
 

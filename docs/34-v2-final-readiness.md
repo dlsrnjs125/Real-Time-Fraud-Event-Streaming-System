@@ -28,7 +28,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 | V2 Phase 12 | per-result rule version propagation | detection result `ruleVersion` persistence/API response and evaluator strict mode | `make verify-paysim-result-rule-version-contract` | `docs/36-v2-result-rule-version-propagation-evidence.md` | Done | automated DB export remains future work |
 | V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make final-check` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric, bounded summary query, and deployment changelog remain future work |
 | V2 Phase 14 | rule version change runbook | pre/post checklist, rollback/hold criteria, evidence template | `make final-check`, `./gradlew test` | `docs/38-v2-rule-version-change-runbook.md` | Done | automatic rollback and deployment automation remain future work |
-| V2 Phase 15 | final evidence closure | Phase 7~14 evidence map, implemented/local/manual/future separation, Review Q&A | `make final-check` | `docs/39-v2-final-evidence-closure.md` | Done | no new runtime feature |
+| V2 Phase 15 | final evidence closure | Phase 7~14 evidence map, implemented/local/manual/future separation, Decision FAQ | `make final-check` | `docs/39-v2-final-evidence-closure.md` | Done | no new runtime feature |
 
 ## 3. Completed Scope
 
@@ -63,7 +63,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 - contract-level `ruleVersion`, per-result `ruleVersion`, and runtime active `ruleVersion` are separate evidence dimensions.
 - Phase 13 runtime/admin observability improves traceability, not production fraud performance.
 - Phase 14 rollback readiness is decision criteria and evidence capture, not automatic rollback implementation.
-- Phase 15 evidence closure improves reviewability, not runtime fraud behavior.
+- V2 Phase 15 evidence closure improves reviewability, not runtime fraud behavior.
 
 ## 5. Verification Matrix
 
@@ -104,6 +104,7 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 | Rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | Phase 14 ruleVersion change pre/post checklist and rollback/hold criteria |
 | Final evidence closure | `docs/39-v2-final-evidence-closure.md` | Phase 15 final evidence closure and anti-overclaim guardrails |
 | Blog series plan | `blog/README.md`, `blog/series/*` | final 11-post writing order and source draft map |
+| Blog image plan | `blog/image-plan.md` | selected diagram/screenshot candidates and privacy boundaries |
 | Blog draft archive | `blog/drafts/25-*` through `blog/drafts/33-*` | source material for narrative review and troubleshooting story |
 | Generated local reports | `data/processed/*.json` | local/manual output, not committed |
 | Committed fixtures/samples | `data/samples/*`, script tests | small safe samples and fixture-based checks |
@@ -124,8 +125,8 @@ CI-safe means the command does not require raw PaySim data, local app-api, or de
 - Phase 7/8/9/11/12 fixture verifiers pass.
 - Phase 13 Java runtime/admin observability tests pass through Gradle.
 - Phase 14 runbook pre/post checklist and rollback/hold criteria are documented.
-- Phase 15 final summary separates implemented, local/manual, and future work.
-- Project Phase 15 separates final docs/blog/image closure from runtime feature development.
+- V2 Phase 15 final summary separates implemented, local/manual, and future work.
+- Final Docs/Blog Closure separates docs/blog/image work from runtime feature development.
 - Gradle tests pass as part of `make final-check`.
 - README keeps V2 details minimal and links to docs/scripts README.
 - docs/blog links point to existing files.
