@@ -68,7 +68,7 @@ make verify-v2-phase13
 make final-check
 ```
 
-실제 실행 결과는 roadmap과 review 문서에 기록한다.
+이번 Phase 자체는 문서 closure 단계라 local app startup과 curl drill은 실행하지 않았다. CI-safe 검증은 기존 readiness gate를 기준으로 확인하고, 실제 실행한 명령만 PR 본문 또는 review record에 남긴다.
 
 ## 남긴 기준
 

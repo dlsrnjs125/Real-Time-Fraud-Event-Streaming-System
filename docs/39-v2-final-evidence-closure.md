@@ -6,7 +6,7 @@ V2 Phase 15 closes the V2 evidence sequence from Phase 7 through Phase 14.
 
 This phase is V2 Phase 15, separate from the core streaming pipeline Phase 14 already documented in the root README. It does not add a new API, DB migration, fraud rule, threshold, metric, dashboard, or rollback automation.
 
-The goal is to make the problem definition, design decisions, verification evidence, operational limits, and future work easy to review without expanding the root README.
+The goal is to make the problem definition, design decisions, verification evidence, operational limits, and future work traceable without expanding the root README.
 
 ## 2. One-line Summary
 
