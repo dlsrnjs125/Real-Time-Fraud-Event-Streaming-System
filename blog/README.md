@@ -39,6 +39,7 @@
 28. [V2 Phase 10 - README를 줄이고 Evidence를 정리한 이유](28-v2-final-readiness-and-readme-slimdown.md)
 29. [V2 Phase 11 - Rule Version Drift를 Evidence Gate로 막기](29-v2-rule-version-integration-evidence.md)
 30. [V2 Phase 12 - report-level ruleVersion에서 per-result ruleVersion으로](30-v2-result-rule-version-propagation-evidence.md)
+31. [V2 Phase 13 - ruleVersion을 운영자가 확인할 수 있게 만든 이유](31-v2-rule-version-observability-evidence.md)
 
 ## 글 구조
 

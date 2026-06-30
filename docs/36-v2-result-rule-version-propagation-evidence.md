@@ -37,7 +37,7 @@ Implemented scope:
 - Default evaluation mode keeps legacy compatibility with warning and coverage fields.
 - Strict per-result mode fails when evaluated result rows omit `ruleVersion`.
 - `verify-paysim-result-rule-version-contract` validates present, missing, mixed, mismatch, and strict-mode fixtures.
-- `verify-v2-phase12` and `final-check` include the new CI-safe verifier.
+- `verify-v2-phase12` includes the new CI-safe verifier. Later aggregate gates continue to include it through the current `final-check` chain.
 
 Not implemented in this phase:
 
@@ -89,7 +89,7 @@ Readiness values:
 | `make verify-paysim-rule-version-contract` | Java/Python active ruleVersion drift | Yes | No | No | No | Java active version matches evaluator policy |
 | `make verify-paysim-result-rule-version-contract` | per-result coverage/readiness/strict mode | Yes | No | No | No | present, missing, mixed, mismatch, strict fixtures behave as expected |
 | `make verify-v2-phase12` | aggregate V2 Phase 7/8/9/11/12 checks | Yes | No | No | No | all fixture verifiers and data policy checks pass |
-| `make final-check` | representative repository readiness | Yes | No | No | No | build, Docker config, scripts, and V2 Phase 12 checks pass |
+| `make final-check` | representative repository readiness | Yes | No | No | No | build, Docker config, scripts, and the current V2 aggregate checks pass |
 | `./gradlew test` | Java unit/slice tests | Yes | No | No | No | Rule Engine result, persistence, and API query tests pass |
 
 ## 7. Failure Modes

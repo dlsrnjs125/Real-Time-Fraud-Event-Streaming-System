@@ -2390,3 +2390,58 @@ Report field가 contract 의미를 바꾸면 `reportSchemaVersion`을 올리고 
 
 해결:
 Phase 12 report schema를 `2026-06-v2-phase12`로 올렸습니다. `evaluationContractVersion`은 denominator/missing-result semantics가 바뀌지 않았으므로 유지합니다.
+
+## V2 Phase 13 active ruleVersion과 stored result ruleVersion을 같은 의미로 오해하는 문제
+
+문제:
+app-consumer active `ruleVersion`은 현재 실행 중인 Rule Engine baseline이고, stored result `ruleVersion`은 해당 결과가 생성될 당시의 값입니다.
+
+판단:
+두 값을 같은 의미로 보면 rule 배포 전후 mixed result 분석이 왜곡됩니다.
+
+해결:
+Phase 13 문서에서 runtime active version과 historical stored version semantics를 분리하고, app-consumer Actuator info와 app-api stored result summary를 별도 evidence로 둡니다.
+
+## V2 Phase 13 ruleVersion observability를 fraud 성능 개선으로 과장하는 문제
+
+문제:
+active/stored `ruleVersion`을 조회할 수 있게 됐다고 precision, recall, false positive rate가 개선된 것은 아닙니다.
+
+판단:
+Phase 13은 운영 추적성과 진단 가능성 evidence입니다.
+
+해결:
+문서와 review 기록에 "traceability evidence, not production fraud model performance"를 유지합니다.
+
+## V2 Phase 13 metric tag cardinality 폭증 문제
+
+문제:
+`ruleVersion`은 bounded 값이지만 `userId`, `eventId`, `transactionId`, `traceId`를 metric tag로 넣으면 Prometheus cardinality가 폭증할 수 있습니다.
+
+판단:
+Metric tag는 bounded dimension만 허용해야 합니다.
+
+해결:
+Phase 13에서는 새 ruleVersion metric을 추가하지 않고 Actuator info와 admin summary로 제한했습니다. Future metric 후보도 `rule_version` 같은 bounded tag만 허용합니다.
+
+## V2 Phase 13 actuator endpoint 과다 노출 문제
+
+문제:
+Runtime metadata를 확인하려다 actuator endpoint를 과도하게 열면 운영 노출면이 커집니다.
+
+판단:
+이미 노출 중인 `info` endpoint에 낮은 민감도의 static metadata만 추가하는 편이 custom admin endpoint보다 작습니다.
+
+해결:
+app-consumer는 기존 `health,info,prometheus` exposure를 유지하고, `InfoContributor`로 `fraudRule.activeRuleVersion`만 추가했습니다.
+
+## V2 Phase 13 ruleVersion summary나 filter가 기존 admin query를 깨뜨리는 문제
+
+문제:
+Optional filter나 summary endpoint 추가가 기존 eventId 기반 admin fraud result query behavior를 바꿀 수 있습니다.
+
+판단:
+기존 단건 조회는 유지하고, summary endpoint는 별도 path로 추가하는 편이 backward compatibility에 유리합니다.
+
+해결:
+`/api/v1/admin/events/{eventId}/fraud-result`는 기존 contract를 유지합니다. RuleVersion summary는 `/api/v1/admin/fraud-results/rule-version-summary`로 분리하고, legacy null rows는 `legacyMissingResults`로 별도 집계합니다.
