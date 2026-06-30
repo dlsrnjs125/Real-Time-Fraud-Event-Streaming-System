@@ -24,13 +24,13 @@ README를 다시 길게 만들지 않고, 최종 요약은 `docs/39-v2-final-evi
 
 첫 번째 판단은 최종 요약을 README가 아니라 docs에 두는 것이었다.
 
-README는 프로젝트 entry point다. Phase별 history, evidence map, Q&A, 한계까지 넣으면 다시 운영 매뉴얼처럼 길어진다.
+README는 프로젝트 entry point다. Phase별 history, evidence map, 판단 기준, 한계까지 넣으면 다시 운영 매뉴얼처럼 길어진다.
 
 두 번째 판단은 Phase Map에 problem, decision, output, verification, limitation을 함께 두는 것이었다.
 
 단순히 "무엇을 만들었다"가 아니라 "왜 만들었고, 무엇을 검증했고, 무엇은 검증하지 않았는지"를 같이 보여주기 위해서다.
 
-세 번째 판단은 Decision FAQ를 문서에 넣는 것이었다.
+세 번째 판단은 Decision Notes를 문서에 넣는 것이었다.
 
 이 프로젝트는 기능 목록보다 설계 판단을 설명할 수 있어야 한다. 그래서 PaySim 한계, denominator policy, ruleVersion/thresholdVersion 분리, final-check 한계를 짧게 답할 수 있도록 정리했다.
 

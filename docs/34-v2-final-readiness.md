@@ -28,7 +28,7 @@ Phase labels summarize the final V2 responsibility boundaries. Some earlier PR t
 | V2 Phase 12 | per-result rule version propagation | detection result `ruleVersion` persistence/API response and evaluator strict mode | `make verify-paysim-result-rule-version-contract` | `docs/36-v2-result-rule-version-propagation-evidence.md` | Done | automated DB export remains future work |
 | V2 Phase 13 | runtime rule version observability | app-consumer Actuator info and app-api stored result ruleVersion summary | `./gradlew test`, `make final-check` | `docs/37-v2-rule-version-observability-evidence.md` | Done | dashboard/metric, bounded summary query, and deployment changelog remain future work |
 | V2 Phase 14 | rule version change runbook | pre/post checklist, rollback/hold criteria, evidence template | `make final-check`, `./gradlew test` | `docs/38-v2-rule-version-change-runbook.md` | Done | automatic rollback and deployment automation remain future work |
-| V2 Phase 15 | final evidence closure | Phase 7~14 evidence map, implemented/local/manual/future separation, Decision FAQ | `make final-check` | `docs/39-v2-final-evidence-closure.md` | Done | no new runtime feature |
+| V2 Phase 15 | final evidence closure | Phase 7~14 evidence map, implemented/local/manual/future separation, Decision Notes | `make final-check` | `docs/39-v2-final-evidence-closure.md` | Done | no new runtime feature |
 
 ## 3. Completed Scope
 

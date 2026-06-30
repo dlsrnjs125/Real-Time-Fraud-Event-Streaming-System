@@ -83,26 +83,26 @@ curl -H "X-Admin-Token: <local-admin-token>" \
 
 ## 남긴 기준
 
-질문: 이 단계에서 무엇을 했나요?
+기준: 이 단계에서 무엇을 했나요?
 
-답변: V2 Phase 14에서는 ruleVersion 변경 전후 운영자가 확인해야 할 evidence를 runbook으로 정리했습니다. Pre-change, post-change, hold, rollback criteria를 나누고, CI-safe check와 local/manual runtime drill을 분리했습니다.
+정리: V2 Phase 14에서는 ruleVersion 변경 전후 운영자가 확인해야 할 evidence를 runbook으로 정리했습니다. Pre-change, post-change, hold, rollback criteria를 나누고, CI-safe check와 local/manual runtime drill을 분리했습니다.
 
-질문: 왜 ruleVersion observability 다음에 runbook이 필요했나요?
+기준: 왜 ruleVersion observability 다음에 runbook이 필요했나요?
 
-답변: Version을 볼 수 있는 것과 안전하게 변경을 판단하는 것은 다릅니다. 배포 전 verifier, 배포 후 runtime/admin evidence, unexpected version 조사 기준이 있어야 운영 변경 관리가 가능합니다.
+정리: Version을 볼 수 있는 것과 안전하게 변경을 판단하는 것은 다릅니다. 배포 전 verifier, 배포 후 runtime/admin evidence, unexpected version 조사 기준이 있어야 운영 변경 관리가 가능합니다.
 
-질문: rollback readiness와 automatic rollback은 어떻게 다른가요?
+기준: rollback readiness와 automatic rollback은 어떻게 다른가요?
 
-답변: Rollback readiness는 어떤 조건에서 hold 또는 rollback을 판단할지 기준과 evidence template을 갖춘 상태입니다. Automatic rollback은 배포 시스템이 자동으로 이전 version으로 되돌리는 기능인데, 이번 Phase에서는 구현하지 않았습니다.
+정리: Rollback readiness는 어떤 조건에서 hold 또는 rollback을 판단할지 기준과 evidence template을 갖춘 상태입니다. Automatic rollback은 배포 시스템이 자동으로 이전 version으로 되돌리는 기능인데, 이번 Phase에서는 구현하지 않았습니다.
 
-질문: active ruleVersion과 stored result ruleVersion은 어떻게 다르게 해석하나요?
+기준: active ruleVersion과 stored result ruleVersion은 어떻게 다르게 해석하나요?
 
-답변: active ruleVersion은 현재 app-consumer runtime 기준입니다. Stored result ruleVersion은 각 fraud result가 생성된 당시의 기준입니다. 배포 직후 둘이 섞여 보일 수 있으며, 예상하지 않은 version이나 신규 missing version이 조사 대상입니다.
+정리: active ruleVersion은 현재 app-consumer runtime 기준입니다. Stored result ruleVersion은 각 fraud result가 생성된 당시의 기준입니다. 배포 직후 둘이 섞여 보일 수 있으며, 예상하지 않은 version이나 신규 missing version이 조사 대상입니다.
 
-질문: CI-safe check와 local/manual drill을 왜 분리했나요?
+기준: CI-safe check와 local/manual drill을 왜 분리했나요?
 
-답변: CI-safe check는 raw PaySim data, local app startup, admin token, DB export 없이 실행되어야 합니다. Actuator/admin curl check는 network와 auth, 실행 중인 app에 의존하므로 local/manual evidence로만 둡니다.
+정리: CI-safe check는 raw PaySim data, local app startup, admin token, DB export 없이 실행되어야 합니다. Actuator/admin curl check는 network와 auth, 실행 중인 app에 의존하므로 local/manual evidence로만 둡니다.
 
-질문: 이 작업이 백엔드/DevOps engineering record에서 어떤 의미가 있나요?
+기준: 이 작업의 기술적 의미
 
-답변: 단순히 API나 metric을 추가하는 데서 멈추지 않고, 변경 전후 확인 절차와 rollback 판단 기준까지 문서화했습니다. 비동기 fraud pipeline에서 version traceability를 운영 변경 관리 evidence로 연결한 작업입니다.
+정리: 단순히 API나 metric을 추가하는 데서 멈추지 않고, 변경 전후 확인 절차와 rollback 판단 기준까지 문서화했습니다. 비동기 fraud pipeline에서 version traceability를 운영 변경 관리 evidence로 연결한 작업입니다.

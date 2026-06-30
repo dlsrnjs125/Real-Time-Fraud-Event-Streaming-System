@@ -115,45 +115,45 @@ Local/manual actuator and admin curl checks are documented in `docs/37-v2-rule-v
 - Local/manual checks are not CI-safe unless explicitly automated.
 - README intentionally omits detailed V2 phase history.
 
-## 11. Decision FAQ
+## 11. Decision Notes
 
-### Why was V2 added?
+### V2 Evidence Boundary
 
-V2 was added to make evaluation and evidence reproducible around the existing Kafka fraud pipeline. Instead of claiming better detection quality, it defines PaySim data provenance, replay/evaluation contracts, denominator policy, and version traceability so readers can trace exactly what was measured and what was not.
+V2 makes evaluation and evidence reproducible around the existing Kafka fraud pipeline. Instead of claiming better detection quality, it defines PaySim data provenance, replay/evaluation contracts, denominator policy, and version traceability so the repository records exactly what was measured and what was not.
 
-### What limits did you consider when using PaySim?
+### PaySim Boundary
 
-PaySim is synthetic, so I treated it as replay/evaluation evidence rather than production fraud truth. Raw and full processed data are excluded from Git, native PaySim types are mapped carefully, and unsupported types are explicit instead of being silently interpreted as production behavior.
+PaySim is synthetic, so it is treated as replay/evaluation evidence rather than production fraud truth. Raw and full processed data are excluded from Git, native PaySim types are mapped explicitly, and unsupported types are excluded instead of being silently interpreted as production behavior.
 
-### How did you avoid overclaiming evaluation metrics?
+### Metric Interpretation Boundary
 
 The evaluator records denominator policy, missing-result treatment, replay-rejected handling, native type distribution, threshold policy, and workload summary. Fixture verifiers check these fields, but the docs repeatedly state that these metrics are not production fraud model performance.
 
-### Why separate ruleVersion and thresholdVersion?
+### Version Dimension Boundary
 
 `ruleVersion` identifies rule logic baseline. `thresholdVersion` identifies evaluation decision boundaries. If they are combined, a metric change could be caused by either rule logic or threshold policy, which makes regression interpretation weak.
 
-### How is Java/Python ruleVersion drift prevented?
+### Drift Guardrail
 
 `make verify-paysim-rule-version-contract` reads the Java `FraudRuleVersions` source and compares it with the Python evaluator policy. It also checks that unsupported and mismatched ruleVersion values fail fast.
 
-### Why did per-result ruleVersion matter?
+### Per-result Traceability
 
 Report-level ruleVersion only says which evaluation contract was selected. Per-result ruleVersion shows which rule baseline produced each stored detection result, while coverage/readiness fields keep legacy missing rows honest.
 
-### How are active runtime and stored result ruleVersion different?
+### Active and Stored Version Meaning
 
 Active runtime ruleVersion is the currently running app-consumer Rule Engine baseline. Stored result ruleVersion is the version used when a specific result was created. After deployment, old and new stored versions may coexist normally.
 
-### What does final-check guarantee?
+### Final-check Boundary
 
 `make final-check` validates repository readiness guardrails: Gradle build/tests, Docker Compose config, shell syntax, data policy, and V2 fixture verifiers. It does not guarantee production fraud model accuracy, production latency, local runtime curl evidence, or full PaySim replay.
 
-### Which engineering areas does this V2 closure cover?
+### Engineering Areas Covered
 
 It combines asynchronous Kafka processing, idempotent PostgreSQL persistence, Redis degraded-mode handling, operational metrics, DLQ/reprocessing flow, data guardrails, CI-safe contract verifiers, and runbooks. V2 adds evidence discipline around evaluation, versioning, and release readiness.
 
-### How were AI-assisted drafts reviewed?
+### AI-assisted Draft Review
 
 AI-assisted drafts were treated as candidates, not accepted blindly. The final docs separate implemented, local/manual, and future work; preserve README minimalism; keep raw/full data excluded; and verify the repository with final-check, data policy, ruleVersion verifiers, evidence index, troubleshooting index, and roadmap updates.
 

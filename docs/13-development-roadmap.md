@@ -50,6 +50,8 @@ Phase numbering policy:
 - Core runtime feature development ends at Phase 14.
 - Final Docs/Blog Closure is not a numbered core runtime feature phase.
 - V2 Phase 15 is the V2 evidence closure subset that feeds the broader final docs/blog closure work.
+- `V2 Phase 15` can be marked done because the V2 evidence closure is complete.
+- `Final Docs/Blog Closure` remains in progress until final blog body writing and selected image capture are completed.
 - Production hardening beyond Phase 14 remains future follow-up and should be opened as separate feature PRs only when implemented.
 
 ## Phase 0. Initial Planning
@@ -1740,7 +1742,7 @@ Done
 - implemented / local-manual / future work 분리
 - `make final-check`가 보장하는 것과 보장하지 않는 것 정리
 - PaySim synthetic dataset, ruleVersion traceability, rollback readiness overclaim 방지 기준 정리
-- Decision FAQ 추가
+- Decision Notes 추가
 - Evidence index, troubleshooting index, review 기록, scripts/data README, blog draft 업데이트
 - README는 V2 Phase 15 상세를 추가하지 않고 최소 상태 유지
 
