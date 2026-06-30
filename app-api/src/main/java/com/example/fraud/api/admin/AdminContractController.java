@@ -5,12 +5,13 @@ import com.example.fraud.api.admin.dto.DlqDiscardResponse;
 import com.example.fraud.api.admin.dto.DlqEventSummaryResponse;
 import com.example.fraud.api.admin.dto.DlqReprocessRequest;
 import com.example.fraud.api.admin.dto.DlqReprocessResponse;
+import com.example.fraud.api.admin.dto.FraudDetectionResultResponse;
 import com.example.fraud.api.admin.dto.FraudResultDetailResponse;
 import com.example.fraud.api.admin.dto.FraudResultSummaryResponse;
-import com.example.fraud.api.admin.dto.FraudDetectionResultResponse;
 import com.example.fraud.api.admin.dto.FraudRuleListResponse;
 import com.example.fraud.api.admin.dto.FraudRuleResponse;
 import com.example.fraud.api.admin.dto.FraudRuleResultResponse;
+import com.example.fraud.api.admin.dto.FraudRuleVersionSummaryResponse;
 import com.example.fraud.api.admin.dto.OperationSummaryResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
 import com.example.fraud.api.admin.dto.ProcessingLogResponse;
@@ -24,15 +25,16 @@ import com.example.fraud.api.support.logging.TraceIdResolver;
 import com.example.fraud.common.event.FraudRuleCode;
 import com.example.fraud.common.event.RiskLevel;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,7 +42,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.format.annotation.DateTimeFormat;
 
 @Tag(name = "Admin APIs", description = "Admin query APIs for local development and verification")
 @SecurityRequirement(name = "adminToken")
@@ -74,6 +75,15 @@ public class AdminContractController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return PageResponse.empty(page, size);
+    }
+
+    @Operation(
+            summary = "Summarize fraud result rule versions",
+            description = "Counts stored fraud detection results by non-null ruleVersion and reports legacy missing rows separately."
+    )
+    @GetMapping("/fraud-results/rule-version-summary")
+    public FraudRuleVersionSummaryResponse getFraudResultRuleVersionSummary() {
+        return fraudDetectionResultQueryService.getRuleVersionSummary();
     }
 
     @Operation(summary = "Get fraud result detail", description = "Phase 2 contract-only stub. Actual query is implemented in Phase 5.")

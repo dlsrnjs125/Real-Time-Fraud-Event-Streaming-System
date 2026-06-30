@@ -67,6 +67,44 @@ class FraudDetectionResultQueryApiTest {
                 .andExpect(jsonPath("$.code").value("FRAUD_RESULT_NOT_FOUND"));
     }
 
+    @Test
+    void returnsLegacyFraudDetectionResultWithNullableRuleVersion() throws Exception {
+        insertLegacyFraudResultWithoutRuleVersion(
+                "evt-fraud-query-legacy",
+                "trace-fraud-query-legacy"
+        );
+
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/fraud-result", "evt-fraud-query-legacy")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventId").value("evt-fraud-query-legacy"))
+                .andExpect(jsonPath("$.ruleVersion").doesNotExist())
+                .andExpect(jsonPath("$.riskLevel").value("LOW"))
+                .andExpect(jsonPath("$.decision").value("APPROVE"));
+    }
+
+    @Test
+    void returnsRuleVersionSummaryForStoredFraudResults() throws Exception {
+        insertFraudResult(
+                "evt-fraud-query-summary-v1",
+                "trace-fraud-query-summary-v1",
+                "AMOUNT_THRESHOLD",
+                80,
+                "HIGH",
+                "BLOCK"
+        );
+        insertLegacyFraudResultWithoutRuleVersion(
+                "evt-fraud-query-summary-legacy",
+                "trace-fraud-query-summary-legacy"
+        );
+
+        mockMvc.perform(get("/api/v1/admin/fraud-results/rule-version-summary")
+                        .header("X-Admin-Token", ADMIN_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultCounts['rule-v2-baseline-v1']").value(1))
+                .andExpect(jsonPath("$.legacyMissingResults").value(1));
+    }
+
     private void insertFraudResult(
             String eventId,
             String traceId,
@@ -103,6 +141,39 @@ class FraudDetectionResultQueryApiTest {
                 decision,
                 matchedRules,
                 "high amount during night time",
+                detectedAt,
+                detectedAt,
+                detectedAt
+        );
+    }
+
+    private void insertLegacyFraudResultWithoutRuleVersion(String eventId, String traceId) {
+        OffsetDateTime detectedAt = OffsetDateTime.parse("2026-06-19T10:00:02Z");
+        jdbcTemplate.update("""
+                        insert into fraud_detection_results (
+                            event_id,
+                            trace_id,
+                            user_id,
+                            account_id,
+                            risk_score,
+                            risk_level,
+                            decision,
+                            matched_rules,
+                            reason,
+                            detected_at,
+                            created_at,
+                            updated_at
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                eventId,
+                traceId,
+                "user-legacy",
+                "acc-legacy",
+                0,
+                "LOW",
+                "APPROVE",
+                "",
+                "legacy row without ruleVersion",
                 detectedAt,
                 detectedAt,
                 detectedAt

@@ -83,3 +83,8 @@
 - Mixed ruleVersion distribution pollution: `docs/11-troubleshooting-log.md#v2-phase-12-mixed-presentmissing-ruleversion에서-distribution이-오염되는-문제`
 - Persistence/export scope overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-12-ruleversion-persistence-범위를-과장하는-문제`
 - Report schema version drift: `docs/11-troubleshooting-log.md#v2-phase-12-reportschemaversion을-올리지-않고-새-필드를-추가하는-문제`
+- Active vs stored ruleVersion confusion: `docs/11-troubleshooting-log.md#v2-phase-13-active-ruleversion과-stored-result-ruleversion을-같은-의미로-오해하는-문제`
+- RuleVersion observability performance overclaim: `docs/11-troubleshooting-log.md#v2-phase-13-ruleversion-observability를-fraud-성능-개선으로-과장하는-문제`
+- RuleVersion metric cardinality risk: `docs/11-troubleshooting-log.md#v2-phase-13-metric-tag-cardinality-폭증-문제`
+- Actuator endpoint overexposure risk: `docs/11-troubleshooting-log.md#v2-phase-13-actuator-endpoint-과다-노출-문제`
+- RuleVersion summary/list backward compatibility risk: `docs/11-troubleshooting-log.md#v2-phase-13-ruleversion-summary나-filter가-기존-admin-query를-깨뜨리는-문제`

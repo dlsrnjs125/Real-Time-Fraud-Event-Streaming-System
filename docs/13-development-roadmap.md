@@ -32,6 +32,7 @@
 | V2 Phase 9 | Done | Rule/threshold regression evidence 구현 완료 | rule/threshold/evaluation policy version, workload summary, regression verifier, docs/blog | Rule Engine V2 implementation |
 | V2 Phase 11 | Done | Rule version integration evidence 구현 완료 | Java/Python ruleVersion drift verifier, contract-level alignment, docs/blog | Per-result ruleVersion propagation |
 | V2 Phase 12 | Done | Per-result rule version propagation evidence 구현 완료 | detection result ruleVersion 저장/조회, strict evaluator mode, Phase 12 verifier, docs/blog | DB export automation/backfill policy |
+| V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe Phase 13 gate, docs/blog | ruleVersion filter/dashboard/deployment changelog |
 | Phase 14+ | Not Started | Production hardening follow-up | dashboard/alert hardening, CI/E2E drill, deployment safety | production hardening |
 
 Status 기준:
@@ -1571,6 +1572,58 @@ make final-check
 - Full PaySim replay/evaluation evidence refresh
 - Rule Engine V2 rule implementation remains separate from this traceability phase
 
+## V2 Phase 13. Runtime Rule Version Observability Evidence
+
+### Status
+
+Done
+
+### Completed
+
+- app-consumer `RuleVersionInfoContributor` 추가
+- `/actuator/info`의 `fraudRule.activeRuleVersion` runtime metadata 노출
+- high-cardinality identifier가 info payload에 들어가지 않는지 테스트 추가
+- app-api stored fraud result ruleVersion summary endpoint 추가
+- legacy null `ruleVersion` row를 `legacyMissingResults`로 분리
+- admin single-result response의 nullable legacy ruleVersion behavior 테스트 보강
+- `verify-v2-phase13` Makefile target 추가
+- `make final-check`가 Phase 13 aggregate gate를 사용하도록 갱신
+- Phase 13 evidence docs, troubleshooting, scripts README, blog draft 업데이트
+
+### Verification Commands
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-paysim-result-rule-version-contract
+make verify-v2-phase13
+./gradlew test
+make final-check
+```
+
+### Results
+
+| Check | Result | Notes |
+|---|---|---|
+| Python compile | PASS | `PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py` |
+| V2 aggregate verifier | PASS | `make verify-v2-phase13`; includes data tests, data policy, and Phase 7/8/9/11/12 verifiers |
+| app-api module tests | PASS | `./gradlew :app-api:test` |
+| app-consumer module tests | PASS | `./gradlew :app-consumer:test` |
+| Gradle tests | PASS | `./gradlew test` |
+| Representative readiness | PASS | `make final-check`; required Gradle/Docker access outside restricted sandbox |
+
+### Remaining TODOs
+
+- RuleVersion filter for the fraud result list API once the list API is no longer a stub
+- Grafana panel for active/stored ruleVersion distribution
+- Deployment changelog and rollback checks
+- Historical `rule_version` backfill policy
+
 ### V2 다음 단계별 진행 순서
 
 | Step | Phase | 작업 |
@@ -1588,11 +1641,12 @@ make final-check
 | Step 11 | V2 Phase 10 | Final readiness, README slimdown, docs/blog/evidence consistency |
 | Step 12 | V2 Phase 11 | Rule version integration evidence |
 | Step 13 | V2 Phase 12 | Per-result ruleVersion propagation evidence |
-| Step 14 | V2 Phase 13 | Rule Engine V2 초기 rule 구현 |
-| Step 15 | V2 Phase 14 | Rule evaluation confusion matrix |
-| Step 16 | V2 Phase 15 | Action Decision Engine |
-| Step 17 | V2 Phase 16 | Fraud Case Management |
-| Step 18 | V2 Phase 17 | visualization/evidence, README, docs, blog 정리 |
+| Step 14 | V2 Phase 13 | Runtime ruleVersion observability evidence |
+| Step 15 | V2 Phase 14 | Rule Engine V2 초기 rule 구현 |
+| Step 16 | V2 Phase 15 | Rule evaluation confusion matrix |
+| Step 17 | V2 Phase 16 | Action Decision Engine |
+| Step 18 | V2 Phase 17 | Fraud Case Management |
+| Step 19 | V2 Phase 18 | visualization/evidence, README, docs, blog 정리 |
 
 ### V2 첫 구현 PR 권장 범위
 
