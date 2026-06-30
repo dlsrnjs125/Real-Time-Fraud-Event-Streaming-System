@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -20,6 +20,7 @@ help:
 	@echo "  make consumer       - Run app-consumer"
 	@echo "  make infra-config   - Validate docker compose config"
 	@echo "  make observability-check - Validate local Prometheus/Grafana provisioning files"
+	@echo "  make observability-rules-check - Validate Prometheus alert rule syntax with promtool"
 	@echo "  make infra-up       - Start local infrastructure"
 	@echo "  make infra-down     - Stop local infrastructure"
 	@echo "  make infra-ps       - Show local infrastructure status"
@@ -123,6 +124,9 @@ observability-check:
 	test -f infra/grafana/dashboards/fraud-observability.json
 	python3 -m json.tool infra/grafana/dashboards/fraud-observability.json >/dev/null
 	test -f infra/prometheus/rules/fraud-alerts.yml
+
+observability-rules-check:
+	docker run --rm --entrypoint promtool -v "$$(pwd)/infra/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check rules /etc/prometheus/rules/fraud-alerts.yml
 
 infra-up:
 	docker compose -f infra/docker-compose.yml up -d

@@ -71,6 +71,7 @@
 | Redis latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_redis_window_record_latency_seconds_*` |
 | Detection processing latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_processing_latency_seconds_*` |
 | DLT operation counters | `curl http://localhost:8080/actuator/prometheus` and `curl http://localhost:8081/actuator/prometheus` | `fraud_dlt_reprocess_requested_total`, `fraud_dlt_discarded_total`, `fraud_dlt_published_total` |
+| HTTP request histogram bucket | `curl http://localhost:8080/actuator/prometheus` | `http_server_requests_seconds_bucket` |
 | Prometheus targets UP | `http://localhost:9090/targets` | `app-api`, `app-consumer` scrape targets up after apps start |
 | Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |
 | Grafana dashboard loaded | `http://localhost:3000` | `Fraud Event Streaming Observability` under `Fraud Event Streaming` folder |

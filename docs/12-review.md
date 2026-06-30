@@ -110,14 +110,18 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - Consumer processing latency timer를 `fraud.detection.processing.latency`로 추가했습니다.
 - DLT publish/reprocess/discard operation counter를 추가했습니다.
 - `make observability-check`로 provisioning file 존재, Docker Compose config, dashboard JSON parsing을 검증하게 했습니다.
+- `http.server.requests` histogram bucket을 켜서 API p95 panel이 실제 bucket metric을 사용할 수 있게 했습니다.
+- API status/request-rate/p95 query에서 `/actuator.*` traffic을 제외해 scrape/health traffic이 business request evidence에 섞이는 문제를 줄였습니다.
 
 ### 중요한 판단
 
 - 존재하지 않는 metric으로 fake Consumer Lag panel을 만들지 않았습니다.
 - detection latency라는 이름을 과장하지 않고, listener start부터 신규 fraud result 저장 완료까지를 processing latency로 명명했습니다.
+- dashboard panel title도 `Consumer Processing Latency for New Results`로 바꿔 end-to-end detection latency와 혼동하지 않게 했습니다.
 - metric tag에는 `eventId`, `traceId`, `userId`, `operatorId`, `reason`, raw payload를 넣지 않았습니다.
 - p95/p99는 Actuator histogram bucket이 노출되는 경우 dashboard에서 볼 수 있고, k6 terminal summary evidence와 역할을 분리했습니다.
 - Prometheus alert는 local rule 후보로만 추가했고 Alertmanager/Slack/PagerDuty는 구현하지 않았습니다.
+- DLT Operation Counters는 DLT operation이 없으면 No data가 정상일 수 있으므로, DLT evidence는 admin audit response screenshot과 함께 해석합니다.
 
 ### 남은 한계
 
