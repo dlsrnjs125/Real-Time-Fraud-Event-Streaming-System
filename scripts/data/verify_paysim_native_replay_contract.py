@@ -224,6 +224,7 @@ def main() -> int:
             include_missing_results=False,
             force=True,
             strict=True,
+            require_per_result_rule_version=False,
         )
         evaluation_report = evaluate.evaluate(evaluation_args)
         verify_evaluation_report(evaluation_report)

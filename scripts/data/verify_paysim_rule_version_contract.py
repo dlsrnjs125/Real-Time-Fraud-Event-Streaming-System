@@ -29,7 +29,7 @@ JAVA_RULE_VERSION_SOURCE = (
     / "FraudRuleVersions.java"
 )
 ACTIVE_RULE_VERSION_CONSTANT = "ACTIVE_RULE_VERSION"
-EXPECTED_REPORT_SCHEMA_VERSION = "2026-06-v2-phase11"
+EXPECTED_REPORT_SCHEMA_VERSION = "2026-06-v2-phase12"
 JAVA_STRING_CONSTANT_PATTERN = re.compile(
     r'public\s+static\s+final\s+String\s+([A-Z0-9_]+)\s*=\s*([^;]+)\s*;'
 )
@@ -110,6 +110,7 @@ def evaluate_fixture(root: Path, results: list[dict[str, Any]], rule_version: st
         include_missing_results=False,
         force=True,
         strict=True,
+        require_per_result_rule_version=False,
     )
     return evaluate.evaluate(args)
 
@@ -155,6 +156,8 @@ def verify_evaluator_contract(java_version: str) -> None:
             raise ContractError(f"unexpected ruleVersion coverage: {report['ruleVersionCoverage']}")
         if report["ruleVersionDistribution"] != {java_version: 2}:
             raise ContractError(f"unexpected ruleVersion distribution: {report['ruleVersionDistribution']}")
+        if report["ruleVersionReadiness"] != "per_result_verified":
+            raise ContractError(f"unexpected ruleVersion readiness: {report['ruleVersionReadiness']}")
 
         missing_report = evaluate_fixture(
             root,
@@ -168,6 +171,8 @@ def verify_evaluator_contract(java_version: str) -> None:
         expected_warning = "Some evaluated results do not include per-result ruleVersion; evaluation uses contract-level ruleVersion."
         if expected_warning not in missing_report["warnings"]:
             raise ContractError("missing per-result ruleVersion warning was not reported")
+        if missing_report["ruleVersionReadiness"] != "contract_level_only":
+            raise ContractError(f"unexpected missing ruleVersion readiness: {missing_report['ruleVersionReadiness']}")
 
         mixed_report = evaluate_fixture(
             root,
@@ -184,6 +189,8 @@ def verify_evaluator_contract(java_version: str) -> None:
             raise ContractError(f"unexpected mixed ruleVersion distribution: {mixed_report['ruleVersionDistribution']}")
         if expected_warning not in mixed_report["warnings"]:
             raise ContractError("mixed per-result ruleVersion warning was not reported")
+        if mixed_report["ruleVersionReadiness"] != "contract_level_with_partial_per_result_coverage":
+            raise ContractError(f"unexpected mixed ruleVersion readiness: {mixed_report['ruleVersionReadiness']}")
 
         try:
             evaluate_fixture(

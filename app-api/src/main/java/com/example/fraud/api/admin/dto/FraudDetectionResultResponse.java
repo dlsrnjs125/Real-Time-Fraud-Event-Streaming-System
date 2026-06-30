@@ -13,6 +13,7 @@ public record FraudDetectionResultResponse(
         String traceId,
         String userId,
         String accountId,
+        String ruleVersion,
         int riskScore,
         RiskLevel riskLevel,
         FraudDecision decision,

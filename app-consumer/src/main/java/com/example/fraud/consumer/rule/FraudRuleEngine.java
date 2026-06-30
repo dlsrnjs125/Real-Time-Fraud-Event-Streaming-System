@@ -63,6 +63,7 @@ public class FraudRuleEngine {
         String reason = buildReason(allEvaluations, windowResult);
 
         return new FraudRuleEngineResult(
+                FraudRuleVersions.ACTIVE_RULE_VERSION,
                 riskScore,
                 riskLevel,
                 decision,

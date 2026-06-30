@@ -8,6 +8,7 @@ import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
+import com.example.fraud.consumer.rule.FraudRuleVersions;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -48,6 +49,7 @@ class FraudDetectionResultServiceTest {
         var saved = repository.findByEventId("evt-fraud-result-001");
         assertThat(saved).isPresent();
         assertThat(saved.get().getRiskScore()).isEqualTo(80);
+        assertThat(saved.get().getRuleVersion()).isEqualTo(FraudRuleVersions.ACTIVE_RULE_VERSION);
         assertThat(saved.get().getRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(saved.get().getDecision()).isEqualTo(FraudDecision.BLOCK);
     }
@@ -160,6 +162,7 @@ class FraudDetectionResultServiceTest {
 
     private FraudRuleEngineResult highRiskResult() {
         return new FraudRuleEngineResult(
+                FraudRuleVersions.ACTIVE_RULE_VERSION,
                 80,
                 RiskLevel.HIGH,
                 FraudDecision.BLOCK,

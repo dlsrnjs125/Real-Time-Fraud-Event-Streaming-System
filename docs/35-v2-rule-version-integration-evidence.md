@@ -53,11 +53,11 @@ Evaluator behavior:
 - If a result row has `ruleVersion`, it must exactly match the expected contract-level `ruleVersion`.
 - If a result row has a mismatched `ruleVersion`, evaluation fails fast.
 - If result rows omit `ruleVersion`, evaluation still runs with the contract-level `ruleVersion`, but the report records `ruleVersionCoverage` and a warning.
-- Per-result app-consumer persistence/export of `ruleVersion` remains future work. Phase 11 proves contract alignment, not per-event Java result persistence.
+- Per-result app-consumer persistence/API response propagation is handled by Phase 12. Phase 11 proves contract alignment, not per-event Java result persistence.
 
 Report fields added or strengthened in this phase:
 
-- `reportSchemaVersion`: `2026-06-v2-phase11`
+- `reportSchemaVersion`: `2026-06-v2-phase11` during Phase 11, superseded by `2026-06-v2-phase12` when Phase 12 adds readiness and strict-mode fields
 - `ruleVersionCoverage`
 - `ruleVersionDistribution`
 - warning when evaluated rows omit per-result `ruleVersion`
@@ -83,12 +83,12 @@ make verify-v2-phase11
 
 `make verify-v2-phase11` runs the existing Phase 7/8/9 CI-safe checks plus the Phase 11 rule version contract.
 
-`make final-check` uses `verify-v2-phase11` as its V2 PaySim readiness component.
+Phase 12 updates `make final-check` to use `verify-v2-phase12` as its V2 PaySim readiness component.
 
 ## 7. Limitations
 
 - Phase 11 does not implement new PaySim-specific Java fraud rules.
-- Phase 11 does not persist `ruleVersion` on `FraudResult`.
+- Phase 11 did not persist `ruleVersion` on `FraudResult`; Phase 12 adds persistence for newly generated detection results.
 - Phase 11 does not create a DB detection result export.
 - Full PaySim replay/evaluation remains local/manual.
 - Fixture checks validate contract consistency, not production fraud model performance.

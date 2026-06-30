@@ -46,6 +46,7 @@ class FraudRuleEngineTest {
                 "2026-06-19T10:00:00Z"
         ));
 
+        assertThat(result.ruleVersion()).isEqualTo(FraudRuleVersions.ACTIVE_RULE_VERSION);
         assertThat(result.riskScore()).isZero();
         assertThat(result.riskLevel()).isEqualTo(RiskLevel.LOW);
         assertThat(result.decision()).isEqualTo(FraudDecision.APPROVE);

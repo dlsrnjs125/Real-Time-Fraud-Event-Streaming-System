@@ -49,7 +49,9 @@ REQUIRED_FIELDS = {
     "operatorWorkloadSummary",
     "riskScoreCoverage",
     "ruleVersionCoverage",
+    "ruleVersionReadiness",
     "ruleVersionDistribution",
+    "requirePerResultRuleVersion",
     "thresholdRegressionReliability",
     "replayNativeTypeDistribution",
     "evaluatedNativeTypeDistribution",
@@ -88,7 +90,7 @@ def assert_required_fields(report: dict[str, Any]) -> None:
 def verify_baseline(report: dict[str, Any]) -> None:
     assert_required_fields(report)
     expected = {
-        "reportSchemaVersion": "2026-06-v2-phase11",
+        "reportSchemaVersion": "2026-06-v2-phase12",
         "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "mappingPolicyVersion": "paysim-native-mapping-v1",
@@ -211,6 +213,7 @@ def main() -> int:
             include_missing_results=False,
             force=True,
             strict=True,
+            require_per_result_rule_version=False,
         )
         baseline_report = evaluate.evaluate(base_args)
         verify_baseline(baseline_report)

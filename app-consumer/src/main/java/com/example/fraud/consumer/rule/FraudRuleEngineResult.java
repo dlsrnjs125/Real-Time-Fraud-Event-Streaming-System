@@ -6,6 +6,7 @@ import com.example.fraud.common.event.RiskLevel;
 import java.util.List;
 
 public record FraudRuleEngineResult(
+        String ruleVersion,
         int riskScore,
         RiskLevel riskLevel,
         FraudDecision decision,
