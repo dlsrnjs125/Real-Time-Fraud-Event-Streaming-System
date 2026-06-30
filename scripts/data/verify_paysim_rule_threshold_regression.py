@@ -48,6 +48,8 @@ REQUIRED_FIELDS = {
     "actionDecisionDistribution",
     "operatorWorkloadSummary",
     "riskScoreCoverage",
+    "ruleVersionCoverage",
+    "ruleVersionDistribution",
     "thresholdRegressionReliability",
     "replayNativeTypeDistribution",
     "evaluatedNativeTypeDistribution",
@@ -86,7 +88,7 @@ def assert_required_fields(report: dict[str, Any]) -> None:
 def verify_baseline(report: dict[str, Any]) -> None:
     assert_required_fields(report)
     expected = {
-        "reportSchemaVersion": "2026-06-v2-phase9",
+        "reportSchemaVersion": "2026-06-v2-phase11",
         "evaluationContractVersion": "v2-phase9-evaluation-contract-v1",
         "evaluationPolicyVersion": "evaluation-policy-v1",
         "mappingPolicyVersion": "paysim-native-mapping-v1",
@@ -130,6 +132,16 @@ def verify_baseline(report: dict[str, Any]) -> None:
         raise ContractError("unexpected riskScore coverage")
     if report["thresholdRegressionReliability"] != "full_risk_score_coverage":
         raise ContractError("unexpected threshold regression reliability")
+    if report["ruleVersionCoverage"] != {
+        "resultsWithRuleVersion": 3,
+        "resultsWithoutRuleVersion": 0,
+        "coverageRate": 1.0,
+        "coverageScope": "evaluated_results_only",
+        "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
+    }:
+        raise ContractError("unexpected ruleVersion coverage")
+    if report["ruleVersionDistribution"] != {"rule-v2-baseline-v1": 3}:
+        raise ContractError("unexpected ruleVersion distribution")
     if report["missingResultTreatment"] != "missing_results_excluded_from_denominator":
         raise ContractError("missing result default policy changed")
     assert_sensitive_free(report, "baseline report")
@@ -166,9 +178,9 @@ def main() -> int:
         write_jsonl(
             results,
             [
-                {"eventId": "paysim-1", "riskLevel": "MEDIUM", "riskScore": 60, "ruleCodes": ["AMOUNT_RULE"]},
-                {"eventId": "paysim-2", "riskLevel": "LOW", "riskScore": 20, "ruleCodes": []},
-                {"eventId": "paysim-3", "riskLevel": "HIGH", "riskScore": 85, "ruleCodes": ["VELOCITY_RULE"]},
+                {"eventId": "paysim-1", "riskLevel": "MEDIUM", "riskScore": 60, "ruleVersion": "rule-v2-baseline-v1", "ruleCodes": ["AMOUNT_RULE"]},
+                {"eventId": "paysim-2", "riskLevel": "LOW", "riskScore": 20, "ruleVersion": "rule-v2-baseline-v1", "ruleCodes": []},
+                {"eventId": "paysim-3", "riskLevel": "HIGH", "riskScore": 85, "ruleVersion": "rule-v2-baseline-v1", "ruleCodes": ["VELOCITY_RULE"]},
             ],
         )
         write_json(

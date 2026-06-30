@@ -25,7 +25,7 @@ from paysim_native_type_mapping import mapping_for
 
 
 SCRIPT_VERSION = "paysim-evaluation-v1"
-REPORT_SCHEMA_VERSION = "2026-06-v2-phase9"
+REPORT_SCHEMA_VERSION = "2026-06-v2-phase11"
 DEFAULT_LABELS = Path("data/samples/paysim-labels-sample.jsonl")
 DEFAULT_RESULTS = Path("data/processed/paysim-detection-results.jsonl")
 DEFAULT_OUTPUT = Path("data/processed/paysim-evaluation-report.json")
@@ -76,6 +76,7 @@ class DetectionResult:
     normalized_event_id: str
     risk_level: str
     risk_score: float | None = None
+    rule_version: str | None = None
     rule_codes: list[str] = field(default_factory=list)
 
 
@@ -105,6 +106,9 @@ class EvaluationStats:
     blocked_candidate_events: int = 0
     evaluated_results_with_risk_score: int = 0
     evaluated_results_without_risk_score: int = 0
+    evaluated_results_with_rule_version: int = 0
+    evaluated_results_without_rule_version: int = 0
+    rule_version_distribution: Counter[str] = field(default_factory=Counter)
     evaluated_native_type_distribution: Counter[str] = field(default_factory=Counter)
     evaluated_normalized_type_distribution: Counter[str] = field(default_factory=Counter)
     denominator_excluded_native_type_distribution: Counter[str] = field(default_factory=Counter)
@@ -198,6 +202,17 @@ def extract_risk_score(row: dict[str, Any]) -> float | None:
     return value
 
 
+def extract_rule_version(row: dict[str, Any], expected_rule_version: str, source: str) -> str | None:
+    if "ruleVersion" not in row or row["ruleVersion"] is None:
+        return None
+    value = row["ruleVersion"]
+    if not isinstance(value, str) or not value:
+        raise EvaluationError(f"{source}: detection result ruleVersion must be a non-blank string when present")
+    if value != expected_rule_version:
+        raise EvaluationError(f"{source}: detection result ruleVersion mismatch: expected {expected_rule_version}, got {value}")
+    return value
+
+
 def load_labels(path: Path, strict: bool) -> tuple[dict[str, LabelRow], list[str]]:
     labels: dict[str, LabelRow] = {}
     warnings: list[str] = []
@@ -222,7 +237,12 @@ def load_labels(path: Path, strict: bool) -> tuple[dict[str, LabelRow], list[str
     return labels, warnings
 
 
-def load_results(path: Path, event_id_prefix: str | None, strict: bool) -> tuple[dict[str, DetectionResult], list[str]]:
+def load_results(
+    path: Path,
+    event_id_prefix: str | None,
+    strict: bool,
+    expected_rule_version: str,
+) -> tuple[dict[str, DetectionResult], list[str]]:
     results: dict[str, DetectionResult] = {}
     warnings: list[str] = []
     for line_no, row in read_jsonl(path):
@@ -241,6 +261,7 @@ def load_results(path: Path, event_id_prefix: str | None, strict: bool) -> tuple
             normalized_event_id=normalized_event_id,
             risk_level=risk_level,
             risk_score=extract_risk_score(row),
+            rule_version=extract_rule_version(row, expected_rule_version, f"{path}:{line_no}"),
             rule_codes=extract_rule_codes(row),
         )
     return results, warnings
@@ -415,6 +436,11 @@ def evaluate_rows(
             stats.evaluated_results_without_risk_score += 1
         else:
             stats.evaluated_results_with_risk_score += 1
+        if result.rule_version is None:
+            stats.evaluated_results_without_rule_version += 1
+        else:
+            stats.evaluated_results_with_rule_version += 1
+            stats.rule_version_distribution[result.rule_version] += 1
         if label.source_type:
             stats.evaluated_native_type_distribution[label.source_type] += 1
             normalized_type = normalized_type_for_source(label.source_type)
@@ -478,6 +504,11 @@ def build_warnings(
         warnings.append("Some detection results do not match any label eventId and were not used in metrics.")
     if stats.evaluated_results_without_risk_score > 0:
         warnings.append("Some evaluated results do not include riskScore; threshold policy falls back to riskLevel-based decisions.")
+    if stats.evaluated_results_without_rule_version > 0:
+        warnings.append(
+            "Some evaluated results do not include per-result ruleVersion; "
+            "evaluation uses contract-level ruleVersion."
+        )
     if review_candidate_rate is not None and review_candidate_rate > max_review_rate:
         warnings.append("Review candidate rate exceeds candidate workload budget.")
     if blocked_candidate_rate is not None and blocked_candidate_rate > max_blocked_rate:
@@ -534,6 +565,8 @@ def build_report(
     blocked_candidate_rate = safe_ratio(stats.blocked_candidate_events, stats.evaluated_events)
     risk_score_coverage_denominator = stats.evaluated_results_with_risk_score + stats.evaluated_results_without_risk_score
     risk_score_coverage_rate = safe_ratio(stats.evaluated_results_with_risk_score, risk_score_coverage_denominator)
+    rule_version_coverage_denominator = stats.evaluated_results_with_rule_version + stats.evaluated_results_without_rule_version
+    rule_version_coverage_rate = safe_ratio(stats.evaluated_results_with_rule_version, rule_version_coverage_denominator)
     max_review_rate = threshold_policy.operator_workload_budget["maxReviewCandidateRateCandidate"]
     max_blocked_rate = threshold_policy.operator_workload_budget["maxBlockedCandidateRateCandidate"]
     review_rate_within_budget = review_candidate_rate is None or review_candidate_rate <= max_review_rate
@@ -626,6 +659,14 @@ def build_report(
             "coverageRate": risk_score_coverage_rate,
             "coverageScope": "evaluated_results_only",
         },
+        "ruleVersionCoverage": {
+            "resultsWithRuleVersion": stats.evaluated_results_with_rule_version,
+            "resultsWithoutRuleVersion": stats.evaluated_results_without_rule_version,
+            "coverageRate": rule_version_coverage_rate,
+            "coverageScope": "evaluated_results_only",
+            "ruleVersionSource": "per_result_when_present_otherwise_contract_level",
+        },
+        "ruleVersionDistribution": dict(sorted(stats.rule_version_distribution.items())),
         "thresholdRegressionReliability": "full_risk_score_coverage"
         if stats.evaluated_results_without_risk_score == 0
         else "partial_without_full_risk_score_coverage",
@@ -702,7 +743,7 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     replay_report = load_replay_report(args.replay_report)
     event_id_prefix = event_id_prefix_from(args, replay_report)
     labels, label_warnings = load_labels(args.labels, args.strict)
-    results, result_warnings = load_results(args.results, event_id_prefix, args.strict)
+    results, result_warnings = load_results(args.results, event_id_prefix, args.strict, args.rule_version)
     rejected_event_ids = replay_rejected_event_ids(replay_report, event_id_prefix) if args.exclude_replay_rejected else set()
     replay_payload_rejected = replay_payload_rejected_count(replay_report)
     threshold_policy = threshold_policy_for(args.threshold_version)

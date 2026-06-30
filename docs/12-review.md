@@ -1074,6 +1074,54 @@ Local/manual checks observed in this workspace:
 - dashboard 또는 model baseline 구현
 - README에 Phase별 운영 매뉴얼 추가
 
+## V2 Phase 11 Review
+
+### 잘한 점
+
+- app-consumer Rule Engine baseline version을 Java source로 노출했습니다.
+- Python evaluator `RULE_VERSION`과 Java baseline의 drift를 CI-safe verifier로 검증합니다.
+- `ruleVersion`과 `thresholdVersion`을 분리해 rule logic change와 threshold boundary change를 따로 볼 수 있게 유지했습니다.
+- Detection result row에 per-result `ruleVersion`이 있으면 expected version과 불일치할 때 fail-fast 됩니다.
+- Per-result `ruleVersion`이 없으면 evaluation을 막지 않되 `ruleVersionCoverage`와 warning으로 한계를 드러냅니다.
+- `make final-check`가 Phase 11 aggregate gate를 포함하도록 업데이트했습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] Java `FraudRuleVersions` 값과 Python evaluator `RULE_VERSION`이 같은 의미의 baseline인가
+- [ ] `ruleVersion` 변경과 `thresholdVersion` 변경이 PR에서 섞이지 않았는가
+- [ ] Per-result `ruleVersion` 누락을 event-level consistency 보장처럼 과장하지 않는가
+- [ ] Fixture verifier가 raw/full PaySim data, app-api, detection export 없이 실행되는가
+- [ ] Production fraud 성능 개선처럼 읽히는 문장이 없는가
+- [ ] raw/full PaySim data나 local report/export가 staged/tracked 되지 않았는가
+
+### 검증 기록
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make test-data-scripts
+make data-policy-check
+make verify-paysim-evaluation-report-contract
+make verify-paysim-native-replay-contract
+make verify-paysim-rule-threshold-regression
+make verify-paysim-rule-version-contract
+make verify-v2-phase11
+./gradlew test
+make final-check
+```
+
+### 의도적으로 제외한 것
+
+- 새 PaySim-specific Java fraud rule 구현
+- `FraudResult` per-result `ruleVersion` persistence
+- DB detection result export 자동화
+- Full PaySim replay/evaluation report commit
+- threshold tuning 또는 production performance claim
+
+### 남은 한계
+
+- Phase 11은 contract-level version alignment를 검증합니다. Per-event rule version evidence는 detection result export에 `ruleVersion`이 들어간 이후 더 강해집니다.
+- Full replay rejected eventId export는 후속 hardening입니다.
+
 ### 남은 한계
 
 - Phase 10은 documentation/readiness consistency 작업입니다.

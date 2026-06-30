@@ -11,6 +11,7 @@ Phase boundaries:
 - Phase 7: replay evaluation report contract
 - Phase 8: PaySim native type mapping and denominator contract
 - Phase 9: rule/threshold regression contract
+- Phase 11: app-consumer/evaluator `ruleVersion` drift check
 
 ## 2. Problem
 
@@ -37,7 +38,7 @@ Therefore precision, recall, F1, and workload counts must be read with explicit 
 | `thresholdVersion` | Risk/action boundary | MEDIUM/HIGH threshold or action boundary changes | `threshold-v1` | Precision, recall, F1, and workload can change |
 | `evaluationPolicyVersion` | Evaluation script interpretation | Workload summary or action decision aggregation changes | `evaluation-policy-v1` | Report interpretation can change |
 
-Phase 9 fills these fields in the evaluation report. Consumer Rule Engine version integration remains a follow-up; the current version is an evaluation evidence policy version.
+Phase 9 fills these fields in the evaluation report. Phase 11 connects the contract-level `ruleVersion` to the app-consumer baseline source; per-result persistence/export remains a follow-up.
 
 Threshold policy is the source of truth for threshold-related decisions. The report-level `positiveRiskLevel` is derived from `thresholdPolicy.positiveRiskLevelFallback`, and the legacy `--positive-risk-level` option is accepted only when it matches the selected threshold policy fallback.
 
@@ -117,7 +118,7 @@ Implemented Phase 9 fields:
 
 Future fields:
 
-- consumer-provided rule version
+- per-result consumer-provided rule version export
 - consumer threshold config snapshot
 - production action decision distribution
 - automated before/after threshold comparison file

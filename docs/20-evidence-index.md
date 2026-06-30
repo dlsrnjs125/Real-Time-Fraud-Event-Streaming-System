@@ -26,6 +26,7 @@
 | V2 Phase 8 | PaySim native replay contract | `make verify-v2-phase8` | `docs/32-v2-paysim-native-replay-contract.md` |
 | V2 Phase 9 | Rule/threshold regression evidence | `make verify-v2-phase9` | `docs/33-v2-rule-threshold-regression-evidence.md` |
 | V2 Phase 10 | Final readiness and documentation consistency | `make final-check` | `docs/34-v2-final-readiness.md` |
+| V2 Phase 11 | Rule version integration evidence | `make verify-v2-phase11` | `docs/35-v2-rule-version-integration-evidence.md` |
 
 ## CI / Build
 
@@ -90,6 +91,7 @@
 | V2 native replay contract | `docs/32-v2-paysim-native-replay-contract.md` | PaySim native type mapping, support level, denominator 기준 |
 | V2 rule threshold regression evidence | `docs/33-v2-rule-threshold-regression-evidence.md` | rule/threshold versioning, workload summary, regression gate 기준 |
 | V2 final readiness | `docs/34-v2-final-readiness.md` | completed/local/manual/future scope, README policy, verification matrix |
+| V2 rule version integration evidence | `docs/35-v2-rule-version-integration-evidence.md` | app-consumer Rule Engine baseline과 evaluator ruleVersion drift check |
 
 ## V2 PaySim Evidence
 
@@ -99,4 +101,5 @@
 | V2 Phase 7 CI-safe checks | `make verify-v2-phase7` | unittest output, data policy check output, fixture report contract check | data script tests pass, raw/full processed PaySim files excluded from Git, required report fields and expected fixture counts match | full evaluation input 없이 실행 가능 |
 | V2 PaySim Native Replay Contract Check | `make verify-v2-phase8` | fixture-generated replay/evaluation reports under temp dir | `mappingPolicyVersion`, input/accepted/rejected/evaluated type distributions, `excludedByType` 존재, unsupported type explicit exclusion | CI-safe; full native replay remains local/manual |
 | V2 Rule Threshold Regression Check | `make verify-v2-phase9` | fixture-generated evaluation reports under temp dir | `ruleVersion`, `thresholdVersion`, `evaluationPolicyVersion`, expected precision/recall/F1, workload summary, unsupported type exclusion | CI-safe; full PaySim threshold evidence remains local/manual |
-| V2 Final Readiness Check | `make final-check` | Gradle/Docker/script/data verifier output | Gradle build passes, Docker Compose config passes, scripts syntax passes, data policy and Phase 7/8/9 verifiers pass, README stays minimal and links to detailed docs | CI-safe with required Java/Python/Docker tooling; validates readiness guardrails, not production fraud model performance |
+| V2 Rule Version Contract Check | `make verify-paysim-rule-version-contract` | Java source + fixture evaluation reports under temp dir | app-consumer rule version exists, Python evaluator policy matches, unsupported versions fail, per-result mismatch fails, threshold version remains separate | CI-safe; version consistency check, not production fraud model performance |
+| V2 Final Readiness Check | `make final-check` | Gradle/Docker/script/data verifier output | Gradle build passes, Docker Compose config passes, scripts syntax passes, data policy and Phase 7/8/9/11 verifiers pass, README stays minimal and links to detailed docs | CI-safe with required Java/Python/Docker tooling; validates readiness guardrails, not production fraud model performance |
