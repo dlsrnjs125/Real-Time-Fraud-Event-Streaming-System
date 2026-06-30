@@ -1,8 +1,8 @@
-# 이벤트 스키마와 감사 저장 모델
+# eventId, traceId, userId를 같은 식별자로 쓰지 않은 이유
 
 ## 문제
 
-Kafka 이벤트가 재시도되거나 Consumer가 재시작되면 같은 거래 이벤트가 두 번 이상 처리될 수 있다. 이때 무엇을 같은 이벤트로 볼 것인지, API에서 시작된 흐름을 Consumer와 DB 결과까지 어떻게 추적할 것인지가 먼저 정해져야 했다.
+Kafka 이벤트가 재시도되거나 Consumer가 재시작되면 같은 거래 이벤트가 두 번 이상 처리될 수 있다. 이때 `eventId`, `traceId`, `userId`를 대충 하나의 “추적 ID”처럼 쓰면 문제가 생긴다. 중복 방어, 요청 추적, partition ordering, Redis window 기준이 서로 다른 질문인데 같은 식별자로 뭉개지기 때문이다.
 
 ## 초기 설계
 
@@ -52,6 +52,14 @@ erDiagram
 
 식별자를 많이 저장하면 추적은 쉬워지지만 개인정보 경계가 약해진다. 특히 `accountId`, `deviceId`, 원문 PaySim identifier 같은 값은 로그와 metric tag에 그대로 들어가면 안 된다. `eventId`와 `traceId`도 high-cardinality 값이므로 metric tag로 쓰기보다 로그와 DB 추적 기준으로 제한해야 했다.
 
+또 다른 함정은 `eventId`를 partition key로 쓰고 싶은 유혹이었다. 중복 이벤트 추적에는 좋지만 사용자별 ordering에는 맞지 않는다. 그래서 `eventId`는 idempotency와 audit 기준, `traceId`는 request flow 연결 기준, `userId`는 partition key와 Redis window 기준으로 역할을 분리했다.
+
+## 트러블슈팅에서 남긴 판단
+
+metric tag에 `eventId`, `traceId`, `userId`를 넣지 않은 이유는 단순한 취향이 아니다. Prometheus cardinality가 폭증하면 관측 시스템 자체가 불안정해질 수 있다. 그래서 metric은 bounded tag만 사용하고, 고유 식별자는 structured log와 PostgreSQL 조회로 추적한다.
+
+PaySim V2에서도 같은 기준을 적용했다. `nameOrig`, `nameDest`는 synthetic dataset의 값이지만 계정처럼 보이는 identifier이므로 raw 값을 저장소에 넣지 않고 HMAC 기반 hash identifier로 바꿨다.
+
 ## 확인한 증거
 
 `docs/04-data-model.md`에는 `fraud_detection_results.event_id` unique, `event_processing_logs(topic, partition_no, offset_no)` unique 같은 중복 방어 기준을 기록했다. `docs/14-security-and-privacy.md`에는 민감 식별자 logging 제한과 raw/full PaySim data 미커밋 정책을 정리했다.
@@ -62,7 +70,7 @@ PostgreSQL을 탐지 결과와 audit log의 기준 저장소로 두었다. Kafka
 
 ## 검증
 
-테스트와 문서 evidence는 중복 `eventId`, 중복 source offset, DLT 재처리 idempotency를 중심으로 정리했다. V2 이후에는 detection result에 `ruleVersion`을 저장해 같은 결과 row가 어떤 rule baseline으로 만들어졌는지도 추적할 수 있게 했다.
+테스트와 문서 evidence는 중복 `eventId`, 중복 source offset, DLT 재처리 idempotency를 중심으로 정리했다. V2 이후에는 detection result에 `ruleVersion`을 저장해 같은 결과 row가 어떤 rule baseline으로 만들어졌는지도 추적할 수 있게 했다. 다만 고유 ID는 metric label이 아니라 DB/log 추적 기준으로만 사용한다.
 
 ## 남은 한계
 

@@ -1,8 +1,8 @@
-# k6 부하/장애 테스트로 한계 측정
+# k6 결과를 좋게 보이게 쓰지 않기
 
 ## 문제
 
-부하 테스트 결과는 쉽게 과장된다. RPS나 p95 숫자만 쓰면 API 접수 성능과 Consumer 처리 성능이 섞이고, 장애 상황에서 어떤 데이터가 유실되었는지 설명하기 어렵다.
+부하 테스트 결과는 쉽게 보기 좋은 숫자로 바뀐다. RPS와 p95만 남기면 API 접수 성능과 Consumer 처리 성능이 섞이고, 장애 상황에서 중복 결과가 생겼는지, Redis rule이 skipped 되었는지, DLT가 늘었는지 알기 어렵다. 그래서 k6 결과는 성능 홍보가 아니라 한계를 드러내는 evidence로 다뤘다.
 
 ## 초기 설계
 
@@ -10,13 +10,21 @@ k6 시나리오는 normal load, peak load, duplicate storm, Redis down, hot part
 
 ## 실제로 막힌 지점
 
-duplicate storm에서는 API가 같은 eventId를 여러 번 받아도 최종 `FraudResult`가 하나인지 확인해야 한다. Redis down에서는 error rate만 보면 부족하다. Redis 의존 rule이 skipped 되었는지, degraded result가 남았는지, Consumer가 계속 진행했는지를 같이 봐야 한다.
+duplicate storm에서는 API가 같은 eventId를 여러 번 받아도 최종 `FraudResult`가 하나인지 확인해야 한다. 이때 duplicate가 `409 CONFLICT`로 응답되면 k6의 기본 `http_req_failed`만 봤을 때 실패율이 높아 보일 수 있다. 하지만 프로젝트 정책상 허용된 duplicate response라면 최종 판단은 DB consistency와 함께 해야 한다.
+
+Redis down에서는 error rate만 보면 부족하다. Redis 의존 rule이 skipped 되었는지, degraded result가 남았는지, Consumer가 계속 진행했는지를 같이 봐야 한다.
 
 또한 API latency와 Consumer latency를 한 표에 섞으면 해석이 흐려진다. API가 빠른 것과 탐지가 빠른 것은 다르다.
 
 ## 확인한 증거
 
-`load-test/k6/README.md`, `docs/22-load-test-results.md`, `docs/23-load-test-results.md`에 시나리오와 결과 기록 양식을 둔다. 측정값은 실제 evidence가 있을 때만 쓴다. 이 글에서는 아직 새 수치를 만들지 않고 측정 항목과 해석 기준만 정리한다.
+`load-test/k6/README.md`, `docs/22-load-test-results.md`, `docs/23-load-test-results.md`에 시나리오와 결과 기록 양식을 둔다. 측정값은 실제 evidence가 있을 때만 쓴다. 이 글에서는 새 수치를 만들지 않고 측정 항목과 해석 기준만 정리한다.
+
+## 트러블슈팅에서 남긴 판단
+
+duplicate replay에서는 2xx만 성공으로 보지 않는다. API response policy상 허용되는 duplicate/conflict bucket과 `fraud_detection_results.event_id` unique constraint 결과를 함께 본다. Redis down에서는 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total`, `fraud_rule_skipped_total` 같은 지표가 error rate만큼 중요하다.
+
+Consumer Lag metric은 아직 dashboard evidence로 완전히 연결되지 않았다. 그래서 결과 문서에서는 이 한계를 숨기지 않고 Kafka UI, processing log, fraud result 조회를 함께 보는 임시 해석 경로를 남긴다.
 
 ## 바꾼 설계
 
@@ -29,6 +37,8 @@ duplicate storm에서는 API가 같은 eventId를 여러 번 받아도 최종 `F
 | duplicate storm | duplicate skip count | `FraudResult` count per `eventId` |
 | Redis down | degraded count, skipped rule count | Consumer continuation |
 | hot partition | partition lag skew | user-level ordering impact |
+
+이미지로는 k6 terminal summary와 Grafana panel이 가장 유용하다. 다만 실제 캡처가 없으면 본문에 링크를 넣지 않고 `blog/image-plan.md`의 capture candidate로만 둔다.
 
 ## 검증
 

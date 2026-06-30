@@ -1,8 +1,8 @@
-# Redis sliding window와 degraded mode
+# Redis가 죽으면 탐지를 멈출 것인가
 
 ## 문제
 
-사용자별 최근 거래 횟수나 금액 패턴은 빠르게 계산해야 하지만, Redis가 장애 날 수 있다. Redis 장애를 전체 탐지 실패로 볼지, Redis 의존 rule만 건너뛰고 degraded 결과로 남길지 결정해야 했다.
+Redis는 빠른 이상거래 탐지에 유용하지만, 최종 정합성 기준으로 두기에는 위험하다. Redis가 내려간 순간 모든 탐지를 실패로 처리하면 Consumer backlog가 커지고, 반대로 실패를 무시하면 어떤 rule이 실행되지 않았는지 설명할 수 없다. 그래서 Redis 장애를 “성공”도 “전체 실패”도 아닌 degraded mode로 기록했다.
 
 ## 초기 설계
 
@@ -14,7 +14,7 @@ score = eventTime epoch millis
 value = eventId
 ```
 
-이벤트를 추가하고, window 밖의 이벤트를 제거한 뒤, 남은 이벤트 수를 threshold와 비교한다. fixed-window `INCR + TTL`보다 경계 시점 왜곡을 설명하기 쉽기 때문에 sliding window를 선택했다.
+이벤트를 추가하고, window 밖의 이벤트를 제거한 뒤, 남은 이벤트 수를 threshold와 비교한다. 처음에는 `INCR + TTL` 같은 fixed-window counter가 단순해 보였지만, window 경계에서 최근 거래 수가 왜곡될 수 있다. 그래서 `eventTime`을 score로 쓰는 ZSET sliding window를 선택했다.
 
 ```mermaid
 flowchart TD
@@ -32,6 +32,14 @@ flowchart TD
 ## 실제로 막힌 지점
 
 처음에는 Redis 장애를 예외로 처리하면 단순할 것처럼 보였다. 하지만 Redis가 잠시 불안정할 때 모든 이벤트를 DLT로 보내면 Consumer backlog와 운영 부담이 커진다. 반대로 Redis 실패를 무시하고 정상 처리처럼 저장하면 어떤 rule이 실행되지 않았는지 알 수 없다.
+
+또 Redis write는 하나의 명령으로 끝나지 않는다. Hash metadata 저장, ZSET 추가, cleanup, TTL 갱신, window 조회가 이어진다. 중간 실패가 나면 ZSET에는 eventId가 있지만 amount metadata가 없는 불완전 상태가 남을 수 있다.
+
+## 트러블슈팅에서 남긴 판단
+
+ZSET member는 `eventId`, score는 `eventTime` epoch millis로 둔다. 같은 eventId가 다시 들어오면 ZSET count가 중복 증가하는 일을 완화할 수 있다. amount 합산은 Hash metadata를 보고 계산하되, metadata가 없는 eventId는 count와 sum에서 제외한다. Redis transaction이나 Lua까지 넣으면 범위가 커지므로 future hardening으로 남겼다.
+
+이미 `fraud_detection_results`에 같은 `eventId`가 있으면 Redis window를 다시 갱신하지 않는다. duplicate replay가 Redis 보조 상태를 오염시키는 일을 피하기 위한 fast path다. 최종 중복 방어는 여전히 PostgreSQL unique constraint다.
 
 ## 확인한 증거
 

@@ -1,8 +1,8 @@
-# Consumer Lag과 Detection Latency 관측
+# API p95가 정상인데 탐지가 밀리는 상황
 
 ## 문제
 
-API가 빠르게 응답해도 탐지가 늦으면 시스템은 위험해진다. 거래 접수 latency와 이상거래 detection latency를 같은 지표로 보면 Consumer backlog를 놓칠 수 있다.
+API p95가 안정적이어도 Consumer backlog가 쌓일 수 있다. 사용자는 거래 접수 응답을 빠르게 받지만, 이상거래 결과는 뒤늦게 저장될 수 있다. 그래서 이 프로젝트에서는 API latency를 “접수 계층의 신호”로 제한하고, Consumer Lag과 detection latency를 별도 SLI로 보려고 했다.
 
 ## 초기 설계
 
@@ -11,6 +11,8 @@ API는 request count, API latency, error rate, Kafka publish success/failure를 
 ## 실제로 막힌 지점
 
 처음에는 API latency가 낮으면 전체 시스템이 정상이라고 해석하기 쉽다. 하지만 Kafka backlog가 쌓이면 API는 계속 빠르게 응답하면서도 탐지는 뒤에서 밀린다. 이때 필요한 질문은 “API가 빨랐는가”가 아니라 “Consumer가 얼마나 늦게 탐지했는가”다.
+
+Phase 12/13 k6 script는 API latency와 request failure를 직접 측정할 수 있었지만, Consumer Lag dashboard까지 자동 evidence로 연결되지는 않았다. 그래서 현재 문서는 Kafka UI, processing log, fraud result 조회, Redis degraded metric을 함께 보도록 남기고, dashboard hardening은 후속 작업으로 분리했다.
 
 ```mermaid
 flowchart LR
@@ -26,6 +28,10 @@ flowchart LR
 ## 확인한 증거
 
 `docs/08-observability.md`와 `docs/15-slo-and-operational-readiness.md`에 API 지표와 Consumer 지표를 분리했다. load/failure 문서에서는 Consumer Lag max, recovery time, detection latency, DLT count, Redis degraded count를 함께 보도록 정리했다.
+
+## 트러블슈팅에서 남긴 판단
+
+metric에는 `eventId`, `traceId`, `userId` 같은 고유 식별자를 넣지 않는다. 개별 이벤트 추적은 log와 DB에서 하고, metric은 추세와 alert를 위한 bounded dimension으로 제한한다. 특히 Consumer Lag과 detection latency는 전체 흐름의 지연을 보는 지표이지 특정 사용자를 metric label로 추적하는 장치가 아니다.
 
 ## 바꾼 설계
 

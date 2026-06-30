@@ -16,17 +16,17 @@
 
 | No. | Topic | Draft Sources | Main Question |
 |---:|---|---|---|
-| 1 | [Kafka 기반 이상거래 탐지 시스템을 만든 이유](series/01-kafka-fraud-system-problem.md) | `drafts/01`, `drafts/02`, `drafts/03` | API와 Consumer를 왜 분리했는가 |
-| 2 | [이벤트 스키마와 감사 저장 모델](series/02-event-schema-audit-model.md) | `drafts/04-*` | `eventId`, `traceId`, `userId` partition key를 어떻게 잡았는가 |
-| 3 | [Consumer manual ack와 재처리 가능성](series/03-consumer-manual-ack-reprocessing.md) | `drafts/05-*` | offset commit 시점을 어디에 둘 것인가 |
-| 4 | [Redis sliding window와 degraded mode](series/04-redis-sliding-window-degraded-mode.md) | `drafts/06`, `drafts/07`, `drafts/10` | Redis 장애를 탐지 실패로 볼 것인가, degraded 결과로 남길 것인가 |
-| 5 | [DLT 재처리 API와 운영자 조작 보호](series/05-dlt-reprocessing-admin-safety.md) | `drafts/07`, `drafts/09`, `drafts/17` | 재처리/폐기를 어떻게 감사 가능하게 만들 것인가 |
-| 6 | [Consumer Lag과 Detection Latency 관측](series/06-consumer-lag-detection-latency.md) | `drafts/08-*` | API latency와 detection latency를 왜 분리했는가 |
-| 7 | [k6 부하/장애 테스트로 한계 측정](series/07-load-failure-test-evidence.md) | `drafts/09`, `drafts/11`, `drafts/15`, `drafts/16` | peak, duplicate, Redis down에서 어떤 지표를 볼 것인가 |
-| 8 | [PaySim 데이터를 replay 가능한 이벤트로 바꾸기](series/08-paysim-replayable-events.md) | `drafts/18` through `drafts/23` | raw data를 커밋하지 않으면서 재현성을 어떻게 남길 것인가 |
-| 9 | [PaySim replay evaluation을 evidence로 만들기](series/09-paysim-replay-evaluation-evidence.md) | `drafts/24` through `drafts/28` | precision/recall을 과장하지 않으려면 무엇을 기록해야 하는가 |
-| 10 | [ruleVersion 추적성 설계](series/10-rule-version-traceability.md) | `drafts/29` through `drafts/31` | Java/Python drift와 active/stored version 혼동을 어떻게 막을 것인가 |
-| 11 | [ruleVersion 변경 runbook과 evidence closure](series/11-rule-version-change-runbook-evidence-closure.md) | `drafts/32`, `drafts/33` | hold/rollback readiness와 automatic rollback을 어떻게 구분할 것인가 |
+| 1 | [API는 빨랐는데 탐지는 늦을 수 있다](series/01-kafka-fraud-system-problem.md) | `drafts/01`, `drafts/02`, `drafts/03` | API와 Consumer를 왜 분리했는가 |
+| 2 | [eventId, traceId, userId를 같은 식별자로 쓰지 않은 이유](series/02-event-schema-audit-model.md) | `drafts/04-*` | 추적, 중복 방어, ordering 기준을 어떻게 분리했는가 |
+| 3 | [DB 저장 전에 ack하면 무엇이 사라지는가](series/03-consumer-manual-ack-reprocessing.md) | `drafts/05-*` | offset commit 시점을 어디에 둘 것인가 |
+| 4 | [Redis가 죽으면 탐지를 멈출 것인가](series/04-redis-sliding-window-degraded-mode.md) | `drafts/06`, `drafts/07`, `drafts/10` | Redis 장애를 탐지 실패로 볼 것인가, degraded 결과로 남길 것인가 |
+| 5 | [재처리는 복구 기능이면서 운영자 조작 위험이다](series/05-dlt-reprocessing-admin-safety.md) | `drafts/07`, `drafts/09`, `drafts/17` | 재처리/폐기를 어떻게 감사 가능하게 만들 것인가 |
+| 6 | [API p95가 정상인데 탐지가 밀리는 상황](series/06-consumer-lag-detection-latency.md) | `drafts/08-*` | API latency와 detection latency를 왜 분리했는가 |
+| 7 | [k6 결과를 좋게 보이게 쓰지 않기](series/07-load-failure-test-evidence.md) | `drafts/09`, `drafts/11`, `drafts/15`, `drafts/16` | peak, duplicate, Redis down에서 어떤 지표를 볼 것인가 |
+| 8 | [raw PaySim을 커밋하지 않고 재현성을 남기기](series/08-paysim-replayable-events.md) | `drafts/18` through `drafts/23` | raw data를 커밋하지 않으면서 재현성을 어떻게 남길 것인가 |
+| 9 | [precision/recall을 믿기 전에 분모부터 고정했다](series/09-paysim-replay-evaluation-evidence.md) | `drafts/24` through `drafts/28` | precision/recall을 과장하지 않으려면 무엇을 기록해야 하는가 |
+| 10 | [active, stored, evaluator ruleVersion을 섞지 않기](series/10-rule-version-traceability.md) | `drafts/29` through `drafts/31` | Java/Python drift와 active/stored version 혼동을 어떻게 막을 것인가 |
+| 11 | [마지막 정리: 설명 가능한 변경만 남기기](series/11-rule-version-change-runbook-evidence-closure.md) | `drafts/32`, `drafts/33` | hold/rollback readiness와 automatic rollback을 어떻게 구분할 것인가 |
 
 ## Draft Archive
 

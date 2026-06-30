@@ -1,8 +1,8 @@
-# PaySim 데이터를 replay 가능한 이벤트로 바꾸기
+# raw PaySim을 커밋하지 않고 재현성을 남기기
 
 ## 문제
 
-PaySim은 이상거래 평가에 쓸 수 있는 synthetic dataset이지만, raw CSV를 그대로 저장소에 넣으면 용량과 정책 문제가 생긴다. 또한 `nameOrig`, `nameDest`처럼 계정처럼 보이는 identifier를 그대로 쓰면 재현성과 개인정보 경계가 약해진다.
+PaySim raw CSV를 저장소에 넣으면 재현은 쉬워진다. 하지만 대용량 파일, 라이선스/출처 관리, 계정처럼 보이는 identifier 노출 문제가 따라온다. 반대로 raw data를 모두 제외하면 어떤 mapping과 validation 기준으로 replay했는지 알기 어렵다. 이 글의 핵심은 raw data를 커밋하지 않으면서도 재현성의 흔적을 남기는 trade-off다.
 
 ## 초기 설계
 
@@ -24,6 +24,14 @@ flowchart LR
 raw data를 커밋하면 재현은 쉬워진다. 하지만 데이터 정책, repository size, identifier 노출 문제가 생긴다. 반대로 아무것도 남기지 않으면 다른 사람이 어떤 mapping과 validation 기준으로 replay했는지 알 수 없다.
 
 hash/salt 정책도 필요했다. default-local salt로 만든 output을 공유하면 재현성은 생기지만 보안 경계가 약하다. 그래서 manifest에는 salt 값이 아니라 `hashSaltSource`, algorithm, prefix length 같은 provenance만 남기도록 했다.
+
+preprocessing이 성공처럼 보여도 rejected row 비율이 높으면 replay evidence로 쓰기 어렵다. 그래서 validation script는 rejected ratio를 계산하고, 기본 기준을 넘으면 실패하도록 했다.
+
+## 트러블슈팅에서 남긴 판단
+
+CI에서 Kaggle download나 full preprocessing을 실행하지 않는다. 인증, 네트워크, 대용량 파일 때문에 CI가 불안정해질 수 있기 때문이다. 대신 raw data 없이 실행 가능한 fixture test와 data policy check를 CI-safe guardrail로 둔다.
+
+sample도 아무 파일이나 허용하지 않는다. 100~1,000건 이하, raw `nameOrig`/`nameDest` 미포함, hashed identifier 사용, 1MB 이하라는 조건을 둔다. CSV sample은 raw column을 실수로 보존할 수 있어 제외한다.
 
 ## 확인한 증거
 
