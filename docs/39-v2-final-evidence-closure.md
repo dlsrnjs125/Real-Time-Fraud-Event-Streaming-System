@@ -1,4 +1,4 @@
-# V2 Final Portfolio Summary
+# V2 Final Evidence Closure
 
 ## 1. Purpose
 
@@ -115,7 +115,7 @@ Local/manual actuator and admin curl checks are documented in `docs/37-v2-rule-v
 - Local/manual checks are not CI-safe unless explicitly automated.
 - README intentionally omits detailed V2 phase history.
 
-## 11. Interview Answer Pack
+## 11. Review Q&A
 
 ### Why did you add V2?
 
@@ -168,7 +168,7 @@ AI-assisted drafts were treated as candidates, not accepted blindly. The final d
 - Time-bounded summary query and index strategy remain future work.
 - Dashboard integration remains future work.
 
-## 13. Portfolio Links
+## 13. Evidence Links
 
 - Evidence Index: `docs/20-evidence-index.md`
 - Troubleshooting Index: `docs/21-troubleshooting-index.md`
@@ -178,4 +178,4 @@ AI-assisted drafts were treated as candidates, not accepted blindly. The final d
 - V2 Rule Version Observability: `docs/37-v2-rule-version-observability-evidence.md`
 - V2 Rule Version Change Runbook: `docs/38-v2-rule-version-change-runbook.md`
 - PaySim Data Scripts: `scripts/data/README.md`
-- Blog Drafts: `blog/25-v2-paysim-replay-evaluation-evidence.md` through `blog/33-v2-final-portfolio-summary.md`
+- Blog Drafts: `blog/25-v2-paysim-replay-evaluation-evidence.md` through `blog/33-v2-final-evidence-closure.md`

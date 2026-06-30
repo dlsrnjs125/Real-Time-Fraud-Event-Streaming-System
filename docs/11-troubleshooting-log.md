@@ -2510,7 +2510,7 @@ Runbook과 readiness 문서에 time range filter, `(rule_version, detected_at)` 
 README는 entry point로 유지하고, 최종 요약은 docs에 둡니다.
 
 해결:
-V2 Phase 15 최종 요약은 `docs/39-v2-final-portfolio-summary.md`로 분리하고 README는 변경하지 않습니다.
+V2 Phase 15 최종 요약은 `docs/39-v2-final-evidence-closure.md`로 분리하고 README는 변경하지 않습니다.
 
 ## V2 Phase 15 final-check를 production fraud 성능 보장으로 오해하는 문제
 

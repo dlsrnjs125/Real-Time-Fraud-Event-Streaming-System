@@ -99,6 +99,7 @@ OpenAPI contract: `http://localhost:8080/swagger-ui/index.html`
 
 Start here:
 
+- [Documentation Index](docs/00-index.md)
 - [Domain Problem](docs/01-domain-problem.md)
 - [Architecture Decision](docs/02-architecture-decision.md)
 - [Development Roadmap](docs/13-development-roadmap.md)

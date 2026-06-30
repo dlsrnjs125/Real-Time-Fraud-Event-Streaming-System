@@ -1338,7 +1338,7 @@ make final-check
 ### 잘한 점
 
 - 기능을 계속 추가하기보다 V2 Phase 7~14 evidence를 닫는 최종 요약 문서를 추가했습니다.
-- README를 변경하지 않고, 상세 evidence map과 answer pack을 `docs/39-v2-final-portfolio-summary.md`로 분리했습니다.
+- README를 변경하지 않고, 상세 evidence map과 Review Q&A를 `docs/39-v2-final-evidence-closure.md`로 분리했습니다.
 - Phase별 problem, decision, output, verification, limitation을 한 표에서 추적할 수 있게 했습니다.
 - implemented, local/manual, future work를 분리해 완료 범위를 과장하지 않았습니다.
 - `make final-check`가 readiness guardrail이며 production fraud quality를 보장하지 않는다고 명시했습니다.

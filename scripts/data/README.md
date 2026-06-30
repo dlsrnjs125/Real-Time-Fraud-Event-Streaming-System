@@ -114,7 +114,7 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 12: per-result `ruleVersion` propagation, strict evaluator mode, and fixture-based coverage/readiness check
 - V2 Phase 13: runtime/admin ruleVersion observability for app-consumer active version and stored app-api result summaries
 - V2 Phase 14: ruleVersion change runbook and rollback readiness evidence; PaySim evaluator strict mode and contract verifiers are pre-change evidence, while actuator/admin checks remain local/manual
-- V2 Phase 15: final evidence closure, not a new data script phase; `docs/39-v2-final-portfolio-summary.md` links Phase 7~14 evidence while this README remains the PaySim command reference
+- V2 Phase 15: final evidence closure, not a new data script phase; `docs/39-v2-final-evidence-closure.md` links Phase 7~14 evidence while this README remains the PaySim command reference
 
 ## Command Matrix
 
@@ -204,7 +204,7 @@ Detailed pre-change/post-change checklist, rollback/hold criteria, and evidence 
 Phase 15 does not add a new PaySim data command.
 
 - PaySim commands remain documented here.
-- `docs/39-v2-final-portfolio-summary.md` links the Phase 7~14 evidence chain.
+- `docs/39-v2-final-evidence-closure.md` links the Phase 7~14 evidence chain.
 - `make final-check` remains the representative readiness guardrail.
 - Full PaySim raw data and full processed outputs remain excluded from the repository.
 - Local/manual replay, runtime curl, and DB export evidence remain separate from CI-safe fixture checks.

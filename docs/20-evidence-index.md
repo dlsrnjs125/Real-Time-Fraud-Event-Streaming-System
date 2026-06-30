@@ -30,7 +30,7 @@
 | V2 Phase 12 | Per-result rule version propagation evidence | `make verify-v2-phase12` | `docs/36-v2-result-rule-version-propagation-evidence.md` |
 | V2 Phase 13 | Runtime rule version observability evidence | `./gradlew test`, `make final-check`; `make verify-v2-phase13` for data/evaluation guardrails | `docs/37-v2-rule-version-observability-evidence.md` |
 | V2 Phase 14 | Rule version change runbook and rollback readiness evidence | `make final-check`, `./gradlew test`; local/manual actuator/admin checks documented in runbook | `docs/38-v2-rule-version-change-runbook.md` |
-| V2 Phase 15 | Final portfolio evidence closure | `make final-check`; documentation review | `docs/39-v2-final-portfolio-summary.md` |
+| V2 Phase 15 | Final evidence closure | `make final-check`; documentation review | `docs/39-v2-final-evidence-closure.md` |
 
 ## CI / Build
 
@@ -99,7 +99,7 @@
 | V2 result rule version propagation evidence | `docs/36-v2-result-rule-version-propagation-evidence.md` | 신규 detection result 단위 ruleVersion 저장/조회와 evaluator strict mode |
 | V2 runtime rule version observability evidence | `docs/37-v2-rule-version-observability-evidence.md` | active ruleVersion runtime metadata와 stored result ruleVersion summary |
 | V2 rule version change runbook | `docs/38-v2-rule-version-change-runbook.md` | ruleVersion 변경 전후 checklist, rollback/hold 기준, evidence template |
-| V2 final portfolio summary | `docs/39-v2-final-portfolio-summary.md` | V2 Phase 7~14 evidence map, implemented/local-manual/future work, anti-overclaim guardrails |
+| V2 final evidence closure | `docs/39-v2-final-evidence-closure.md` | V2 Phase 7~14 evidence map, implemented/local-manual/future work, anti-overclaim guardrails |
 
 ## V2 PaySim Evidence
 
