@@ -50,7 +50,7 @@ Before changing `FraudRuleVersions.ACTIVE_RULE_VERSION`, record:
 CI-safe pre-change commands:
 
 ```bash
-PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+make scripts-check
 make test-data-scripts
 make data-policy-check
 make verify-paysim-rule-version-contract
@@ -61,6 +61,12 @@ make final-check
 ```
 
 `make verify-v2-phase13` is a V2 data/evaluation guardrail alias. It does not start local apps and does not run actuator/admin curl checks.
+
+If a local Python compile check is useful during investigation, keep it environment-specific rather than treating it as the portable runbook command. Example:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py
+```
 
 ## 4. Post-change Checklist
 
@@ -103,6 +109,15 @@ curl -H "X-Admin-Token: <local-admin-token>" \
   http://localhost:8080/api/v1/admin/fraud-results/rule-version-summary
 ```
 
+Single result detail:
+
+```bash
+curl -H "X-Admin-Token: <local-admin-token>" \
+  http://localhost:8080/api/v1/admin/events/<event-id>/fraud-result
+```
+
+For newly generated results, `ruleVersion` should equal the expected active ruleVersion. Legacy rows may have `ruleVersion: null`.
+
 Admin APIs require the existing local admin token. These curl checks require local app startup and are not CI-safe.
 
 Actuator info exposure is intended for local/internal operational checks. Do not expose it publicly without network-level controls or Spring Security hardening.
@@ -124,7 +139,48 @@ Hold the release or prepare rollback when any of these occur:
 
 Rollback readiness in this phase means decision criteria and evidence capture are defined. It does not mean automatic rollback has been implemented.
 
-## 6. Runtime vs Historical Semantics
+## 6. Decision Actions
+
+### Hold
+
+Use hold when the change has not been deployed yet or when pre-change evidence fails.
+
+Actions:
+
+- Stop merge or deploy of the ruleVersion change.
+- Keep `FraudRuleVersions.ACTIVE_RULE_VERSION` unchanged.
+- Do not update the Python evaluator `RULE_VERSION`.
+- Record the failed pre-check command and reason in the evidence template.
+- Fix contract, schema, or documentation mismatch before retrying.
+- Re-run the CI-safe pre-change checks before reconsidering the change.
+
+### Rollback
+
+Use rollback when the change has been deployed or locally applied and post-change evidence fails.
+
+Actions:
+
+- Revert or redeploy the previous app-consumer commit or image.
+- Verify `/actuator/info` exposes the previous expected `fraudRule.activeRuleVersion`.
+- Verify no new detection result is created with the unexpected ruleVersion.
+- Record stored result summary before and after rollback.
+- Re-run `make final-check`.
+- Record the decision, reason, and follow-up owner in the evidence template.
+
+These are manual operating actions. They do not implement automatic rollback.
+
+### Proceed
+
+Use proceed only when pre-check and post-check evidence match the expected ruleVersion and no unexpected version appears.
+
+Actions:
+
+- Record the passing pre-check and post-check evidence.
+- Record any normal mixed stored-version state caused by the deployment window.
+- Keep local/manual evidence separate from CI-safe verification.
+- Open follow-up work for dashboard, alert, backfill, or bounded summary query needs.
+
+## 7. Runtime vs Historical Semantics
 
 | Source | Meaning | Normal Mixed State | Investigate When |
 |---|---|---|---|
@@ -135,7 +191,7 @@ Rollback readiness in this phase means decision criteria and evidence capture ar
 
 Active runtime version and stored historical result version are intentionally different evidence dimensions. Mixed stored versions immediately after a rule deployment can be normal. Unexpected versions or missing version on new rows require investigation.
 
-## 7. Evidence Template
+## 8. Evidence Template
 
 Copy this template into a PR comment, release note, or local evidence record.
 
@@ -146,7 +202,7 @@ Expected activeRuleVersion:
 Change type: rule logic / threshold boundary / both
 
 Pre-check commands:
-- py_compile:
+- make scripts-check:
 - make test-data-scripts:
 - make data-policy-check:
 - make verify-paysim-rule-version-contract:
@@ -171,11 +227,11 @@ Reason:
 Follow-up:
 ```
 
-## 8. CI-safe vs Local/manual Boundary
+## 9. CI-safe vs Local/manual Boundary
 
 CI-safe checks:
 
-- `PYTHONPYCACHEPREFIX=/private/tmp/paysim-pycache .venv-data/bin/python -m py_compile scripts/data/*.py`
+- `make scripts-check`
 - `make test-data-scripts`
 - `make data-policy-check`
 - `make verify-paysim-rule-version-contract`
@@ -194,7 +250,7 @@ Local/manual checks:
 
 Local/manual checks are useful evidence, but they are not part of `final-check` because they may require local apps, network access, admin token, raw PaySim data, or DB exports.
 
-## 9. Summary Endpoint Cost Boundary
+## 10. Summary Endpoint Cost Boundary
 
 The current ruleVersion summary endpoint is all-time local/admin traceability evidence. It should not be used as a high-volume production dashboard query without additional design.
 
@@ -205,7 +261,7 @@ Before dashboard or alert usage, add:
 - expected latency and query cost measurements
 - security review for admin endpoint exposure
 
-## 10. Limitations
+## 11. Limitations
 
 - This runbook is not automatic rollback.
 - Actuator and admin checks are local/internal by default.
@@ -215,7 +271,7 @@ Before dashboard or alert usage, add:
 - RuleVersion traceability is not a fraud performance guarantee.
 - Historical rows may have null `rule_version`.
 
-## 11. Next Steps
+## 12. Next Steps
 
 - rule deployment changelog
 - ruleVersion summary time range filter
