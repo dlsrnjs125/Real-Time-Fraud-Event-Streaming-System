@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
 import com.example.fraud.consumer.kafka.KafkaTopicNames;
+import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -165,9 +167,15 @@ class DeadLetterEventServiceTest {
                 DeadLetterEventRepository repository,
                 DeadLetterEventPublisher publisher,
                 ObjectMapper objectMapper,
-                Clock clock
+                Clock clock,
+                FraudConsumerMetrics metrics
         ) {
-            return new DeadLetterEventService(repository, publisher, objectMapper, clock);
+            return new DeadLetterEventService(repository, publisher, objectMapper, clock, metrics);
+        }
+
+        @Bean
+        FraudConsumerMetrics fraudConsumerMetrics() {
+            return new FraudConsumerMetrics(new SimpleMeterRegistry());
         }
     }
 }

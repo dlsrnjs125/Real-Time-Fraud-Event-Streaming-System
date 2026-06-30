@@ -16,6 +16,8 @@ Redis down에서는 error rate만 보면 부족하다. Redis 의존 rule이 skip
 
 또한 API latency와 Consumer latency를 한 표에 섞으면 해석이 흐려진다. API가 빠른 것과 탐지가 빠른 것은 다르다.
 
+k6 summary는 클라이언트 관점의 p95/p99, request failure, check 결과를 보여준다. Grafana dashboard는 같은 시간대에 서버가 어떤 status와 degraded metric을 기록했는지 확인하는 보조 evidence로 사용한다.
+
 ## 확인한 증거
 
 `load-test/k6/README.md`, `docs/22-load-test-results.md`, `docs/23-load-test-results.md`에 시나리오와 결과 기록 양식을 둔다. 측정값은 실제 evidence가 있을 때만 쓴다. 이 글에서는 새 수치를 만들지 않고 측정 항목과 해석 기준만 정리한다.

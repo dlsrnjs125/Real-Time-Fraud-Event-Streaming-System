@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.fraud.common.event.FraudRuleCode;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class FraudConsumerMetricsTest {
@@ -45,5 +46,29 @@ class FraudConsumerMetricsTest {
         assertThat(result).isEqualTo("ok");
         assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_RECORD_LATENCY).count())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void recordsDetectionProcessingLatencyTimer() {
+        metrics.recordDetectionProcessingLatency(Duration.ofMillis(25));
+
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.DETECTION_PROCESSING_LATENCY).count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void ignoresNegativeDetectionProcessingLatency() {
+        metrics.recordDetectionProcessingLatency(Duration.ofMillis(-1));
+
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.DETECTION_PROCESSING_LATENCY).count())
+                .isZero();
+    }
+
+    @Test
+    void incrementsDltPublishedCounter() {
+        metrics.incrementDltPublished();
+
+        assertThat(meterRegistry.counter(FraudConsumerMetrics.DLT_PUBLISHED_TOTAL).count())
+                .isEqualTo(1.0);
     }
 }

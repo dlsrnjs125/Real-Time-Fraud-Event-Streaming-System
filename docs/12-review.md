@@ -93,6 +93,38 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 - DLT pending/reprocess/discard metric 보강
 - 반복 가능한 scheduled load test 또는 수동 evidence capture 절차 정리
 
+## Phase 17 Observability Dashboard Hardening Review
+
+### 발견한 문제
+
+- Grafana container와 mount 경로는 있었지만 datasource/dashboard provisioning 파일이 없어 Grafana가 비어 있었습니다.
+- Prometheus는 `app-api`, `app-consumer` Actuator endpoint를 scrape하도록 설정되어 있었지만 alert rule 파일은 연결되어 있지 않았습니다.
+- Redis degraded/skipped metric은 존재했지만 dashboard evidence로 바로 볼 수 있는 JSON이 없었습니다.
+- Kafka Consumer Lag metric은 code/config 검색 기준으로 실제 노출 metric이 확인되지 않았습니다.
+
+### 해결한 내용
+
+- Grafana Prometheus datasource provisioning을 추가했습니다.
+- Grafana dashboard provider와 `Fraud Event Streaming Observability` dashboard JSON을 추가했습니다.
+- Prometheus local alert rule 후보를 추가하고 `rule_files`와 Docker Compose mount를 연결했습니다.
+- Consumer processing latency timer를 `fraud.detection.processing.latency`로 추가했습니다.
+- DLT publish/reprocess/discard operation counter를 추가했습니다.
+- `make observability-check`로 provisioning file 존재, Docker Compose config, dashboard JSON parsing을 검증하게 했습니다.
+
+### 중요한 판단
+
+- 존재하지 않는 metric으로 fake Consumer Lag panel을 만들지 않았습니다.
+- detection latency라는 이름을 과장하지 않고, listener start부터 신규 fraud result 저장 완료까지를 processing latency로 명명했습니다.
+- metric tag에는 `eventId`, `traceId`, `userId`, `operatorId`, `reason`, raw payload를 넣지 않았습니다.
+- p95/p99는 Actuator histogram bucket이 노출되는 경우 dashboard에서 볼 수 있고, k6 terminal summary evidence와 역할을 분리했습니다.
+- Prometheus alert는 local rule 후보로만 추가했고 Alertmanager/Slack/PagerDuty는 구현하지 않았습니다.
+
+### 남은 한계
+
+- Kafka Consumer Lag은 Kafka client lag metric 노출 또는 Kafka exporter 연동 후 dashboard에 연결해야 합니다.
+- DLT status별 backlog gauge는 future work입니다.
+- Production dashboard hardening, notification routing, incident automation은 이번 범위가 아닙니다.
+
 ## V2 Phase 4 Review
 
 ### 검토한 기준

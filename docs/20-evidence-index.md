@@ -20,6 +20,7 @@
 | Phase 12 | Observability hardening | Prometheus/Grafana provisioning, alert rule, actuator metric check | `docs/08-observability.md` |
 | Phase 13 | Load and failure test evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
 | Phase 14 | Operational security and audit evidence | Admin 401 test, DLT audit log test, max attempts test | `docs/14-security-and-privacy.md`, `docs/18-runbook.md` |
+| Phase 17 | Local observability dashboard hardening | `make observability-check`, focused metric tests | `docs/40-phase17-observability-dashboard-hardening.md` |
 | Final Docs/Blog Closure | Final docs/blog/image closure | docs index check, blog series body check, image plan boundary | `docs/00-index.md`, `blog/README.md`, `blog/series/README.md`, `blog/image-plan.md` |
 | V2 Planning | PaySim preprocessing-first workflow design evidence | documentation review only, typed runtime feature and label sidecar separation | `docs/24-kaggle-paysim-data-provenance.md` through `docs/30-v2-visualization.md` |
 | V2 Phase 6 | PaySim replay result evaluation baseline | `make evaluate-paysim-sample`, `make test-data-scripts` | `docs/29-v2-result-evidence.md`, `blog/drafts/24-v2-paysim-replay-evaluation-baseline.md` |
@@ -68,6 +69,13 @@
 | Skipped rule metric | `curl http://localhost:8081/actuator/prometheus` | `fraud_rule_skipped_total` |
 | Detection degraded metric | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_degraded_total` |
 | Redis latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_redis_window_record_latency_seconds_*` |
+| Detection processing latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_processing_latency_seconds_*` |
+| DLT operation counters | `curl http://localhost:8080/actuator/prometheus` and `curl http://localhost:8081/actuator/prometheus` | `fraud_dlt_reprocess_requested_total`, `fraud_dlt_discarded_total`, `fraud_dlt_published_total` |
+| Prometheus targets UP | `http://localhost:9090/targets` | `app-api`, `app-consumer` scrape targets up after apps start |
+| Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |
+| Grafana dashboard loaded | `http://localhost:3000` | `Fraud Event Streaming Observability` under `Fraud Event Streaming` folder |
+| API status panel | `make k6-duplicate` then Grafana | 2xx/409 distribution visible in `API Requests by Status` |
+| Redis degraded/skipped panels | `make k6-redis-down` then Grafana | Redis degraded and skipped rule panels increase |
 
 ## Load Test Evidence
 

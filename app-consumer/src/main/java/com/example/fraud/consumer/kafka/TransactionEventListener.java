@@ -13,6 +13,8 @@ import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
+import java.time.Duration;
+import java.time.Instant;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +56,7 @@ public class TransactionEventListener {
 
     @KafkaListener(topics = KafkaTopicNames.TRANSACTION_EVENTS)
     public void onMessage(ConsumerRecord<String, TransactionEventMessage> record, Acknowledgment acknowledgment) {
+        Instant processingStartedAt = Instant.now();
         TransactionEventMessage message = record.value();
 
         ProcessingLogResult result = processingLogService.recordProcessedEvent(
@@ -88,6 +91,9 @@ public class TransactionEventListener {
         }
         FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
         recordDetectionMetrics(ruleResult, saveResult);
+        if (!saveResult.duplicateSkipped()) {
+            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, Instant.now()));
+        }
 
         acknowledgment.acknowledge();
 
