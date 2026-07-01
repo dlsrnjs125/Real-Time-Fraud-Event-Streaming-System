@@ -15,6 +15,7 @@ Phase 17 makes local observability evidence reproducible before adding blog scre
 - Prometheus `rule_files` configuration and Docker Compose rule mount
 - Consumer processing latency metric: `fraud.detection.processing.latency`
 - DLT operation counters: `fraud.dlt.published.total`, `fraud.dlt.reprocess.requested.total`, `fraud.dlt.discarded.total`
+- Kafka Consumer Lag exporter scrape and dashboard panel using `kafka_consumergroup_lag`
 - `make observability-check`
 - HTTP request histogram bucket configuration for `app-api` and `app-consumer`
 - DLT admin operation drill: `make failure-drill-dlt` and alias `make dlt-drill`
@@ -29,6 +30,7 @@ Phase 17 makes local observability evidence reproducible before adding blog scre
 - Rule Skipped Total
 - Redis Window Record Latency
 - Consumer Processing Latency for New Results
+- Kafka Consumer Lag by consumer group/topic
 - DLT Operation Counters
 - API p95 Latency
 
@@ -38,7 +40,7 @@ API p95 uses `http_server_requests_seconds_bucket`, enabled through `management.
 
 DLT Operation Counters can show No data until a DLT publish/reprocess/discard operation actually occurs. `fraud.dlt.published.total` is a DLT envelope publish success counter, not a unique DLT backlog count.
 
-Kafka Consumer Lag is not included because no real lag metric was confirmed in the current app code/config.
+Kafka Consumer Lag is connected through `kafka-exporter`, not an application-level fake metric. Prometheus scrapes `kafka-exporter:9308`, and the Grafana dashboard uses `kafka_consumergroup_lag` to show backlog by consumer group and topic. This evidence validates local Docker Compose observability wiring; it does not guarantee production capacity or a lag recovery SLO.
 
 ## DLT Admin Operation Drill
 
@@ -137,7 +139,7 @@ Expected Grafana path: Dashboards -> Fraud Event Streaming -> Fraud Event Stream
 - If API p95 shows No data, first verify `http_server_requests_seconds_bucket` from `app-api` with `/actuator/prometheus`.
 - If DLT Operation Counters show No data, generate a DLT publish/reprocess/discard operation or use DLT admin audit response evidence instead.
 - Use `make failure-drill-dlt` when the goal is to verify Admin discard, audit log, and DLT operation counter evidence.
-- Consumer Lag should not be shown through a fake panel. Add a panel only after Kafka client lag metric or Kafka exporter metric is actually exposed.
+- Consumer Lag should not be shown through a fake panel. In this local setup it is shown through the Kafka exporter metric `kafka_consumergroup_lag`; production alert thresholds and recovery interpretation still need separate tuning.
 - Metric tags must avoid high-cardinality and sensitive values such as `eventId`, `traceId`, `userId`, `operatorId`, `reason`, account identifiers, device identifiers, and raw payload.
 
 ## Excluded
@@ -145,7 +147,8 @@ Expected Grafana path: Dashboards -> Fraud Event Streaming -> Fraud Event Stream
 - Blog image files
 - Grafana managed alerts
 - Alertmanager or notification routing
-- Production monitoring hardening
-- Kafka Consumer Lag exporter integration
+- Production Kafka lag alert tuning
+- Consumer Lag recovery SLO
+- Managed Kafka / multi-broker dashboard hardening
 - Consumer failure-path DLT publish drill
 - DLT backlog/status gauge

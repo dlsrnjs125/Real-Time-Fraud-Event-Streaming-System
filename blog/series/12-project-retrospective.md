@@ -48,17 +48,17 @@ precision/recall 숫자보다 denominator, missing result, unsupported type, rej
 
 `make final-check`는 production certification이 아니라 repository readiness guardrail이다. Gradle build, Docker Compose config, script syntax, fixture 기반 data/evaluation verifier를 확인하지만 production fraud model accuracy나 production capacity를 보장하지 않는다.
 
-automatic rollback, alert, deployment changelog persistence, Grafana dashboard hardening, full PaySim evidence automation은 future work다. 구현하지 않은 것을 구현했다고 쓰지 않는 것이 이 프로젝트의 중요한 기준이 됐다.
+automatic rollback, alert, deployment changelog persistence, production-grade Grafana dashboard hardening, full PaySim evidence automation은 future work다. 구현하지 않은 것을 구현했다고 쓰지 않는 것이 이 프로젝트의 중요한 기준이 됐다.
 
 ## 아쉬웠던 점
 
-Consumer Lag과 detection latency는 핵심 신호로 설계했지만, 모든 시나리오에서 dashboard evidence까지 완전히 자동화하지는 못했다. Redis down, duplicate storm, DLT reprocess 같은 흐름도 local/manual evidence와 fixture verifier가 섞여 있어, 실행 환경이 바뀌면 다시 증거를 모아야 한다.
+Consumer Lag과 detection latency는 대표 dashboard evidence로 확인했지만, 모든 장애 시나리오에서 evidence capture를 자동화한 것은 아니다. Redis down, duplicate storm, DLT reprocess 같은 흐름도 local/manual evidence와 fixture verifier가 섞여 있어, 실행 환경이 바뀌면 다시 증거를 모아야 한다.
 
 PaySim full replay/evaluation도 raw data와 local infrastructure가 필요하다. CI-safe fixture는 contract를 검증하지만 full dataset evidence를 대체하지 않는다.
 
 ## 다음에 보완한다면
 
-먼저 Grafana dashboard와 alert를 더 단단하게 만들고 싶다. Consumer Lag, detection latency, DLT count, degraded count를 한 화면에서 해석할 수 있어야 한다.
+먼저 production-grade Grafana dashboard와 alert를 더 단단하게 만들고 싶다. Consumer Lag, detection latency, DLT count, degraded count를 장애 시나리오별 threshold와 recovery 기준으로 해석할 수 있어야 한다.
 
 다음으로 rule deployment changelog와 rollback automation을 분리해서 추가할 수 있다. 다만 automatic rollback을 넣기 전에 hold criteria, rollback readiness, operator approval, audit evidence가 먼저 정리되어야 한다.
 

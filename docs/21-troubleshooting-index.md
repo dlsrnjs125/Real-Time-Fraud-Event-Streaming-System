@@ -52,7 +52,8 @@
 - Empty Grafana after container startup: `docs/40-phase17-observability-dashboard-hardening.md`
 - Grafana datasource provisioning missing: `docs/40-phase17-observability-dashboard-hardening.md`
 - Dashboard query and metric name mismatch: `docs/40-phase17-observability-dashboard-hardening.md`
-- Consumer Lag metric not exposed: `docs/40-phase17-observability-dashboard-hardening.md`
+- Kafka Consumer Lag exporter/panel verification: `docs/40-phase17-observability-dashboard-hardening.md`
+- Fake Consumer Lag panel avoidance: `docs/40-phase17-observability-dashboard-hardening.md`
 - DLT Operation Counters No data: `docs/40-phase17-observability-dashboard-hardening.md`
 - DLT operation counter vs backlog gauge: `docs/40-phase17-observability-dashboard-hardening.md`
 - DLT admin operation drill: `docs/40-phase17-observability-dashboard-hardening.md`

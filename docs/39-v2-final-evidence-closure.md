@@ -97,8 +97,9 @@ Local/manual actuator and admin curl checks are documented in `docs/37-v2-rule-v
 - automatic rollback
 - ruleVersion summary time range filter
 - `(rule_version, detected_at)` index
-- Grafana dashboard
-- unexpected ruleVersion alert
+- production-grade Grafana dashboard hardening
+- ruleVersion-specific dashboard and alert
+- Consumer Lag recovery SLO and alert threshold tuning
 - historical `rule_version` backfill
 - model baseline comparison
 - full PaySim local evidence automation
@@ -166,7 +167,7 @@ AI-assisted drafts were treated as candidates, not accepted blindly. The final d
 - Deployment changelog persistence is not implemented.
 - Full historical backfill is not implemented.
 - Time-bounded summary query and index strategy remain future work.
-- Dashboard integration remains future work.
+- Production-grade dashboard hardening and alert tuning remain future work.
 
 ## 13. Evidence Links
 

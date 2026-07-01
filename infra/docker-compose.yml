@@ -35,6 +35,17 @@ services:
       kafka:
         condition: service_healthy
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    container_name: fraud-kafka-exporter
+    command:
+      - --kafka.server=kafka:29092
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   postgres:
     image: postgres:16
     container_name: fraud-postgres
@@ -72,6 +83,7 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules:ro
     depends_on:
       - kafka
+      - kafka-exporter
       - postgres
       - redis
 
