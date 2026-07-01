@@ -29,6 +29,14 @@ flowchart LR
 
 `docs/08-observability.md`와 `docs/15-slo-and-operational-readiness.md`에 API 지표와 Consumer 지표를 분리했다. Phase 17에서는 local Grafana dashboard와 Prometheus alert rule 후보를 추가했다. load/failure 문서에서는 Consumer Lag max, recovery time, detection latency, DLT count, Redis degraded count를 함께 보도록 정리하되, 실제 Consumer Lag Grafana panel은 metric 노출 전까지 만들지 않는다.
 
+![Prometheus scrape targets](../images/06-prometheus-targets-api-consumer-up.png)
+
+먼저 Prometheus가 `app-api`와 `app-consumer`의 `/actuator/prometheus` endpoint를 정상적으로 scrape하고 있는지 확인했다. Grafana dashboard는 이 scrape foundation 위에서 동작하므로, Target Health가 `UP`인지 확인하는 것이 관측 구성의 첫 번째 기준이었다.
+
+![Grafana observability dashboard](../images/06-grafana-observability-dashboard.png)
+
+Phase 17에서는 Prometheus scrape foundation 위에 Grafana datasource/dashboard provisioning을 추가해 local Docker Compose 환경에서 API status, HTTP request rate, API p95 latency, Redis degraded/skipped rule, Consumer processing latency, DLT operation counter를 확인할 수 있게 했다. Kafka Consumer Lag은 실제 lag metric 노출 또는 exporter 연동이 필요하므로 future work로 분리했다.
+
 ## 트러블슈팅에서 남긴 판단
 
 metric에는 `eventId`, `traceId`, `userId` 같은 고유 식별자를 넣지 않는다. 개별 이벤트 추적은 log와 DB에서 하고, metric은 추세와 alert를 위한 bounded dimension으로 제한한다. 특히 Consumer Lag과 detection latency는 전체 흐름의 지연을 보는 지표이지 특정 사용자를 metric label로 추적하는 장치가 아니다.

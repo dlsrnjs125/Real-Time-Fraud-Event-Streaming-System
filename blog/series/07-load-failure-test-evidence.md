@@ -12,6 +12,10 @@ k6 시나리오는 normal load, peak load, duplicate storm, Redis down, hot part
 
 duplicate storm에서는 API가 같은 eventId를 여러 번 받아도 최종 `FraudResult`가 하나인지 확인해야 한다. 이때 duplicate가 `409 CONFLICT`로 응답되면 k6의 기본 `http_req_failed`만 봤을 때 실패율이 높아 보일 수 있다. 하지만 프로젝트 정책상 허용된 duplicate response라면 최종 판단은 DB consistency와 함께 해야 한다.
 
+![k6 duplicate replay summary](../images/07-k6-duplicate-replay-summary.png)
+
+duplicate replay 시나리오에서는 같은 이벤트가 반복 요청되기 때문에 `http_req_failed`가 높게 보일 수 있다. 그래서 이 테스트는 HTTP failure rate만으로 실패 여부를 판단하지 않고, `accepted or duplicate` check가 통과했는지와 중복 결과가 추가 생성되지 않았는지를 함께 확인했다.
+
 Redis down에서는 error rate만 보면 부족하다. Redis 의존 rule이 skipped 되었는지, degraded result가 남았는지, Consumer가 계속 진행했는지를 같이 봐야 한다.
 
 또한 API latency와 Consumer latency를 한 표에 섞으면 해석이 흐려진다. API가 빠른 것과 탐지가 빠른 것은 다르다.
