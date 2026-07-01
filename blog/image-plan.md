@@ -4,7 +4,7 @@
 
 ## Current Status
 
-Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, and k6 duplicate replay interpretation. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
+Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, k6 duplicate replay interpretation, and Redis degraded drill evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
 
 ## Image Candidates
 
@@ -16,6 +16,8 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | 4 | 5 | DLT reprocess/discard flow | Mermaid in post | N/A | 운영자 조작과 audit log 설명 | Done as Mermaid |
 | 5 | 6 | Prometheus scrape targets | Screenshot | `blog/images/06-prometheus-targets-api-consumer-up.png` | Prometheus scrape target health for app-api and app-consumer | Added |
 | 6 | 6 | Grafana observability dashboard | Screenshot | `blog/images/06-grafana-observability-dashboard.png` | Local Grafana dashboard for API status, p95, Redis degraded, processing latency, and DLT operation counter | Added |
+| 6 | 4 | k6 Redis down summary | Screenshot | `blog/images/04-k6-redis-down-summary.png` | `make k6-redis-down` terminal summary with degraded/skipped metric before-after values | Added |
+| 6 | 4 | Prometheus Redis degraded metric | Screenshot | `blog/images/04-prometheus-redis-window-degraded-total.png` | Prometheus graph for `fraud_redis_window_degraded_total` after Redis down drill | Added |
 | 6 | 4 | Grafana Redis degraded dashboard | Screenshot | `blog/images/04-grafana-redis-degraded-dashboard.png` | Redis 장애 시 degraded/skipped signal 확인 | Capture candidate |
 | 7 | 7 | Grafana API status count | Screenshot | `blog/images/07-grafana-api-status-count.png` | duplicate replay 이후 status bucket 확인 | Capture candidate |
 | 8 | 7 | k6 duplicate replay summary | Screenshot | `blog/images/07-k6-duplicate-replay-summary.png` | k6 duplicate replay summary showing high `http_req_failed` with 100% `accepted or duplicate` checks | Added |

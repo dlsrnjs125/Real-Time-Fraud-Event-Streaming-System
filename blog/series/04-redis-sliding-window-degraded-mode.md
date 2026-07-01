@@ -45,6 +45,14 @@ ZSET member는 `eventId`, score는 `eventTime` epoch millis로 둔다. 같은 ev
 
 Redis 관련 문서는 `docs/06-redis-sliding-window.md`, 장애 대응은 `docs/10-failure-scenarios.md`와 `docs/18-runbook.md`에 정리했다. 관측 지표는 Redis command latency, degraded count, skipped rule count를 중심으로 둔다.
 
+![k6 Redis down summary](../images/04-k6-redis-down-summary.png)
+
+Redis down drill에서는 Redis를 중단한 상태에서 부하를 넣고, API 요청 자체는 실패시키지 않으면서 `fraud_redis_window_degraded_total`, `fraud_detection_degraded_total`, `fraud_rule_skipped_total`이 증가하는지 확인했다. 이 테스트의 목적은 Redis 장애를 정상 처리로 숨기는 것이 아니라, 실행되지 못한 rule과 degraded 결과를 관측 가능한 metric으로 남기는 것이었다. `RAPID_TRANSACTION_COUNT`, `WINDOW_AMOUNT_SUM`처럼 Redis window에 의존하는 rule이 함께 skip되면 skipped count는 이벤트 수보다 크게 보일 수 있다.
+
+![Prometheus Redis degraded metric](../images/04-prometheus-redis-window-degraded-total.png)
+
+Prometheus에서도 `fraud_redis_window_degraded_total`이 증가하는 것을 확인했다. 최종 정합성 기준은 PostgreSQL에 두고, Redis는 탐지 품질 저하를 설명하는 보조 컴포넌트로 다뤘다.
+
 ## 바꾼 설계
 
 Redis가 실패하면 Redis 의존 rule을 skipped로 기록하고, 나머지 rule은 실행한다. 결과에는 `degraded=true`와 `skippedRuleCodes`를 남긴다. 이렇게 하면 이벤트 처리 흐름은 유지하면서도 탐지 품질이 제한됐다는 사실을 DB와 metric으로 추적할 수 있다.
