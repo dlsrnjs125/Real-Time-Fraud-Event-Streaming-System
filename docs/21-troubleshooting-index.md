@@ -47,6 +47,17 @@
 - Phase 13 runbook: `docs/18-runbook.md#1-3-phase-13-load-test-runbook`
 - Phase 13 duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-13-duplicate-replay와-k6-failure-기준`
 
+## Observability
+
+- Empty Grafana after container startup: `docs/40-phase17-observability-dashboard-hardening.md`
+- Grafana datasource provisioning missing: `docs/40-phase17-observability-dashboard-hardening.md`
+- Dashboard query and metric name mismatch: `docs/40-phase17-observability-dashboard-hardening.md`
+- Consumer Lag metric not exposed: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT Operation Counters No data: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT operation counter vs backlog gauge: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT admin operation drill: `docs/40-phase17-observability-dashboard-hardening.md`
+- High-cardinality metric tag avoidance: `docs/08-observability.md`
+
 ## V2 PaySim Replay Evaluation
 
 - Replay evaluation overclaim risk: `docs/11-troubleshooting-log.md#v2-phase-7-replay-evaluation-결과를-탐지-성능으로-과대-해석할-위험`

@@ -1,17 +1,19 @@
 package com.example.fraud.api.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.example.fraud.api.admin.dlt.DeadLetterReprocessPublisher;
+import com.example.fraud.api.admin.dlt.DeadLetterAdminMetrics;
 import com.example.fraud.api.admin.dlt.DeadLetterPublishFailedException;
+import com.example.fraud.api.admin.dlt.DeadLetterReprocessPublisher;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,9 @@ class DeadLetterEventAdminApiTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private MeterRegistry meterRegistry;
 
     @MockBean
     private DeadLetterReprocessPublisher reprocessPublisher;
@@ -83,6 +88,7 @@ class DeadLetterEventAdminApiTest {
     @Test
     void reprocessesPendingDeadLetterEvent() throws Exception {
         insertDltEvent(3L, "evt-dlt-api-reprocess-001", "PENDING");
+        double before = metricCount(DeadLetterAdminMetrics.DLT_REPROCESS_REQUESTED_TOTAL, "success");
 
         mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 3L)
                         .header("X-Admin-Token", ADMIN_TOKEN)
@@ -96,6 +102,8 @@ class DeadLetterEventAdminApiTest {
                 .andExpect(jsonPath("$.reprocessAttemptId").value("1"));
 
         assertAudit("DLT_REPROCESS", "SUCCESS", 3L, "operator-001");
+        assertThat(metricCount(DeadLetterAdminMetrics.DLT_REPROCESS_REQUESTED_TOTAL, "success") - before)
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -197,6 +205,7 @@ class DeadLetterEventAdminApiTest {
     @Test
     void discardsPendingDeadLetterEvent() throws Exception {
         insertDltEvent(5L, "evt-dlt-api-discard-001", "PENDING");
+        double before = metricCount(DeadLetterAdminMetrics.DLT_DISCARDED_TOTAL, "success");
 
         mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/discard", 5L)
                         .header("X-Admin-Token", ADMIN_TOKEN)
@@ -209,6 +218,8 @@ class DeadLetterEventAdminApiTest {
                 .andExpect(jsonPath("$.status").value("DISCARDED"));
 
         assertAudit("DLT_DISCARD", "SUCCESS", 5L, "operator-001");
+        assertThat(metricCount(DeadLetterAdminMetrics.DLT_DISCARDED_TOTAL, "success") - before)
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -375,6 +386,10 @@ class DeadLetterEventAdminApiTest {
                 String.valueOf(dlqId)
         );
         assertThat(requestId).isNull();
+    }
+
+    private double metricCount(String metricName, String result) {
+        return meterRegistry.counter(metricName, "result", result).count();
     }
 
     private String payloadJson(String eventId) {

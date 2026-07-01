@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -13,12 +13,16 @@ help:
 	@echo "  make redis-integration-test - Run Redis integration tests"
 	@echo "  make failure-drill-redis - Run Redis down failure drill"
 	@echo "  make failure-drill-consumer - Run Consumer restart drill"
+	@echo "  make failure-drill-dlt - Run local DLT admin operation drill with synthetic DB seed"
+	@echo "  make dlt-drill      - Alias for failure-drill-dlt"
 	@echo "  make failure-drill  - Run automated Redis failure drill only"
 	@echo "  make ci-check       - Run lightweight CI checks"
 	@echo "  make clean          - Clean Gradle build outputs"
 	@echo "  make api            - Run app-api"
 	@echo "  make consumer       - Run app-consumer"
 	@echo "  make infra-config   - Validate docker compose config"
+	@echo "  make observability-check - Validate local Prometheus/Grafana provisioning files"
+	@echo "  make observability-rules-check - Validate Prometheus alert rule syntax with promtool"
 	@echo "  make infra-up       - Start local infrastructure"
 	@echo "  make infra-down     - Stop local infrastructure"
 	@echo "  make infra-ps       - Show local infrastructure status"
@@ -52,6 +56,7 @@ help:
 	@echo "  make v2-phase8-evidence - Generate local/manual Phase 8 evidence from existing detection result export"
 	@echo "  make v2-phase9-evidence - Generate local/manual Phase 9 evidence from existing detection result export"
 	@echo "  make test-data-scripts - Run Python data script tests"
+	@echo "  make test-data-scripts-ci - Run Python data script tests without bootstrapping KaggleHub"
 	@echo "  make topics         - Create Kafka topics"
 	@echo "  make smoke          - Run local smoke test"
 	@echo "  make k6-smoke       - Run short k6 smoke scenario"
@@ -93,6 +98,11 @@ failure-drill-redis:
 failure-drill-consumer:
 	bash scripts/failure_drills/consumer_restart_drill.sh
 
+failure-drill-dlt:
+	bash scripts/failure_drills/dlt_admin_drill.sh
+
+dlt-drill: failure-drill-dlt
+
 failure-drill:
 	$(MAKE) failure-drill-redis
 	@echo "Consumer restart drill requires manual app-consumer restart. Run: make failure-drill-consumer"
@@ -100,7 +110,7 @@ failure-drill:
 ci-check:
 	./gradlew test
 	./gradlew assemble
-	$(MAKE) test-data-scripts
+	$(MAKE) test-data-scripts-ci
 	$(MAKE) data-policy-check
 
 clean:
@@ -114,6 +124,17 @@ consumer:
 
 infra-config:
 	docker compose -f infra/docker-compose.yml config
+
+observability-check:
+	docker compose -f infra/docker-compose.yml config >/dev/null
+	test -f infra/grafana/provisioning/datasources/prometheus.yml
+	test -f infra/grafana/provisioning/dashboards/dashboard-provider.yml
+	test -f infra/grafana/dashboards/fraud-observability.json
+	python3 -m json.tool infra/grafana/dashboards/fraud-observability.json >/dev/null
+	test -f infra/prometheus/rules/fraud-alerts.yml
+
+observability-rules-check:
+	docker run --rm --entrypoint promtool -v "$$(pwd)/infra/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check rules /etc/prometheus/rules/fraud-alerts.yml
 
 infra-up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -226,6 +247,9 @@ v2-phase9-evidence: evaluate-paysim-threshold-policy-report
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
+test-data-scripts-ci:
+	python3 -m unittest discover -s scripts/data -p 'test_*.py'
+
 topics:
 	./scripts/create-topics.sh
 
@@ -251,4 +275,4 @@ k6-duplicate-check:
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
-final-check: build infra-config scripts-check verify-v2-phase13
+final-check: build infra-config observability-check scripts-check verify-v2-phase13

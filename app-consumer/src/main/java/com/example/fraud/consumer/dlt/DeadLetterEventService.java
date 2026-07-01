@@ -3,6 +3,7 @@ package com.example.fraud.consumer.dlt;
 import com.example.fraud.common.dlt.DeadLetterEnvelope;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.consumer.kafka.KafkaTopicNames;
+import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
@@ -21,17 +22,20 @@ public class DeadLetterEventService {
     private final DeadLetterEventPublisher publisher;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final FraudConsumerMetrics metrics;
 
     public DeadLetterEventService(
             DeadLetterEventRepository repository,
             DeadLetterEventPublisher publisher,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            FraudConsumerMetrics metrics
     ) {
         this.repository = repository;
         this.publisher = publisher;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -62,6 +66,7 @@ public class DeadLetterEventService {
                 payload,
                 failedAt
         ), event.getDltTopic());
+        metrics.incrementDltPublished();
     }
 
     private DeadLetterEventEntity saveNew(

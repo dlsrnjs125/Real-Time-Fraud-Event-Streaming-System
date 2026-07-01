@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: fraud-observability
+    orgId: 1
+    folder: Fraud Event Streaming
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

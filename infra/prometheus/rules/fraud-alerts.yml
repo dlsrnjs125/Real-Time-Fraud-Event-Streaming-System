@@ -1,0 +1,38 @@
+groups:
+  - name: fraud-observability
+    rules:
+      - alert: FraudApiDown
+        expr: up{job="app-api"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "app-api target is down"
+          description: "Prometheus could not scrape app-api for more than 1 minute."
+
+      - alert: FraudConsumerDown
+        expr: up{job="app-consumer"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "app-consumer target is down"
+          description: "Prometheus could not scrape app-consumer for more than 1 minute."
+
+      - alert: FraudRedisDegradedIncreased
+        expr: increase(fraud_detection_degraded_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis degraded fraud detection increased"
+          description: "Fraud detection degraded count increased during the last 5 minutes."
+
+      - alert: FraudRuleSkippedIncreased
+        expr: increase(fraud_rule_skipped_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Fraud rule skipped count increased"
+          description: "One or more fraud rules were skipped during the last 5 minutes."

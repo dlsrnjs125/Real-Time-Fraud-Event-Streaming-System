@@ -28,6 +28,7 @@ public class DeadLetterEventAdminService {
     private final DltReprocessProperties reprocessProperties;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final DeadLetterAdminMetrics metrics;
 
     public DeadLetterEventAdminService(
             DeadLetterEventRepository repository,
@@ -35,7 +36,8 @@ public class DeadLetterEventAdminService {
             AdminAuditLogService auditLogService,
             DltReprocessProperties reprocessProperties,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            DeadLetterAdminMetrics metrics
     ) {
         this.repository = repository;
         this.publisher = publisher;
@@ -43,6 +45,7 @@ public class DeadLetterEventAdminService {
         this.reprocessProperties = reprocessProperties;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     @Transactional(readOnly = true)
@@ -82,12 +85,15 @@ public class DeadLetterEventAdminService {
             publisher.publish(payload);
             event.markReprocessed(now);
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "reprocessed");
+            metrics.incrementReprocessRequested("success");
         } catch (DeadLetterPublishFailedException exception) {
             event.markReprocessFailed(now);
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, "publish_failed");
+            metrics.incrementReprocessRequested("failed");
             throw exception;
         } catch (ApiException exception) {
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, exception.errorCode().name());
+            metrics.incrementReprocessRequested("failed");
             throw exception;
         }
         return new DlqReprocessResponse(
@@ -105,8 +111,10 @@ public class DeadLetterEventAdminService {
         try {
             event.discard(reason, OffsetDateTime.now(clock));
             recordDiscardAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "discarded");
+            metrics.incrementDiscarded("success");
         } catch (ApiException exception) {
             recordDiscardAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, exception.errorCode().name());
+            metrics.incrementDiscarded("failed");
             throw exception;
         }
         return new DlqDiscardResponse(event.getId(), event.getStatus().name(), traceId);
