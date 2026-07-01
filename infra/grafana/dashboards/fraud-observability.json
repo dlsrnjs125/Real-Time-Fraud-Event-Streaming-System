@@ -560,7 +560,7 @@
         }
       ],
       "title": "DLT Operation Counters",
-      "type": "barchart"
+      "type": "bargauge"
     },
     {
       "datasource": {

@@ -96,7 +96,7 @@ Phase 17 local dashboard에서 실제 연결한 panels:
 
 API Requests by Status panel은 dashboard time range 내 status별 `increase`를 Bar gauge로 보여줍니다. 목적은 duplicate replay 후 `202` accepted와 `409` conflict bucket을 읽기 쉽게 확인하는 것입니다.
 
-DLT Operation Counters는 DLT publish/reprocess/discard 이벤트가 발생한 뒤에 증가합니다. 정상 duplicate replay나 Redis down drill만 실행한 dashboard에서는 No data가 정상일 수 있습니다. `fraud.dlt.published.total`은 unique DLT backlog count가 아니라 DLT envelope publish success count입니다. DLT backlog/status count는 future work이고, DLT evidence는 별도 DLT admin audit response screenshot과 함께 해석합니다.
+DLT Operation Counters는 DLT publish/reprocess/discard 이벤트가 발생한 뒤에 증가합니다. 정상 duplicate replay나 Redis down drill만 실행한 dashboard에서는 No data가 정상일 수 있습니다. DLT drill 성공 후에는 Bar gauge panel에서 Admin discard operation counter 증가를 확인합니다. `fraud.dlt.published.total`은 unique DLT backlog count가 아니라 DLT envelope publish success count입니다. DLT backlog/status count는 future work이고, DLT evidence는 별도 DLT admin audit response screenshot과 함께 해석합니다.
 
 Local Admin operation evidence는 `make failure-drill-dlt`로 만들 수 있습니다. 이 target은 synthetic `PENDING` DLT row를 만들고 실제 Admin discard API를 호출한 뒤 `admin_audit_logs`와 `fraud_dlt_discarded_total{result="success"}` 증가를 확인합니다. 이는 Consumer failure path로 DLT publish를 재현하는 drill이 아니라, 이미 DLT에 격리된 이벤트를 운영자가 discard했을 때 audit과 operation counter가 남는지 검증하는 drill입니다. 기본적으로 DB evidence를 남기며, 반복 실행 시 DB row 정리가 필요하면 `KEEP_DLT_DRILL_EVIDENCE=false make failure-drill-dlt`로 실행합니다.
 
