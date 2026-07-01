@@ -12,6 +12,8 @@
 
 Kafka는 단순 큐가 아니라 재처리 가능한 이벤트 로그로 보았다. Consumer가 잠시 멈추거나 장애가 나도 topic에 남은 이벤트와 offset을 기준으로 backlog, lag, 재처리 흐름을 설명할 수 있어야 했다.
 
+Kafka를 replay 가능한 log로 볼 수 있었던 이유는 메시지가 Consumer에게 전달되는 즉시 사라지는 구조가 아니라, topic partition에 append되고 retention 기간 동안 보관되는 구조이기 때문이다. Consumer는 메시지를 삭제하는 것이 아니라 consumer group별 committed offset을 이동시키며 어디까지 읽었는지를 기록한다. 예를 들어 `transaction-events` topic의 partition-0에 offset 100, 101, 102번 이벤트가 쌓여 있고 Consumer가 101번까지 처리했다면, 이벤트 자체는 retention 동안 남아 있고 Consumer Group의 committed offset만 갱신된다. 그래서 Consumer가 중단되거나 처리 지연이 생겼을 때 어느 partition의 어느 offset부터 밀렸는지를 lag와 backlog로 설명할 수 있다.
+
 단순 작업 분배가 목적이었다면 Queue만으로도 충분하다. 하지만 이 프로젝트에서는 Consumer 중단 이후 offset, lag, replay 기준으로 처리 지연을 설명해야 했기 때문에 Kafka를 선택했다.
 
 ```mermaid
@@ -26,9 +28,17 @@ flowchart LR
     DLT --> Admin[Admin reprocess/discard API]
 ```
 
+이 구조에서 API는 탐지 결과를 만들지 않는다. API는 이벤트를 검증하고 Kafka에 발행한 뒤 `202 Accepted` 성격의 접수 응답만 반환한다. 이후 Consumer가 Kafka record를 읽고 Rule Engine과 Redis sliding window로 탐지를 수행한 뒤, PostgreSQL에 `fraud_detection_result`와 `event_processing_log`를 저장한다.
+
+중요한 기준은 ack 시점이다. Consumer는 메시지를 읽자마자 ack하지 않고, 탐지 결과와 처리 로그가 저장된 뒤에만 ack한다. 실패하면 retry topic 또는 DLT로 분리하고, 원본 topic, partition, offset, `eventId`, `traceId`를 함께 남긴다.
+
 ## 동기 처리로 묶으면 어떤 문제가 생기는가
 
 비동기 구조를 선택하면 API 응답에서 탐지 결과를 즉시 줄 수 없다. `202 Accepted`나 접수 응답은 이벤트가 들어왔다는 의미이지 탐지가 끝났다는 의미가 아니다. 이 차이를 문서와 지표에서 분리하지 않으면 API가 정상이라도 탐지가 지연되는 상황을 놓칠 수 있다.
+
+예를 들어 API 요청 안에서 Redis 조회와 Rule Engine 실행, PostgreSQL 저장까지 모두 끝내려고 하면 Redis timeout이나 rule 계산 지연이 그대로 API latency 상승으로 이어진다. 반대로 API가 Kafka 발행까지만 하고 빠르게 응답하면 접수 계층은 안정적으로 유지할 수 있지만, Consumer가 밀릴 경우 탐지 완료는 늦어질 수 있다.
+
+그래서 이 프로젝트에서는 “API가 빠르다”를 “탐지가 빠르다”로 해석하지 않았다. API p95는 접수 계층의 신호이고, Consumer Lag과 detection latency는 탐지 계층의 신호로 분리했다.
 
 또 하나의 결정은 Kafka partition key였다. 처음에는 `eventId`를 key로 쓰면 중복 추적이 쉬워 보였다. 하지만 이상거래 탐지는 사용자별 최근 거래 순서가 중요하다. `eventId`는 이벤트마다 달라 같은 사용자의 거래가 여러 partition으로 흩어질 수 있다. 그래서 기본 key를 `userId`로 바꿨다.
 
@@ -38,15 +48,23 @@ flowchart LR
 
 `docs/11-troubleshooting-log.md`에서 `eventId` partition key 후보는 추적이 쉽지만 사용자별 순서를 깨뜨릴 수 있는 선택으로 정리했다. 반대로 `userId` key는 hot partition 위험을 만든다. 이 trade-off는 숨기지 않고 load test와 troubleshooting 대상에 남겼다.
 
+예를 들어 같은 사용자의 거래 3건이 짧은 시간 안에 발생했다고 가정한다. `eventId`를 key로 쓰면 세 이벤트가 서로 다른 partition으로 흩어질 수 있고, Consumer 처리 순서도 사용자 관점의 거래 순서와 달라질 수 있다. 반면 `userId`를 key로 쓰면 같은 사용자의 이벤트가 같은 partition으로 들어가므로 partition 내부 ordering을 활용해 사용자별 velocity rule을 설명하기 쉬워진다.
+
+다만 이 선택은 분산 효율을 일부 포기한다. 특정 사용자나 테스트 데이터가 몰리면 hot partition이 생길 수 있기 때문에, `userId` key는 “가장 빠른 분산”이 아니라 “사용자별 순서를 더 중요하게 본 선택”으로 기록했다.
+
 API/Consumer 분리도 같은 맥락이다. API latency가 낮아도 Consumer Lag이 증가하면 이상거래 탐지는 지연된다. 그래서 health signal은 API p95 하나로 끝나지 않고 Consumer Lag, detection latency, DLT count, duplicate result count까지 함께 본다.
 
 ## 이 구조에서 봐야 하는 운영 신호
 
 설계 문서는 `docs/02-architecture-decision.md`, topic/key 정책은 `docs/03-kafka-topic-design.md`, 운영 신호는 `docs/08-observability.md`에 나눠 기록했다. 이후 load/failure 문서에서는 API latency만 보지 않고 Consumer Lag, detection latency, DLT count, duplicate result count를 같이 보도록 정리했다.
 
+각 지표가 답하는 질문은 다르다. API latency는 거래 접수 계층이 느린지를 보고, Consumer Lag은 Kafka에 쌓인 이벤트를 Consumer가 따라가지 못하고 있는지를 본다. detection latency는 접수된 이벤트가 실제 탐지 결과로 저장되기까지 얼마나 걸리는지를 본다. DLT count는 처리 불가능하거나 반복 실패한 이벤트가 늘고 있는지를 보고, duplicate result count는 재처리 중 결과가 중복 반영되지 않았는지를 확인한다.
+
 ## API와 Consumer를 분리한 최종 구조
 
 API와 Consumer를 실행 단위로 분리하고, 공통 schema만 `app-common`에 둔다. Consumer는 API 요청 DTO에 의존하지 않고 Kafka event message를 소비한다. PostgreSQL은 탐지 결과와 audit의 기준 저장소로 두고, Redis는 최근 거래 패턴 계산용 단기 상태로만 사용한다.
+
+역할을 이렇게 나눈 이유는 각 저장소가 맡는 책임이 다르기 때문이다. Kafka는 이벤트 전달과 replay 기준을 제공하지만 최종 정합성 저장소는 아니다. Redis는 최근 거래 window를 빠르게 계산하는 데 유리하지만 장애 시 데이터 정합성의 기준으로 두기 어렵다. PostgreSQL은 느릴 수 있지만 unique constraint와 transaction을 통해 fraud result와 audit log의 최종 기준이 될 수 있다.
 
 ## readiness check가 확인하는 것
 
