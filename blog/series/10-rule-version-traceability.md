@@ -50,4 +50,4 @@ ruleVersion은 세 층으로 나눴다.
 
 ## 아직 필요한 production 운영 장치
 
-rule deployment changelog, unexpected ruleVersion alert, Grafana dashboard, time-bounded summary query는 future work다. ruleVersion 추적성은 탐지 품질 개선이 아니라 결과 해석과 변경 진단을 위한 근거다.
+rule deployment changelog, ruleVersion-specific Grafana dashboard, unexpected ruleVersion alert, time-bounded summary query는 future work다. ruleVersion 추적성은 탐지 품질 개선이 아니라 결과 해석과 변경 진단을 위한 근거다.

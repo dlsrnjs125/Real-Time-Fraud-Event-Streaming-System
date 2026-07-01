@@ -44,14 +44,14 @@ duplicate replay에서는 2xx만 성공으로 보지 않는다. API response pol
 | Redis down | degraded count, skipped rule count | Consumer continuation |
 | hot partition | partition lag skew | user-level ordering impact |
 
-이미지로는 k6 terminal summary와 Grafana panel이 가장 유용하다. 다만 실제 캡처가 없으면 본문에 링크를 넣지 않고 `blog/image-plan.md`의 capture candidate로만 둔다.
+이번 글에서는 k6 terminal summary를 클라이언트 관점 evidence로 사용하고, 같은 시간대의 Grafana/Prometheus 지표를 서버 관점 evidence로 함께 해석한다.
 
-이미지와 실제 측정값을 추가하는 시점에는 아래 형식으로 결과를 요약한다. 수치가 없으면 표를 채우지 않는다.
+아래 표는 실제 수치를 주장하는 결과표가 아니라, 시나리오별 결과를 기록할 때 사용한 해석 기준이다.
 
 | Scenario | p95 | p99 | Error/Conflict 해석 | Consistency Result | 남은 한계 |
 |---|---:|---:|---|---|---|
-| duplicate storm | measured only | measured only | duplicate conflict는 허용 bucket | `FraudResult` 중복 여부 확인 | DB 조회 기반 수동 확인 여부 기록 |
-| Redis down | measured only | measured only | Redis rule skipped | degraded result 기록 여부 확인 | 탐지 품질 저하와 alert 한계 기록 |
+| duplicate storm | record with evidence | record with evidence | duplicate conflict는 허용 bucket | `FraudResult` 중복 여부 확인 | DB 조회 기반 수동 확인 여부 기록 |
+| Redis down | record with evidence | record with evidence | Redis rule skipped | degraded result 기록 여부 확인 | 탐지 품질 저하와 alert 한계 기록 |
 
 ## 측정값을 남길 때 필요한 맥락
 
