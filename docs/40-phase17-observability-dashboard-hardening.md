@@ -67,7 +67,9 @@ For repeated local runs where DB residue is not wanted, disable evidence retenti
 KEEP_DLT_DRILL_EVIDENCE=false make failure-drill-dlt
 ```
 
-Cleanup removes only the DLT row and audit log created for that drill id. It does not decrement Prometheus counters because counters are append-only process metrics until the application restarts.
+Cleanup removes only the DLT row and audit log created for that drill id. It also runs on script exit when `KEEP_DLT_DRILL_EVIDENCE=false`, so rows are cleaned even if a later status, audit, or metric assertion fails after the synthetic row is created. It does not decrement Prometheus counters because counters are append-only process metrics until the application restarts.
+
+The synthetic `event_id` includes timestamp, process id, and shell random suffix components to reduce collision risk during fast repeated runs. Cleanup deletes the DLT row by both generated DB id and generated `event_id`.
 
 The script seeds `dead_letter_events` directly for Admin operation observability. If the DLT schema changes, update both `DeadLetterEventAdminApiTest` insert helpers and `scripts/failure_drills/dlt_admin_drill.sh`.
 
@@ -81,6 +83,8 @@ DLT publish and Admin operation signals are different:
 Metric endpoints are split by owning application: `fraud.dlt.published.total` is exposed by `app-consumer`, while `fraud.dlt.reprocess.requested.total` and `fraud.dlt.discarded.total` are exposed by `app-api`.
 
 Current Phase 17 does not add a Consumer failure-path DLT publish drill because the available live DLT publish path is tied to rule-engine exceptions. Adding a magic event amount, userId, eventType, or other drill-only condition to production rule logic would make the evidence less honest. A Consumer DLT publish drill can be added later if a safe existing validation failure path or poison-event policy is defined.
+
+`make ci-check` is the dependency-light CI guardrail and runs Python fixture tests without bootstrapping KaggleHub. `make final-check` remains the local/full readiness guardrail and may initialize the data script environment through the existing V2 verifier chain.
 
 ## Alert Rules
 

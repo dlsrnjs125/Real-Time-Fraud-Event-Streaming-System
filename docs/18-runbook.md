@@ -20,13 +20,13 @@
 
 | 목적 | Command | 비고 |
 |---|---|---|
-| lightweight CI | `make ci-check` | `./gradlew test`, `./gradlew assemble` |
+| lightweight CI | `make ci-check` | `./gradlew test`, `./gradlew assemble`, dependency-light Python fixture tests, data policy check |
 | Redis integration test | `make redis-integration-test` | Docker Compose Redis DB 15 사용 |
 | Redis down drill | `make failure-drill-redis` | 자동 script |
 | Consumer restart drill | `make failure-drill-consumer` | app-consumer 재시작은 별도 터미널에서 수행 |
 | Kafka topics 생성 | `make topics` | `scripts/create-topics.sh` 실행 |
 | script syntax check | `make scripts-check` | failure drill script 포함 |
-| final static check | `make final-check` | build, compose config, script syntax check |
+| final static check | `make final-check` | local/full readiness guardrail; may initialize data script environment through V2 verifier chain |
 
 Kafka unavailable drill은 자동화하지 않고 `scripts/failure_drills/kafka_unavailable_drill.md` runbook으로 확인합니다. Broker stop/start는 로컬 환경에 미치는 영향이 커서 수동 절차로 유지합니다.
 

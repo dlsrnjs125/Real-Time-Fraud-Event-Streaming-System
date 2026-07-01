@@ -12,6 +12,9 @@ ADMIN_TOKEN="${ADMIN_TOKEN:-local-admin-token}"
 DRILL_OPERATOR="${DRILL_OPERATOR:-local-dlt-drill}"
 DRILL_REASON="${DRILL_REASON:-local DLT admin drill discard}"
 KEEP_DLT_DRILL_EVIDENCE="${KEEP_DLT_DRILL_EVIDENCE:-true}"
+DLT_ID=""
+DRILL_EVENT_ID=""
+RESPONSE_FILE=""
 
 log() {
   echo "[Phase 17] $*"
@@ -97,11 +100,12 @@ seed_pending_dlt_event() {
 
 discard_dlt_event() {
   local dlt_id="$1"
-  local response_file="/tmp/phase17-dlt-discard-response.json"
   local status
 
+  RESPONSE_FILE="$(mktemp /tmp/phase17-dlt-discard-response.XXXXXX.json)"
+
   status="$(
-    curl -sS -o "$response_file" -w "%{http_code}" \
+    curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" \
       -X POST "${API_BASE_URL}/api/v1/admin/dlq-events/${dlt_id}/discard" \
       -H "Content-Type: application/json" \
       -H "X-Admin-Token: ${ADMIN_TOKEN}" \
@@ -112,10 +116,10 @@ discard_dlt_event() {
   )"
 
   if [ "$status" != "200" ]; then
-    fail "expected DLT discard HTTP 200, got ${status}. Response saved to ${response_file}"
+    fail "expected DLT discard HTTP 200, got ${status}. Response saved to ${RESPONSE_FILE}"
   fi
 
-  assert_contains "$(cat "$response_file")" '"status":"DISCARDED"' "expected DLT discard response status DISCARDED"
+  assert_contains "$(cat "$RESPONSE_FILE")" '"status":"DISCARDED"' "expected DLT discard response status DISCARDED"
 }
 
 assert_audit_log() {
@@ -168,6 +172,7 @@ assert_dlt_status() {
 
 cleanup_drill_rows() {
   local dlt_id="$1"
+  local event_id="$2"
 
   psql_query "
     delete from admin_audit_logs
@@ -176,8 +181,27 @@ cleanup_drill_rows() {
       and actor = '$(sql_escape "$DRILL_OPERATOR")'
   " >/dev/null
 
-  psql_query "delete from dead_letter_events where id = ${dlt_id}" >/dev/null
+  psql_query "
+    delete from dead_letter_events
+    where id = ${dlt_id}
+      and event_id = '$(sql_escape "$event_id")'
+  " >/dev/null
 }
+
+cleanup_on_exit() {
+  local exit_status=$?
+
+  if [ "$KEEP_DLT_DRILL_EVIDENCE" != "true" ] && [ -n "$DLT_ID" ] && [ -n "$DRILL_EVENT_ID" ]; then
+    log "Cleaning up drill DB rows for DLT id ${DLT_ID}"
+    cleanup_drill_rows "$DLT_ID" "$DRILL_EVENT_ID" || true
+  fi
+
+  if [ "$exit_status" -eq 0 ] && [ -n "$RESPONSE_FILE" ]; then
+    rm -f "$RESPONSE_FILE"
+  fi
+}
+
+trap cleanup_on_exit EXIT
 
 log "DLT admin operation drill started"
 log "This drill seeds a synthetic PENDING DLT row, then verifies real Admin discard API, audit log, and operation metric."
@@ -189,10 +213,10 @@ docker exec "$POSTGRES_CONTAINER" pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_D
   || fail "PostgreSQL container is not ready: ${POSTGRES_CONTAINER}"
 
 DISCARDED_BEFORE="$(api_metric_value "fraud_dlt_discarded_total" 'result="success"')"
-EVENT_SUFFIX="$(date +%s)"
+EVENT_SUFFIX="$(date +%s)-$$-${RANDOM:-0}"
 DRILL_EVENT_ID="dlt-drill-${EVENT_SUFFIX}"
 DRILL_TRACE_ID="trace-${DRILL_EVENT_ID}"
-SOURCE_OFFSET="${EVENT_SUFFIX}$(( $$ % 1000 ))"
+SOURCE_OFFSET="$(date +%s)$$"
 
 log "Seeding synthetic PENDING DLT row: ${DRILL_EVENT_ID}"
 DLT_ID="$(seed_pending_dlt_event "$DRILL_EVENT_ID" "$DRILL_TRACE_ID" "$SOURCE_OFFSET" | tr -d '[:space:]')"
@@ -209,11 +233,6 @@ assert_audit_log "$DLT_ID"
 
 DISCARDED_AFTER="$(api_metric_value "fraud_dlt_discarded_total" 'result="success"')"
 assert_metric_increased 'fraud_dlt_discarded_total{result="success"}' "$DISCARDED_BEFORE" "$DISCARDED_AFTER"
-
-if [ "$KEEP_DLT_DRILL_EVIDENCE" != "true" ]; then
-  log "Cleaning up drill DB rows for DLT id ${DLT_ID}"
-  cleanup_drill_rows "$DLT_ID"
-fi
 
 log "DLT admin operation drill PASS"
 log "Evidence: DLT id ${DLT_ID} discarded, audit log recorded, fraud_dlt_discarded_total increased."
