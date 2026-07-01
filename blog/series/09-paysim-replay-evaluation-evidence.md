@@ -58,7 +58,7 @@ evaluation report는 성능 주장보다 evidence contract가 중심이다. miss
 
 ## 검증
 
-fixture verifier는 예상 field와 count가 빠지면 실패한다. full replay evaluation은 raw data와 local runtime에 의존하므로 local/manual로 분리한다. 실제 report screenshot이 필요하면 민감 정보와 대용량 row를 제거한 요약만 image candidate로 다룬다.
+fixture verifier는 예상 field와 count가 빠지면 실패한다. full replay evaluation은 raw data와 local runtime에 의존하므로 local/manual로 분리한다. 실제 report screenshot은 raw PaySim row와 대용량 detection result 목록을 보여주지 않고, evaluation report의 denominator, excluded count, policy/version 필드 중심으로 제한해 첨부했다.
 
 ## 남은 한계
 

@@ -4,7 +4,7 @@
 
 ## Current Status
 
-Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, k6 duplicate replay interpretation, Redis degraded drill evidence, DLT admin operation evidence, and PaySim evaluation summary evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
+Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, Kafka Consumer Lag dashboard evidence, k6 duplicate replay interpretation, Redis degraded drill evidence, DLT admin operation evidence, and PaySim evaluation summary evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
 
 ## Image Candidates
 
@@ -18,7 +18,7 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | 6 | 6 | Grafana observability dashboard | Screenshot | `blog/images/06-grafana-observability-dashboard.png` | Local Grafana dashboard for API status, p95, Redis degraded, processing latency, and DLT operation counter | Added |
 | 6 | 4 | k6 Redis down summary | Screenshot | `blog/images/04-k6-redis-down-summary.png` | `make k6-redis-down` terminal summary with degraded/skipped metric before-after values | Added |
 | 6 | 4 | Prometheus Redis degraded metric | Screenshot | `blog/images/04-prometheus-redis-window-degraded-total.png` | Prometheus graph for `fraud_redis_window_degraded_total` after Redis down drill | Added |
-| 6 | 6 | Grafana Kafka Consumer Lag panel | Screenshot | `blog/images/06-grafana-kafka-consumer-lag.png` | Kafka consumer group lag panel after consumer stop/start or backlog drill | Capture candidate |
+| 6 | 6 | Grafana Kafka Consumer Lag panel | Screenshot | `blog/images/06-kafka-consumer-lag-dashboard.png` | Kafka consumer group lag panel after backlog drill | Added |
 | 6 | 4 | Grafana Redis degraded dashboard | Screenshot | `blog/images/04-grafana-redis-degraded-dashboard.png` | Redis 장애 시 degraded/skipped signal 확인 | Capture candidate |
 | 7 | 7 | Grafana API status count | Screenshot | `blog/images/07-grafana-api-status-count.png` | duplicate replay 이후 status bucket 확인 | Capture candidate |
 | 8 | 7 | k6 duplicate replay summary | Screenshot | `blog/images/07-k6-duplicate-replay-summary.png` | k6 duplicate replay summary showing high `http_req_failed` with 100% `accepted or duplicate` checks | Added |
@@ -48,7 +48,7 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | File | Target Post Section | Capture Source | Must Hide |
 |---|---|---|---|
 | `blog/images/06-grafana-observability-dashboard.png` | `06`의 `확인한 증거` 섹션 | Grafana dashboard after local run | host secrets, raw identifiers, tokens |
-| `blog/images/06-grafana-kafka-consumer-lag.png` | `06`의 `확인한 증거` 섹션 | Grafana Kafka Consumer Lag panel after backlog drill | raw payload, accountId, deviceId, host secrets |
+| `blog/images/06-kafka-consumer-lag-dashboard.png` | `06`의 `확인한 증거` 섹션 | Grafana Kafka Consumer Lag panel after backlog drill | raw payload, accountId, deviceId, host secrets |
 | `blog/images/04-grafana-redis-degraded-dashboard.png` | `04`의 `확인한 증거` 섹션 | Grafana Redis degraded/skipped panels after Redis down drill | accountId, deviceId, raw payload |
 | `blog/images/07-grafana-api-status-count.png` | `07`의 `검증` 섹션 | Grafana API status panel after duplicate replay | local paths containing sensitive names, raw request payloads |
 | `blog/images/07-k6-duplicate-replay-summary.png` | `07`의 `검증` 섹션 | k6 duplicate replay terminal summary | local paths containing sensitive names, raw request payloads |
