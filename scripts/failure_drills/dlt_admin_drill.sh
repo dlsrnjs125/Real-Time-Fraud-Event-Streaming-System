@@ -102,7 +102,7 @@ discard_dlt_event() {
   local dlt_id="$1"
   local status
 
-  RESPONSE_FILE="$(mktemp /tmp/phase17-dlt-discard-response.XXXXXX.json)"
+  RESPONSE_FILE="$(mktemp "${TMPDIR:-/tmp}/phase17-dlt-discard-response.XXXXXX")"
 
   status="$(
     curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" \
@@ -219,7 +219,10 @@ DRILL_TRACE_ID="trace-${DRILL_EVENT_ID}"
 SOURCE_OFFSET="$(date +%s)$$"
 
 log "Seeding synthetic PENDING DLT row: ${DRILL_EVENT_ID}"
-DLT_ID="$(seed_pending_dlt_event "$DRILL_EVENT_ID" "$DRILL_TRACE_ID" "$SOURCE_OFFSET" | tr -d '[:space:]')"
+DLT_ID="$(
+  seed_pending_dlt_event "$DRILL_EVENT_ID" "$DRILL_TRACE_ID" "$SOURCE_OFFSET" \
+    | awk '/^[[:space:]]*[0-9]+[[:space:]]*$/ {print $1; exit}'
+)"
 if [ -z "$DLT_ID" ]; then
   fail "failed to seed pending DLT row"
 fi
