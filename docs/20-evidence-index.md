@@ -58,6 +58,7 @@
 |---|---|---|
 | Redis down drill | `make failure-drill-redis` | `degraded=true`, skipped rules present |
 | Consumer restart drill | `make failure-drill-consumer` | result eventually stored |
+| DLT admin operation drill | `make failure-drill-dlt` | synthetic PENDING DLT row discarded, audit log stored, discard counter increased |
 | Kafka unavailable drill | manual runbook | non-2xx publish failure |
 | Event consistency check | `scripts/failure_drills/check_event_consistency.sh <eventId>` | fraud result and processing log both exist |
 
@@ -71,6 +72,7 @@
 | Redis latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_redis_window_record_latency_seconds_*` |
 | Detection processing latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_processing_latency_seconds_*` |
 | DLT operation counters | `curl http://localhost:8080/actuator/prometheus` and `curl http://localhost:8081/actuator/prometheus` | `fraud_dlt_reprocess_requested_total`, `fraud_dlt_discarded_total`, `fraud_dlt_published_total` |
+| DLT admin discard operation | `make failure-drill-dlt` | Admin discard response succeeds, `admin_audit_logs` has `DLT_DISCARD`, `fraud_dlt_discarded_total{result="success"}` increases |
 | HTTP request histogram bucket | `curl http://localhost:8080/actuator/prometheus` | `http_server_requests_seconds_bucket` |
 | Prometheus targets UP | `http://localhost:9090/targets` | `app-api`, `app-consumer` scrape targets up after apps start |
 | Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |

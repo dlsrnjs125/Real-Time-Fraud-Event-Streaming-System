@@ -53,6 +53,9 @@
 - Grafana datasource provisioning missing: `docs/40-phase17-observability-dashboard-hardening.md`
 - Dashboard query and metric name mismatch: `docs/40-phase17-observability-dashboard-hardening.md`
 - Consumer Lag metric not exposed: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT Operation Counters No data: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT operation counter vs backlog gauge: `docs/40-phase17-observability-dashboard-hardening.md`
+- DLT admin operation drill: `docs/40-phase17-observability-dashboard-hardening.md`
 - High-cardinality metric tag avoidance: `docs/08-observability.md`
 
 ## V2 PaySim Replay Evaluation

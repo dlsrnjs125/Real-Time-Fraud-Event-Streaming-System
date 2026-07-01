@@ -49,7 +49,9 @@ No bitmap image files have been added in this pass. Mermaid diagrams are embedde
 | `blog/images/05-dlt-admin-audit-response.png` | `05`의 `확인한 증거` 섹션 | sanitized admin response or DB summary | admin token, accountId, deviceId, raw payload |
 | `blog/images/09-paysim-evaluation-summary.png` | `09`의 `바꾼 설계` 섹션 | sanitized evaluation report summary | raw PaySim rows, raw identifiers, local salt |
 
-DLT Operation Counters in Grafana may show No data until a DLT publish/reprocess/discard operation is generated. For DLT evidence, prefer a sanitized admin audit response screenshot unless a DLT dashboard capture is intentionally prepared.
+DLT Operation Counters in Grafana may show No data until a DLT publish/reprocess/discard operation is generated. For DLT evidence, run `make failure-drill-dlt` first. The first-choice image is a sanitized Admin API/audit response showing the discard operation; a Grafana DLT Operation Counters capture is secondary evidence. Do not mix Consumer DLT publish evidence with Admin DLT operation evidence.
+
+DLT evidence is not a screenshot made just to fill an empty dashboard panel. It should show that an event isolated in DLT can be discarded or reprocessed through an operator flow, with audit log and operation counter evidence.
 
 ## Boundaries
 
