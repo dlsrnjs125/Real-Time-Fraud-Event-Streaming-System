@@ -11,6 +11,7 @@ POSTGRES_USER="${POSTGRES_USER:-fraud}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-local-admin-token}"
 DRILL_OPERATOR="${DRILL_OPERATOR:-local-dlt-drill}"
 DRILL_REASON="${DRILL_REASON:-local DLT admin drill discard}"
+KEEP_DLT_DRILL_EVIDENCE="${KEEP_DLT_DRILL_EVIDENCE:-true}"
 
 log() {
   echo "[Phase 17] $*"
@@ -111,8 +112,7 @@ discard_dlt_event() {
   )"
 
   if [ "$status" != "200" ]; then
-    sed 's/"payloadJson":"[^"]*"/"payloadJson":"<redacted>"/g' "$response_file" >&2 || true
-    fail "expected DLT discard HTTP 200, got ${status}"
+    fail "expected DLT discard HTTP 200, got ${status}. Response saved to ${response_file}"
   fi
 
   assert_contains "$(cat "$response_file")" '"status":"DISCARDED"' "expected DLT discard response status DISCARDED"
@@ -166,9 +166,23 @@ assert_dlt_status() {
   fi
 }
 
+cleanup_drill_rows() {
+  local dlt_id="$1"
+
+  psql_query "
+    delete from admin_audit_logs
+    where action = 'DLT_DISCARD'
+      and target_id = '$(sql_escape "$dlt_id")'
+      and actor = '$(sql_escape "$DRILL_OPERATOR")'
+  " >/dev/null
+
+  psql_query "delete from dead_letter_events where id = ${dlt_id}" >/dev/null
+}
+
 log "DLT admin operation drill started"
 log "This drill seeds a synthetic PENDING DLT row, then verifies real Admin discard API, audit log, and operation metric."
 log "It does not exercise the Consumer failure-path DLT publish flow."
+log "KEEP_DLT_DRILL_EVIDENCE=${KEEP_DLT_DRILL_EVIDENCE}"
 
 require_http_ok "${API_BASE_URL}/actuator/health"
 docker exec "$POSTGRES_CONTAINER" pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null \
@@ -195,6 +209,11 @@ assert_audit_log "$DLT_ID"
 
 DISCARDED_AFTER="$(api_metric_value "fraud_dlt_discarded_total" 'result="success"')"
 assert_metric_increased 'fraud_dlt_discarded_total{result="success"}' "$DISCARDED_BEFORE" "$DISCARDED_AFTER"
+
+if [ "$KEEP_DLT_DRILL_EVIDENCE" != "true" ]; then
+  log "Cleaning up drill DB rows for DLT id ${DLT_ID}"
+  cleanup_drill_rows "$DLT_ID"
+fi
 
 log "DLT admin operation drill PASS"
 log "Evidence: DLT id ${DLT_ID} discarded, audit log recorded, fraud_dlt_discarded_total increased."

@@ -133,6 +133,7 @@ Phase 13의 핵심은 "기능이 동작한다"가 아니라 어느 부하에서 
 
 - Grafana DLT Operation Counters panel이 No data였던 이유는 DLT publish/reprocess/discard operation이 아직 발생하지 않았기 때문입니다.
 - fake counter prefill로 panel을 채우지 않고, 실제 Admin discard API, audit log, `fraud_dlt_discarded_total{result="success"}` 증가를 검증하는 `make failure-drill-dlt`를 추가했습니다.
+- 기본 실행은 DB evidence를 남기고, 반복 실행 시에는 `KEEP_DLT_DRILL_EVIDENCE=false`로 해당 drill의 DLT row와 audit row를 정리할 수 있게 했습니다.
 - Consumer failure path 기반 DLT publish drill은 운영 코드에 magic amount/userId/eventType 조건을 넣어야 재현성이 생기는 상태라면 추가하지 않는 것이 맞다고 판단했습니다.
 - 이번 drill은 Consumer DLT publish coverage가 아니라, 이미 격리된 DLT row에 대한 Admin operation observability evidence입니다.
 - DLT operation counter와 DLT backlog/status gauge는 의미가 다르므로 문서에서 분리했습니다.

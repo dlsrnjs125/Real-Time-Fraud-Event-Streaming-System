@@ -13,7 +13,7 @@ help:
 	@echo "  make redis-integration-test - Run Redis integration tests"
 	@echo "  make failure-drill-redis - Run Redis down failure drill"
 	@echo "  make failure-drill-consumer - Run Consumer restart drill"
-	@echo "  make failure-drill-dlt - Run local DLT admin operation drill"
+	@echo "  make failure-drill-dlt - Run local DLT admin operation drill with synthetic DB seed"
 	@echo "  make dlt-drill      - Alias for failure-drill-dlt"
 	@echo "  make failure-drill  - Run automated Redis failure drill only"
 	@echo "  make ci-check       - Run lightweight CI checks"

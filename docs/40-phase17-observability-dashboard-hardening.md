@@ -55,12 +55,30 @@ This drill is not meant to fill an empty Grafana panel with fake values. It veri
 
 The drill uses only synthetic identifiers and does not print the admin token or raw DLT payload. It validates Admin operation observability, not the full Consumer poison-message DLT publish path.
 
+By default, drill evidence remains in `dead_letter_events` and `admin_audit_logs` so Grafana, DB queries, and screenshots can be inspected after the command finishes:
+
+```bash
+make failure-drill-dlt
+```
+
+For repeated local runs where DB residue is not wanted, disable evidence retention:
+
+```bash
+KEEP_DLT_DRILL_EVIDENCE=false make failure-drill-dlt
+```
+
+Cleanup removes only the DLT row and audit log created for that drill id. It does not decrement Prometheus counters because counters are append-only process metrics until the application restarts.
+
+The script seeds `dead_letter_events` directly for Admin operation observability. If the DLT schema changes, update both `DeadLetterEventAdminApiTest` insert helpers and `scripts/failure_drills/dlt_admin_drill.sh`.
+
 DLT publish and Admin operation signals are different:
 
 - `fraud.dlt.published.total`: Consumer successfully published a DLT envelope after a processing failure.
 - `fraud.dlt.reprocess.requested.total`: Admin reprocess operation result counter.
 - `fraud.dlt.discarded.total`: Admin discard operation result counter.
 - DLT backlog/status gauge: not implemented in Phase 17.
+
+Metric endpoints are split by owning application: `fraud.dlt.published.total` is exposed by `app-consumer`, while `fraud.dlt.reprocess.requested.total` and `fraud.dlt.discarded.total` are exposed by `app-api`.
 
 Current Phase 17 does not add a Consumer failure-path DLT publish drill because the available live DLT publish path is tied to rule-engine exceptions. Adding a magic event amount, userId, eventType, or other drill-only condition to production rule logic would make the evidence less honest. A Consumer DLT publish drill can be added later if a safe existing validation failure path or poison-event policy is defined.
 

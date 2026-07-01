@@ -98,7 +98,9 @@ API Requests by Status panel은 dashboard time range 내 status별 `increase`를
 
 DLT Operation Counters는 DLT publish/reprocess/discard 이벤트가 발생한 뒤에 증가합니다. 정상 duplicate replay나 Redis down drill만 실행한 dashboard에서는 No data가 정상일 수 있습니다. `fraud.dlt.published.total`은 unique DLT backlog count가 아니라 DLT envelope publish success count입니다. DLT backlog/status count는 future work이고, DLT evidence는 별도 DLT admin audit response screenshot과 함께 해석합니다.
 
-Local Admin operation evidence는 `make failure-drill-dlt`로 만들 수 있습니다. 이 target은 synthetic `PENDING` DLT row를 만들고 실제 Admin discard API를 호출한 뒤 `admin_audit_logs`와 `fraud_dlt_discarded_total{result="success"}` 증가를 확인합니다. 이는 Consumer failure path로 DLT publish를 재현하는 drill이 아니라, 이미 DLT에 격리된 이벤트를 운영자가 discard했을 때 audit과 operation counter가 남는지 검증하는 drill입니다.
+Local Admin operation evidence는 `make failure-drill-dlt`로 만들 수 있습니다. 이 target은 synthetic `PENDING` DLT row를 만들고 실제 Admin discard API를 호출한 뒤 `admin_audit_logs`와 `fraud_dlt_discarded_total{result="success"}` 증가를 확인합니다. 이는 Consumer failure path로 DLT publish를 재현하는 drill이 아니라, 이미 DLT에 격리된 이벤트를 운영자가 discard했을 때 audit과 operation counter가 남는지 검증하는 drill입니다. 기본적으로 DB evidence를 남기며, 반복 실행 시 DB row 정리가 필요하면 `KEEP_DLT_DRILL_EVIDENCE=false make failure-drill-dlt`로 실행합니다.
+
+DLT metric endpoint도 소유 앱을 구분합니다. `fraud.dlt.published.total`은 app-consumer Prometheus endpoint에서 확인하고, `fraud.dlt.reprocess.requested.total`과 `fraud.dlt.discarded.total`은 app-api Prometheus endpoint에서 확인합니다.
 
 Kafka Consumer Lag은 운영적으로 중요한 지표지만, 이번 local dashboard에서는 실제 노출되는 Kafka client lag metric이 확인되는 경우에만 panel로 연결합니다. 현재 code/config 검색 기준으로 `kafka_consumer_records_lag_max` 같은 lag metric이 확인되지 않았으므로 fake panel을 만들지 않았습니다. Kafka client metric 설정 또는 Kafka exporter 연동은 future work입니다. Kafka UI Consumer Group Lag 화면은 Phase 18 image capture 후보가 될 수 있지만, Grafana dashboard 구현으로 주장하지 않습니다.
 

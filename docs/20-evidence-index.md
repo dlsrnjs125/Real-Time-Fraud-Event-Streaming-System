@@ -59,6 +59,7 @@
 | Redis down drill | `make failure-drill-redis` | `degraded=true`, skipped rules present |
 | Consumer restart drill | `make failure-drill-consumer` | result eventually stored |
 | DLT admin operation drill | `make failure-drill-dlt` | synthetic PENDING DLT row discarded, audit log stored, discard counter increased |
+| DLT admin operation drill without DB retention | `KEEP_DLT_DRILL_EVIDENCE=false make failure-drill-dlt` | same checks pass, generated DLT/audit rows are removed after verification |
 | Kafka unavailable drill | manual runbook | non-2xx publish failure |
 | Event consistency check | `scripts/failure_drills/check_event_consistency.sh <eventId>` | fraud result and processing log both exist |
 
