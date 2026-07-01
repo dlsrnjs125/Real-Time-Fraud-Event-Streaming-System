@@ -4,7 +4,7 @@
 
 ## Current Status
 
-Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, k6 duplicate replay interpretation, Redis degraded drill evidence, and DLT admin operation evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
+Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, k6 duplicate replay interpretation, Redis degraded drill evidence, DLT admin operation evidence, and PaySim evaluation summary evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
 
 ## Image Candidates
 
@@ -24,7 +24,7 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | 8 | 7 | k6 duplicate replay summary | Screenshot | `blog/images/07-k6-duplicate-replay-summary.png` | k6 duplicate replay summary showing high `http_req_failed` with 100% `accepted or duplicate` checks | Added |
 | 9 | 5 | DLT admin drill result | Screenshot | `blog/images/05-dlt-admin-drill-result.png` | `make failure-drill-dlt` terminal summary showing Admin discard API, audit log, and `fraud_dlt_discarded_total` increase | Added |
 | 9 | 5 | Grafana DLT operation counters | Screenshot | `blog/images/05-grafana-dlt-operation-counters.png` | Grafana DLT operation counter after DLT admin drill; operation counter, not backlog gauge | Added |
-| 10 | 9 | PaySim evaluation summary | Screenshot | `blog/images/09-paysim-evaluation-summary.png` | precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 | Capture candidate |
+| 10 | 9 | PaySim evaluation summary | Screenshot | `blog/images/09-paysim-evaluation-summary.png` | PaySim evaluation report JSON 화면으로 precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 | Added |
 | 11 | 8 | PaySim preprocessing pipeline | Mermaid in post | N/A | raw -> processed -> sample -> replay 흐름 설명 | Done as Mermaid |
 | 12 | 10 | ruleVersion traceability flow | Mermaid in post | N/A | active -> stored -> admin/evaluator 연결 설명 | Done as Mermaid |
 | 13 | 11 | runbook decision flow | Mermaid in post | N/A | pre-check -> deploy/hold -> post-check -> rollback readiness 설명 | Done as Mermaid |
@@ -41,7 +41,7 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | 3 | `blog/images/07-grafana-api-status-count.png` | duplicate replay 이후 status bucket이 서버 metric으로 보이는지 보여줌 |
 | 4 | `blog/images/07-k6-duplicate-replay-summary.png` | client 관점의 p95/p99와 duplicate 해석 기준을 보여줌 |
 | 5 | `blog/images/05-dlt-admin-drill-result.png` | 재처리/폐기 조작이 audit evidence로 남는다는 점을 보여줌 |
-| 6 | `blog/images/09-paysim-evaluation-summary.png` | precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 |
+| 6 | `blog/images/09-paysim-evaluation-summary.png` | PaySim evaluation report JSON 화면으로 precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 |
 
 ## Screenshot Capture Candidates
 
@@ -54,7 +54,7 @@ Initial evidence screenshots have been added for Prometheus scrape target health
 | `blog/images/07-k6-duplicate-replay-summary.png` | `07`의 `검증` 섹션 | k6 duplicate replay terminal summary | local paths containing sensitive names, raw request payloads |
 | `blog/images/05-dlt-admin-drill-result.png` | `05`의 `확인한 증거` 섹션 | sanitized DLT admin operation drill result | admin token, accountId, deviceId, raw payload |
 | `blog/images/05-grafana-dlt-operation-counters.png` | `05`의 `확인한 증거` 섹션 | Grafana DLT Operation Counters panel after admin drill | tokens, raw payload, backlog/count ambiguity |
-| `blog/images/09-paysim-evaluation-summary.png` | `09`의 `바꾼 설계` 섹션 | sanitized evaluation report summary | raw PaySim rows, raw identifiers, local salt |
+| `blog/images/09-paysim-evaluation-summary.png` | `09`의 `확인한 증거` 섹션 | sanitized `paysim-evaluation-report.json` 화면 | raw PaySim rows, raw identifiers, local salt |
 
 DLT Operation Counters in Grafana may show No data until a DLT publish/reprocess/discard operation is generated. For DLT evidence, run `make failure-drill-dlt` first. The first-choice image is a sanitized terminal drill result showing the Admin discard operation, audit log check, and operation metric increase; a Grafana DLT Operation Counters capture is secondary evidence. Do not mix Consumer DLT publish evidence with Admin DLT operation evidence. For screenshots, use only synthetic eventId/traceId values or mask them partially, in addition to hiding tokens, raw payload, accountId, and deviceId.
 

@@ -36,6 +36,14 @@ duplicate label/result eventId는 strict 여부와 무관하게 실패시킨다.
 
 `docs/31-v2-replay-evaluation-evidence.md`, `docs/32-v2-paysim-native-replay-contract.md`, `docs/33-v2-rule-threshold-regression-evidence.md`에 report contract와 해석 기준을 기록했다. `make verify-paysim-evaluation-report-contract`, `make verify-paysim-native-replay-contract`, `make verify-paysim-rule-threshold-regression`은 fixture 기반 CI-safe 검증이다.
 
+![PaySim Evaluation Summary](../images/09-paysim-evaluation-summary.png)
+
+PaySim evaluation report는 precision/recall 숫자를 먼저 보여주기 위한 자료가 아니라, 어떤 row가 평가 분모에 포함됐고 어떤 row가 제외됐는지 설명하기 위한 evidence다. replay 단계에서 unsupported 또는 rejected 된 row는 evaluation denominator에서 제외했고, evaluation report에는 `evaluatedEvents`, `evaluationExcludedRecords`, `excludedByType`, `denominatorExcludedNativeTypeDistribution`을 함께 기록했다. 따라서 같은 precision/recall이라도 어떤 입력 범위에서 계산됐는지 추적할 수 있다.
+
+`confusionMatrix`와 precision/recall은 denominator가 확정된 뒤에야 해석할 수 있다. 또한 `ruleVersion`, `thresholdVersion`, `evaluationContractVersion`, `evaluationPolicyVersion`을 함께 기록해야 이후 metric 변화가 rule 변경 때문인지, threshold 변경 때문인지, evaluation policy 변경 때문인지 구분할 수 있다. 이 evidence는 production fraud model 성능 주장이 아니라 PaySim replay/evaluation contract를 검증하기 위한 자료다.
+
+이번 캡처에서는 `paysim-detection-results.jsonl`을 입력으로 사용해 `paysim-evaluation-report.json`을 생성했다. 개별 detection result 목록을 보여주는 대신, 블로그에는 평가 결과를 요약한 report를 evidence로 남겼다.
+
 ## 바꾼 설계
 
 evaluation report는 성능 주장보다 evidence contract가 중심이다. missing result, replay rejected, unsupported type, threshold fallback, workload summary를 report에 남겨 숫자의 분모와 제외 범위를 확인할 수 있게 했다.
