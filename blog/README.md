@@ -2,7 +2,7 @@
 
 이 폴더는 실시간 이상거래 탐지 시스템 개발 과정을 기술 기록 형태로 정리합니다.
 
-글은 기능 나열보다 문제, 설계 변경, 검증 증거, 남은 한계를 중심으로 작성합니다.
+글은 기능 나열보다 문제, 설계 변경, 검증 증거, 남은 한계를 중심으로 작성합니다. 다만 발행 후보 본문에서는 같은 템플릿 제목을 반복해서 노출하지 않고, 각 글의 핵심 질문에 맞는 섹션명을 사용합니다.
 
 > Status: Publication candidate text complete
 > `series/`는 최종 발행 후보 본문이고, `drafts/`는 기존 원본 draft archive입니다.
@@ -33,4 +33,4 @@
 
 이미지와 다이어그램 후보는 [Blog Image Plan](image-plan.md)에 정리합니다.
 
-현재 단계에서는 새 이미지 파일을 생성하지 않았습니다. Mermaid로 충분한 흐름은 본문에 직접 포함했고, 실제 screenshot이 필요한 항목은 image plan에 capture candidate로만 남깁니다.
+Mermaid로 충분한 흐름은 본문에 직접 포함하고, 실제 screenshot이 필요한 항목은 [Blog Image Plan](image-plan.md)에서 상태를 추적합니다. 이미지 링크는 파일이 실제로 추가된 경우에만 본문에 둡니다.
