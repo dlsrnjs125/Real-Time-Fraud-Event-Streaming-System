@@ -19,6 +19,29 @@
 - 설계 변경은 `docs/11-troubleshooting-log.md`에 누적합니다.
 - 구조화 로그에 계좌, 기기, IP 등 민감 필드 원문이 남지 않도록 확인합니다.
 
+## V3 Docs Setup Review
+
+Date: 2026-08-19
+
+Scope:
+
+- Added `docs/41-v3-production-hardening-direction.md`.
+- Linked V3 direction from `README.md`, `docs/00-index.md`, and `docs/13-development-roadmap.md`.
+- Kept V3 phases as planned/not started. No runtime feature, metric, script, migration, or API implementation was added.
+
+Review notes:
+
+- V3 is intentionally separated from Core Phase 0~17 and V2 PaySim phases.
+- The V3 common loop requires baseline, realistic bottleneck injection, observation, hypothesis, isolation, improvement, same-load retest, trade-off, and evidence.
+- V3 Phase 6 and Phase 7 remain optional until a real-time delivery surface is explicitly chosen.
+- Example metric values from the Notion plan were converted to `TBD` where they would otherwise look like measured repository evidence.
+
+Open checks before V3 Phase 0 implementation:
+
+- Define exact metric boundaries for Kafka queue latency, rule latency, DB persistence latency, and event E2E latency.
+- Decide which Grafana panels belong to Phase 0 versus later burst/hot-partition experiments.
+- Keep implementation PRs separate from this documentation setup branch.
+
 ## Phase 12 Review
 
 ### 잘한 점

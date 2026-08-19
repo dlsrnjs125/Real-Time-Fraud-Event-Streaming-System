@@ -38,6 +38,15 @@
 | V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe data/evaluation gate, Gradle tests, docs/blog | ruleVersion filter/dashboard/deployment changelog |
 | V2 Phase 14 | Done | Rule version change runbook / rollback readiness evidence 문서화 완료 | pre/post checklist, rollback/hold criteria, evidence template, troubleshooting/blog | deployment changelog, bounded summary query, alert/automation |
 | V2 Phase 15 | Done | Final evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails | Final Docs/Blog Closure에 통합 |
+| V3 Docs Setup | Done | 고도화 Phase 0 시작 전 목표/규칙/방향성 문서화 | V3 production hardening direction, README/docs index links | V3 Phase 0 observability spec |
+| V3 Phase 0 | Not Started | Performance Observability Foundation | planned metrics and evidence rules only | split Consumer path metrics |
+| V3 Phase 1 | Not Started | Market open burst / PostgreSQL bottleneck | planned workload and bottleneck profile only | burst k6 and DB pool experiment |
+| V3 Phase 2 | Not Started | Kafka hot partition / data skew | planned skew evidence only | hot-key workload and partition metrics |
+| V3 Phase 3 | Not Started | Consumer rebalance / redelivery / idempotency | planned failure drill only | controlled redelivery drill |
+| V3 Phase 4 | Not Started | Retry / DLT recovery architecture | planned classification only | retry handler and poison-message policy |
+| V3 Phase 5 | Not Started | Recovery / replay safety | planned replay safety only | rate-limited replay design |
+| V3 Phase 6 | Not Started | Real-time fraud result delivery | optional planned delivery phase | SSE/WebSocket decision |
+| V3 Phase 7 | Not Started | Slow consumer / backpressure | optional planned downstream resilience phase | bounded queue and catch-up policy |
 | Future Follow-up | Not Started | Production hardening 후보 | dashboard/alert hardening, CI/E2E drill, deployment safety | 별도 기능 PR로 분리 |
 
 Status 기준:
@@ -55,6 +64,56 @@ Phase numbering policy:
 - `V2 Phase 15` can be marked done because the V2 evidence closure is complete.
 - `Final Docs/Blog Closure` remains in progress until selected image capture is completed. Blog series publication candidate text is complete in `blog/series/`.
 - Production hardening beyond Phase 14 remains future follow-up and should be opened as separate feature PRs only when implemented.
+- V3 Production Hardening is a new planning track. V3 rows must stay `Not Started` until implementation and measured evidence exist.
+- V3 Phase 6 and Phase 7 are optional until a real-time delivery surface is explicitly added.
+
+## V3 Production Hardening Planning
+
+V3 starts after the Core runtime and V2 PaySim evidence tracks. It is not a continuation of V2 model/evaluation work. It is a production hardening track focused on bottleneck isolation, failure reproduction, recovery safety, and real-time delivery resilience.
+
+The V3 preparation document is [V3 Production Hardening Direction](41-v3-production-hardening-direction.md).
+
+### V3 Common Rule
+
+Every V3 phase must follow this loop:
+
+```text
+Baseline
+Realistic Bottleneck Injection
+Observation
+Hypothesis
+Isolation
+Improvement
+Same-Load Re-test
+Trade-off
+Evidence
+```
+
+The same workload must be used for Before/After comparison. If the workload, environment, or measurement boundary changes, the result must be recorded as a separate experiment, not as a direct improvement claim.
+
+### V3 Phase Start Policy
+
+V3 Phase 0 can start only after:
+
+- the phase metric boundaries are documented
+- the expected evidence table is defined
+- the implementation scope is limited to observability foundation
+- no V3 phase is marked complete before measured evidence exists
+
+V3 Phase 1 and later can start only after Phase 0 provides enough metric separation to distinguish Kafka, Consumer, Redis, DB, and downstream effects.
+
+### V3 Planned Phase Summary
+
+| V3 Phase | Summary | Completion Signal |
+|---:|---|---|
+| 0 | Split Consumer-path observability into queue, Redis, rule, DB, processing, and E2E signals | metric boundaries and dashboard evidence exist |
+| 1 | Reproduce market-open burst and PostgreSQL bottleneck | Before/After burst evidence and DB pool trade-off recorded |
+| 2 | Reproduce Kafka partition skew from hot keys | partition-level skew and scale-out limit recorded |
+| 3 | Reproduce redelivery during rebalance/failure | duplicate consumption observed with duplicate fraud results staying 0 |
+| 4 | Implement retry/DLT failure classification | retryable vs permanent vs duplicate paths verified |
+| 5 | Harden DLT replay as an operational recovery path | rate/batch policy and post-replay verification recorded |
+| 6 | Add real-time result delivery boundary if needed | detection path and delivery path are decoupled |
+| 7 | Add slow-consumer backpressure if streaming is added | bounded queue and catch-up behavior verified |
 
 ## Phase 0. Initial Planning
 
