@@ -50,11 +50,10 @@ The profiler must produce a versioned summary containing:
 | events/user p50/p95/p99 | quantiles of per-user event counts |
 | maximum events/user | largest per-user event count |
 | top 1% traffic share | events from the highest-volume 1% of users divided by total events |
-| events/user/window p50/p95/p99/max | quantiles and maximum of per-user event counts inside the configured runtime sliding window |
-| maximum events/window/user | largest same-user event count observed in any configured runtime sliding window |
-| users with 2+ events/window ratio | users reaching at least two events in one configured runtime sliding window divided by profiled users |
-| users with 5+ events/window ratio | users reaching at least five events in one configured runtime sliding window divided by profiled users |
-| window amount sum p50/p95/p99/max | quantiles and maximum of per-user transaction-amount sums inside the configured runtime sliding window |
+| events/user/source-step p50/p95/p99/max | quantiles and maximum of per-user event counts inside one PaySim source step |
+| maximum events/source-step/user | largest same-user event count observed in one PaySim source step |
+| users with 2+ events/source-step ratio | users reaching at least two events in one source step divided by profiled users |
+| users with 5+ events/source-step ratio | users reaching at least five events in one source step divided by profiled users |
 | transaction type distribution | count and ratio by PaySim native and normalized type |
 | fraud ratio | labelled fraud rows divided by labelled rows |
 | amount p50/p95/p99 | quantiles over valid transaction amounts |
@@ -73,19 +72,37 @@ Required metadata:
 - generated timestamp
 - quantile method
 - top-percent rounding rule
-- runtime `SlidingWindowProperties.window` value used for window statistics
-- window boundary and quantile rules
+- `sourceTimeResolution`, currently one hour per PaySim step
+- source-step boundary and quantile rules
 
 ### Profile interpretation
 
 The profile answers:
 
-1. Does the corpus contain temporally dense same-user transactions inside the runtime sliding window?
+1. Does the corpus contain repeated same-user transactions inside one source step?
 2. Does it contain organic heavy users?
 3. Must V3 synthesize a stronger hot-key distribution?
 4. Can original time steps seed a normal arrival shape?
 
 It does not answer how many events per second the runtime can process.
+
+### Source-time resolution guardrail
+
+PaySim preprocessing currently maps `eventTime` as `baseTime + step hours`. Every record in the same source step therefore has the same timestamp, while the original order within that hour is unknown.
+
+PaySim source-step density must not be interpreted as observed density inside the five-minute runtime sliding window. Runtime-window statistics finer than the one-hour source resolution require an explicitly synthetic timestamp policy and must be labelled as synthetic workload evidence.
+
+### Synthetic stateful workload profile
+
+Phase 2 workload generation, rather than PaySim corpus profiling, owns runtime-window density controls and reports:
+
+- configured `runtimeWindow`, initially aligned with `SlidingWindowProperties.window`
+- events/user/runtime-window p50/p95/p99/max
+- maximum events/runtime-window/user
+- users with 2+, 5+, 20+, and 100+ events/runtime-window ratios as configured
+- runtime-window amount-sum p50/p95/p99/max
+
+This profile answers how Redis behaves when controlled same-user traffic is concentrated inside the runtime window. It is not an observed PaySim corpus property.
 
 ## 5. Workload Catalog
 
@@ -127,6 +144,8 @@ Expected time relationship:
 eventTime ~= sourceSentAt ~= receivedAt
 ```
 
+This relationship requires `eventTimeMode=REBASE_TO_ARRIVAL`. PaySim contributes transaction attributes, while the workload driver assigns runtime timestamps near actual emission.
+
 ### Workload D: Catch-up Burst
 
 Meaning: an upstream source accumulates old events and sends them after recovery.
@@ -136,6 +155,8 @@ Expected time relationship:
 ```text
 eventTime < sourceSentAt <= receivedAt
 ```
+
+Use `eventTimeMode=CONTROLLED_LATENESS` so source age is intentional and reproducible.
 
 Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning.
 
@@ -161,7 +182,7 @@ Generate controlled lateness buckets and arrival permutations. Examples include 
 
 ### Workload G: Historical Replay
 
-Replay old events at a controlled rate. Verify that live state, live Lag, and live latency evidence are not contaminated.
+Replay old events at a controlled rate with `eventTimeMode=PRESERVE_SOURCE_TIME`. Verify that live state, live Lag, and live latency evidence are not contaminated.
 
 ## 6. Workload Manifest
 
@@ -183,6 +204,9 @@ targetPartitionDistribution
 achievedPartitionDistribution
 partitionAffinityStrategy
 sourceProfile
+eventTimeMode
+sourceTimeResolution
+timeScaleFactor
 latenessProfile
 replayRate
 randomSeed
@@ -195,6 +219,18 @@ randomSeed
 - `KAFKA_DIRECT_PRODUCER`
 
 Results from different driver types are separate experiments unless the driver overhead is explicitly controlled.
+
+`eventTimeMode` must be one of:
+
+| Mode | Intended workload | Policy |
+|---|---|---|
+| `PRESERVE_SOURCE_TIME` | historical replay | retain the PaySim-derived timestamp |
+| `REBASE_TO_ARRIVAL` | normal, capacity, organic burst | assign `eventTime` near actual emission while retaining PaySim transaction attributes |
+| `CONTROLLED_LATENESS` | catch-up, late, out-of-order | derive `eventTime` from the configured lateness and ordering profile |
+
+`sourceTimeResolution` records the source corpus resolution, currently `1h` for PaySim. `timeScaleFactor` is optional and must describe any explicit source-timeline scaling. A simple rebase of the entire hourly PaySim timeline is not `REBASE_TO_ARRIVAL`: compressed replay can otherwise generate future `eventTime` values and violate the API's future-time validation.
+
+Every workload report must repeat the effective `eventTimeMode`, `sourceTimeResolution`, and `timeScaleFactor` so freshness evidence can be reproduced without inferring timestamp behavior from the workload name.
 
 ## 7. Canonical Time Model
 
@@ -289,7 +325,7 @@ Planned source profiles:
 | `SLOW_SOURCE` | controlled source-side delay before dispatch |
 | `BATCH_CATCHUP` | hold events, then release accumulated events in a burst |
 
-The emulator must preserve the original `eventTime`, create `sourceSentAt`, and produce a report containing configured versus achieved delay and EPS.
+The emulator must apply the manifest's `eventTimeMode`, create `sourceSentAt`, and produce a report containing configured versus achieved delay and EPS. It preserves original `eventTime` only for `PRESERVE_SOURCE_TIME`; other modes must record the generated timestamp policy.
 
 Open decisions before implementation:
 

@@ -68,20 +68,21 @@ Date: 2026-08-19
 
 ### Review changes
 
-- Added per-user, per-runtime-window event density and amount-sum statistics so PaySim suitability for sliding-window experiments can be evaluated directly.
+- Added PaySim per-user/source-step statistics while explicitly separating hourly corpus resolution from synthetic runtime-window density experiments.
 - Split user concentration from Kafka partition concentration. Partition-skew runs must use a documented partition-affinity strategy and report achieved partition shares.
 - Made the Kafka delay metric conditional on verified `CreateTime` or `LogAppendTime` semantics and the effective broker timestamp policy.
-- Split accepted intake, successful Kafka publish, and Consumer delivery into separate Counters.
+- Added `eventTimeMode` so current-arrival, controlled-lateness, and historical workloads do not assign contradictory timestamps.
+- Split receipt persistence, Kafka publish success/failure, and Consumer delivery attempts into separate Counters.
 - Separated throughput/backlog evidence columns from latency percentile columns.
 
 ### Remaining implementation decisions
 
-- Fix the window boundary and quantile algorithms used by the profiler.
-- Define publish-failure accounting and the exact population of each stream Counter.
+- Fix source-step quantile algorithms and synthetic runtime-window generation rules.
+- Define the exact instrumentation point and failure-path population of each stream Counter.
 - Verify the broker timestamp configuration before selecting the Kafka delay Timer name.
 - Choose and test the partition-affinity algorithm against the configured partition count.
 
-These changes refine the Phase 0 design contract only. No runtime metric, profiler, workload generator, or Kafka broker policy has been implemented.
+These changes refine the Phase 0 design contract only. No runtime metric, profiler, workload generator, event-time mode, or Kafka broker policy has been implemented. The only non-document change remains `**/bin/` in `.gitignore`, which excludes generated module-local `bin` artifacts and does not change runtime behavior.
 
 ## Phase 12 Review
 

@@ -25,16 +25,18 @@ Required output:
 - total and unique-user counts
 - events/user p50/p95/p99/max
 - top 1% traffic share
-- events/user/window p50/p95/p99/max using runtime `SlidingWindowProperties.window`
-- maximum events/window/user
-- users with 2+ and 5+ events/window ratios
-- window amount-sum p50/p95/p99/max
+- events/user/source-step p50/p95/p99/max
+- maximum events/source-step/user
+- users with 2+ and 5+ events/source-step ratios
+- `sourceTimeResolution=1h`
 - transaction-type counts and ratios
 - fraud ratio
 - amount p50/p95/p99
 - time-step distribution and peak
 - same-user repeat rate
 - report metadata and deterministic definitions
+
+The PaySim profiler must not report five-minute density from hourly source steps. Synthetic runtime-window density belongs to the workload manifest/report and is Phase 2 input evidence.
 
 ### Phase 0-B: Workload Contract
 
@@ -62,8 +64,8 @@ Finalize source timestamp propagation and implement only the freshness metrics w
 
 | Area | Existing foundation | Phase 0 gap |
 |---|---|---|
-| PaySim | normalization, validation, sample, replay, evaluation | user concentration, window-density, amount quantiles, time profile, repeat-rate profiler |
-| Workload | k6 smoke/normal/peak/duplicate/Redis-down | versioned A-G manifests and organic/catch-up/user-skew/partition-skew/late semantics |
+| PaySim | normalization, validation, sample, replay, evaluation | user concentration, source-step density, amount quantiles, time profile, repeat-rate profiler |
+| Workload | k6 smoke/normal/peak/duplicate/Redis-down | versioned A-G manifests, event-time modes, synthetic runtime-window density, and organic/catch-up/skew/late semantics |
 | Kafka | `userId` key, manual ack, exporter Lag panel | ingress/Consumer rates, partition-first evidence, Lag growth/drain |
 | Redis | sliding window, degraded mode, aggregate latency | state-cost contract, operations/event, scaling evidence |
 | Rule | deterministic rule engine | dedicated processing Timer |
@@ -77,9 +79,10 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 
 | Stored meter | Type | Boundary or event |
 |---|---|---|
-| `fraud.stream.intake.accepted.total` | Counter | transaction intake accepted by app-api |
-| `fraud.stream.kafka.published.total` | Counter | transaction event publish completed successfully |
-| `fraud.stream.consumed.total` | Counter | Kafka record delivered to the fraud Consumer |
+| `fraud.stream.intake.receipt.persisted.total` | Counter | initial transaction receipt persisted before Kafka publish |
+| `fraud.stream.kafka.publish.success.total` | Counter | transaction event publish completed successfully |
+| `fraud.stream.kafka.publish.failure.total` | Counter | transaction event publish failed after receipt persistence |
+| `fraud.stream.consumer.delivery.total` | Counter | Kafka delivery attempt observed by the fraud Consumer, including redelivery |
 | `fraud.kafka.producer.to.consumer.delay` | Timer, conditional | producer `CreateTime` to Consumer processing start |
 | `fraud.kafka.queue.latency` | Timer, conditional | broker `LogAppendTime` to Consumer processing start |
 | `fraud.redis.state.latency` | Timer | complete Redis state update/read operation |
@@ -93,10 +96,20 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 Derived queries:
 
 ```promql
-rate(fraud_stream_intake_accepted_total[1m])
-rate(fraud_stream_kafka_published_total[1m])
-rate(fraud_stream_consumed_total[1m])
+rate(fraud_stream_intake_receipt_persisted_total[1m])
+rate(fraud_stream_kafka_publish_success_total[1m])
+rate(fraud_stream_kafka_publish_failure_total[1m])
+rate(fraud_stream_consumer_delivery_total[1m])
 ```
+
+Counter populations are fixed as follows:
+
+- Receipt persisted increments once for a new durable receipt; validation failures and duplicate requests are excluded.
+- Publish success increments once when that receipt's Kafka publish completes successfully.
+- Publish failure increments once when that receipt's Kafka publish path fails and the failed status remains durable.
+- Consumer delivery increments for every listener delivery attempt, including redelivery.
+
+Consumer delivery can therefore exceed publish success. This difference is expected evidence for Phase 4, not necessarily missing or duplicated business results. Phase 0 must choose instrumentation points that preserve these logical populations across transaction commit and rollback behavior.
 
 Only one Kafka delay Timer is selected after verifying `CreateTime` versus `LogAppendTime`, timestamp ownership, and the effective broker `log.message.timestamp.type`. Do not label producer `CreateTime` delay as queue latency.
 
@@ -133,7 +146,7 @@ Dependency evidence:
 
 Minimum panels:
 
-1. intake accepted, Kafka published, and Consumer EPS
+1. receipt persisted, Kafka publish success/failure, and Consumer delivery EPS
 2. total Lag
 3. partition Lag
 4. Lag growth/drain rate
@@ -164,6 +177,7 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 - preserve target versus achieved EPS
 - preserve target versus achieved user and partition distributions
 - define the partition-affinity strategy for partition-skew workloads
+- define `eventTimeMode`, `sourceTimeResolution`, and optional `timeScaleFactor`
 - distinguish HTTP and direct-Kafka drivers
 
 ### Step 3: Time and Source decision
@@ -196,7 +210,7 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 
 ## 9. Required Design Decisions Before Code
 
-- exact populations for intake accepted, Kafka publish success, publish failure, and Consumer delivery counters
+- exact populations for receipt persistence, Kafka publish success/failure, and Consumer delivery counters
 - Kafka record timestamp type, owner, broker policy, and corresponding delay metric name
 - source metadata transport: event schema versus headers
 - clock and skew policy across source, API, broker, and Consumer
@@ -217,6 +231,7 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 | Dataset/version/hash | TBD |
 | Workload ID/version | TBD |
 | Driver type | TBD |
+| Event-time mode/source resolution/time scale | TBD |
 | Host/Docker resources | TBD |
 | Kafka/Redis/PostgreSQL versions | TBD |
 | Partition count | TBD |
@@ -227,9 +242,10 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 
 | Metric | Baseline/average | Peak | Final |
 |---|---:|---:|---:|
-| Intake accepted EPS | TBD | TBD | TBD |
-| Kafka published EPS | TBD | TBD | TBD |
-| Consumer EPS | TBD | TBD | TBD |
+| Receipt persisted EPS | TBD | TBD | TBD |
+| Kafka publish success EPS | TBD | TBD | TBD |
+| Kafka publish failure EPS | TBD | TBD | TBD |
+| Consumer delivery EPS | TBD | TBD | TBD |
 | Total Lag | TBD | TBD | TBD |
 | Max partition Lag | TBD | TBD | TBD |
 
@@ -283,6 +299,8 @@ Completion statement:
 - [ ] Confirm Phase 0 metric names and populations.
 - [ ] Confirm profiler report schema and quantile definitions.
 - [ ] Confirm workload manifest path and schema.
+- [ ] Confirm PaySim source-step and synthetic runtime-window profiles remain separate.
+- [ ] Confirm workload `eventTimeMode` and API future-time compatibility.
 - [ ] Decide source metadata propagation.
 - [ ] Decide Kafka timestamp policy and corresponding delay metric name.
 - [ ] Separate HTTP and direct-Kafka experiments.

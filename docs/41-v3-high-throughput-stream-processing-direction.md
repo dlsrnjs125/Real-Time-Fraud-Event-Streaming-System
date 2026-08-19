@@ -257,7 +257,7 @@ Establish:
 
 - PaySim profile
 - workload A-G contracts
-- runtime-window density profile
+- PaySim source-step profile and separate synthetic runtime-window profile
 - separate user-skew and partition-skew workloads
 - Kafka `CreateTime`/`LogAppendTime` timestamp semantics
 - Source emulator contract decision
@@ -287,12 +287,14 @@ Measure:
 Vary:
 
 - events per user
-- events per user inside the configured runtime window
+- synthetic events per user inside the configured runtime window
 - window size
 - hot-user ratio
 - Redis operations per event
 
 Any optimization such as pipelining, multi-get, Lua, aggregate state, or data-structure changes must be justified by measured Redis and Consumer evidence.
+
+PaySim's hourly source steps cannot establish observed five-minute density. Phase 2 must control runtime-window timestamps synthetically and label those results separately from corpus statistics.
 
 ### Phase 3: Kafka Partition Skew and Consumer Parallelism
 
@@ -357,6 +359,7 @@ Every experiment records:
 - duration and event count
 - user distribution
 - heavy-user ratio
+- event-time mode, source resolution, and time scale
 - source delivery profile
 - lateness profile
 - replay rate
