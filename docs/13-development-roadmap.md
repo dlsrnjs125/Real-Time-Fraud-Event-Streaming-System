@@ -100,9 +100,9 @@ The same workload must be used for Before/After comparison. If the workload, env
 
 V3 Phase 0 implementation can start only after:
 
-- PaySim profile fields and quantile definitions are reviewed
-- workload A-G semantics and manifest ownership are reviewed
-- timestamp ownership and source metadata options are reviewed
+- PaySim profile fields, runtime-window density fields, and quantile definitions are reviewed
+- workload A-G semantics, separate user/partition skew controls, and manifest ownership are reviewed
+- source timestamp ownership and Kafka `CreateTime`/`LogAppendTime` policy are reviewed
 - stream metric boundaries and cardinality rules are reviewed
 - the expected dashboard and evidence table are defined
 - implementation remains inside Phase 0
@@ -115,8 +115,8 @@ V3 Phase 1 and later can start only after Phase 0 can distinguish source age, Ka
 |---:|---|---|
 | 0 | Establish dataset profile, workload/time contracts, stage metrics, freshness, and dashboard | one reproducible baseline can be explained by stream boundary |
 | 1 | Find sustainable throughput and backlog recovery behavior | capacity curve, knee point, Lag growth/drain, recovery recorded |
-| 2 | Scale Redis user state across events/user and window sizes | same-load state optimization evidence recorded |
-| 3 | Compare uniform/skew traffic and Consumer parallelism | partition skew and scale-out limit recorded |
+| 2 | Scale Redis user state across events/user/window density and window sizes | same-load state optimization evidence recorded |
+| 3 | Compare controlled partition distributions and Consumer parallelism | achieved partition skew and scale-out limit recorded |
 | 4 | Inject redelivery at stateful processing failure points | Redis state and subsequent decisions remain explainable |
 | 5 | Define and verify late/out-of-order state semantics | allowed-lateness and too-late behavior recorded |
 | 6 | Compare organic burst with upstream catch-up | delay attribution separates the two workload meanings |

@@ -198,7 +198,7 @@ V3 dashboards prioritize stream behavior over generic HTTP monitoring:
 - ingress and Consumer rates
 - total and partition Lag
 - Lag growth and drain
-- Kafka queue latency
+- Kafka producer-to-Consumer or queue delay, according to the verified Kafka timestamp policy
 - Redis state latency
 - rule latency
 - result-sink latency
@@ -257,7 +257,9 @@ Establish:
 
 - PaySim profile
 - workload A-G contracts
-- timestamp semantics
+- runtime-window density profile
+- separate user-skew and partition-skew workloads
+- Kafka `CreateTime`/`LogAppendTime` timestamp semantics
 - Source emulator contract decision
 - stream-stage metrics
 - total and partition Lag visibility
@@ -285,6 +287,7 @@ Measure:
 Vary:
 
 - events per user
+- events per user inside the configured runtime window
 - window size
 - hot-user ratio
 - Redis operations per event
@@ -293,7 +296,7 @@ Any optimization such as pipelining, multi-get, Lua, aggregate state, or data-st
 
 ### Phase 3: Kafka Partition Skew and Consumer Parallelism
 
-Compare uniform and skewed user distributions across Consumer counts. Confirm idle Consumers when concurrency exceeds usable partitions and quantify the limit imposed by a hot partition.
+Compare uniform partition traffic with a controlled partition-affinity workload across Consumer counts. Record achieved per-partition shares, confirm idle Consumers when concurrency exceeds usable partitions, and quantify the limit imposed by a hot partition. User concentration is separate state-pressure evidence and is not a substitute for partition distribution.
 
 ### Phase 4: Redelivery and Stateful Processing Semantics
 
@@ -364,7 +367,7 @@ Every experiment records:
 - ingress and Consumer rates
 - total and partition Lag
 - Lag growth and drain rates
-- Kafka queue p95/p99
+- Kafka producer-to-Consumer or queue-delay p95/p99, according to the verified timestamp policy
 - Redis state p95/p99
 - rule p95/p99
 - result-sink p95/p99

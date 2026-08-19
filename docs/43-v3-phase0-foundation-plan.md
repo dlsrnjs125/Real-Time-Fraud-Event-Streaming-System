@@ -25,6 +25,10 @@ Required output:
 - total and unique-user counts
 - events/user p50/p95/p99/max
 - top 1% traffic share
+- events/user/window p50/p95/p99/max using runtime `SlidingWindowProperties.window`
+- maximum events/window/user
+- users with 2+ and 5+ events/window ratios
+- window amount-sum p50/p95/p99/max
 - transaction-type counts and ratios
 - fraud ratio
 - amount p50/p95/p99
@@ -40,7 +44,7 @@ Define versioned manifests for:
 - Normal/Capacity
 - Organic Burst
 - Catch-up Burst
-- Skew/Hot-Key
+- User Skew and Partition Skew
 - Late/Out-of-Order
 - Historical Replay
 
@@ -58,8 +62,8 @@ Finalize source timestamp propagation and implement only the freshness metrics w
 
 | Area | Existing foundation | Phase 0 gap |
 |---|---|---|
-| PaySim | normalization, validation, sample, replay, evaluation | user concentration, amount quantiles, time profile, repeat-rate profiler |
-| Workload | k6 smoke/normal/peak/duplicate/Redis-down | versioned A-G manifests and organic/catch-up/skew/late semantics |
+| PaySim | normalization, validation, sample, replay, evaluation | user concentration, window-density, amount quantiles, time profile, repeat-rate profiler |
+| Workload | k6 smoke/normal/peak/duplicate/Redis-down | versioned A-G manifests and organic/catch-up/user-skew/partition-skew/late semantics |
 | Kafka | `userId` key, manual ack, exporter Lag panel | ingress/Consumer rates, partition-first evidence, Lag growth/drain |
 | Redis | sliding window, degraded mode, aggregate latency | state-cost contract, operations/event, scaling evidence |
 | Rule | deterministic rule engine | dedicated processing Timer |
@@ -73,9 +77,11 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 
 | Stored meter | Type | Boundary or event |
 |---|---|---|
-| `fraud.stream.ingress.total` | Counter | event accepted for the selected stream-ingress boundary |
+| `fraud.stream.intake.accepted.total` | Counter | transaction intake accepted by app-api |
+| `fraud.stream.kafka.published.total` | Counter | transaction event publish completed successfully |
 | `fraud.stream.consumed.total` | Counter | Kafka record delivered to the fraud Consumer |
-| `fraud.kafka.queue.latency` | Timer | Kafka timestamp to Consumer processing start |
+| `fraud.kafka.producer.to.consumer.delay` | Timer, conditional | producer `CreateTime` to Consumer processing start |
+| `fraud.kafka.queue.latency` | Timer, conditional | broker `LogAppendTime` to Consumer processing start |
 | `fraud.redis.state.latency` | Timer | complete Redis state update/read operation |
 | `fraud.rule.processing.latency` | Timer | Rule Engine evaluation |
 | `fraud.result.sink.latency` | Timer | required detection-result sink operation |
@@ -87,9 +93,12 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 Derived queries:
 
 ```promql
-rate(fraud_stream_ingress_total[1m])
+rate(fraud_stream_intake_accepted_total[1m])
+rate(fraud_stream_kafka_published_total[1m])
 rate(fraud_stream_consumed_total[1m])
 ```
+
+Only one Kafka delay Timer is selected after verifying `CreateTime` versus `LogAppendTime`, timestamp ownership, and the effective broker `log.message.timestamp.type`. Do not label producer `CreateTime` delay as queue latency.
 
 Do not add `fraud.event.lateness` in Phase 0 unless the lateness reference and allowed-lateness policy are defined. Do not label metrics with eventId, traceId, userId, accountId, partition offset, or raw source identifiers.
 
@@ -124,11 +133,11 @@ Dependency evidence:
 
 Minimum panels:
 
-1. ingress EPS and Consumer EPS
+1. intake accepted, Kafka published, and Consumer EPS
 2. total Lag
 3. partition Lag
 4. Lag growth/drain rate
-5. Kafka queue p95/p99
+5. Kafka producer-to-Consumer or queue delay p95/p99, according to the verified timestamp policy
 6. Consumer service p95/p99
 7. Redis state p95/p99
 8. Rule p95/p99
@@ -153,11 +162,14 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 - define workload schema and versioning
 - encode one normal baseline
 - preserve target versus achieved EPS
+- preserve target versus achieved user and partition distributions
+- define the partition-affinity strategy for partition-skew workloads
 - distinguish HTTP and direct-Kafka drivers
 
 ### Step 3: Time and Source decision
 
 - decide event field versus Kafka header for source metadata
+- decide Kafka `CreateTime` versus `LogAppendTime` and verify broker `log.message.timestamp.type`
 - document backward compatibility
 - document clock-skew assumptions
 - define behavior when `sourceSentAt` is absent
@@ -184,7 +196,8 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 
 ## 9. Required Design Decisions Before Code
 
-- precise ingress boundary: API accepted, Kafka publish success, or both as distinct counters
+- exact populations for intake accepted, Kafka publish success, publish failure, and Consumer delivery counters
+- Kafka record timestamp type, owner, broker policy, and corresponding delay metric name
 - source metadata transport: event schema versus headers
 - clock and skew policy across source, API, broker, and Consumer
 - quantile algorithm for the PaySim profiler
@@ -210,15 +223,21 @@ Generic API request panels may remain, but they are not the primary V3 evidence 
 | Consumer count/concurrency | TBD |
 | Redis window config | TBD |
 
-### Baseline stream evidence
+### Throughput and backlog evidence
 
-| Metric | p50/current | p95/peak | p99/final |
+| Metric | Baseline/average | Peak | Final |
 |---|---:|---:|---:|
-| achieved ingress EPS | TBD | TBD | TBD |
+| Intake accepted EPS | TBD | TBD | TBD |
+| Kafka published EPS | TBD | TBD | TBD |
 | Consumer EPS | TBD | TBD | TBD |
-| total Lag | TBD | TBD | TBD |
-| max partition Lag | TBD | TBD | TBD |
-| Kafka queue latency | TBD | TBD | TBD |
+| Total Lag | TBD | TBD | TBD |
+| Max partition Lag | TBD | TBD | TBD |
+
+### Latency evidence
+
+| Metric | p50 | p95 | p99 |
+|---|---:|---:|---:|
+| Producer-to-Consumer or Kafka queue delay | TBD | TBD | TBD |
 | Consumer service latency | TBD | TBD | TBD |
 | Redis state latency | TBD | TBD | TBD |
 | Rule latency | TBD | TBD | TBD |
@@ -265,6 +284,7 @@ Completion statement:
 - [ ] Confirm profiler report schema and quantile definitions.
 - [ ] Confirm workload manifest path and schema.
 - [ ] Decide source metadata propagation.
+- [ ] Decide Kafka timestamp policy and corresponding delay metric name.
 - [ ] Separate HTTP and direct-Kafka experiments.
 - [ ] Define baseline environment fingerprint.
 - [ ] Keep V3 Phase 1+ code out of the Phase 0 implementation branch.

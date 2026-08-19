@@ -50,6 +50,11 @@ The profiler must produce a versioned summary containing:
 | events/user p50/p95/p99 | quantiles of per-user event counts |
 | maximum events/user | largest per-user event count |
 | top 1% traffic share | events from the highest-volume 1% of users divided by total events |
+| events/user/window p50/p95/p99/max | quantiles and maximum of per-user event counts inside the configured runtime sliding window |
+| maximum events/window/user | largest same-user event count observed in any configured runtime sliding window |
+| users with 2+ events/window ratio | users reaching at least two events in one configured runtime sliding window divided by profiled users |
+| users with 5+ events/window ratio | users reaching at least five events in one configured runtime sliding window divided by profiled users |
+| window amount sum p50/p95/p99/max | quantiles and maximum of per-user transaction-amount sums inside the configured runtime sliding window |
 | transaction type distribution | count and ratio by PaySim native and normalized type |
 | fraud ratio | labelled fraud rows divided by labelled rows |
 | amount p50/p95/p99 | quantiles over valid transaction amounts |
@@ -68,12 +73,14 @@ Required metadata:
 - generated timestamp
 - quantile method
 - top-percent rounding rule
+- runtime `SlidingWindowProperties.window` value used for window statistics
+- window boundary and quantile rules
 
 ### Profile interpretation
 
 The profile answers:
 
-1. Does the corpus contain enough repeated users for sliding-window experiments?
+1. Does the corpus contain temporally dense same-user transactions inside the runtime sliding window?
 2. Does it contain organic heavy users?
 3. Must V3 synthesize a stronger hot-key distribution?
 4. Can original time steps seed a normal arrival shape?
@@ -132,15 +139,21 @@ eventTime < sourceSentAt <= receivedAt
 
 Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning.
 
-### Workload E: Skew and Hot Key
+### Workload E1: User Skew
 
 Compare:
 
 - uniform users
 - measured PaySim distribution
-- synthetic skew, such as top 1% users generating 50% of traffic
+- synthetic user skew, such as the top 1% of users generating 50% of traffic
 
-Record both configured and achieved user concentration.
+This workload measures same-user concentration and state pressure. It does not prove Kafka partition skew. Record both target and achieved user concentration.
+
+### Workload E2: Partition Skew
+
+Pre-generate user IDs whose Kafka key hashes map to selected target partitions, then drive a configured share such as 50-70% of events to one target partition.
+
+This workload measures partition imbalance and Consumer parallelism limits. Record the actual per-partition event distribution; configured user concentration alone is not valid partition-skew evidence.
 
 ### Workload F: Late and Out of Order
 
@@ -164,6 +177,11 @@ duration
 eventLimit
 userDistribution
 heavyUserRatio
+targetUserConcentration
+achievedUserConcentration
+targetPartitionDistribution
+achievedPartitionDistribution
+partitionAffinityStrategy
 sourceProfile
 latenessProfile
 replayRate
@@ -191,6 +209,13 @@ Results from different driver types are separate experiments unless the driver o
 
 Existing runtime events already carry `eventTime` and `receivedAt`. `sourceSentAt` and source metadata are planned contract candidates, not implemented fields.
 
+Before using `kafkaTimestamp` for a latency metric, Phase 0 must record:
+
+- whether the record timestamp type is `CreateTime` or `LogAppendTime`
+- whether the timestamp is owned by the producer or broker
+- the effective broker `log.message.timestamp.type` policy
+- the exact delay interval represented by the metric
+
 ## 8. Delay Attribution
 
 ### Source processing delay
@@ -217,13 +242,18 @@ receivedAt - eventTime
 
 Ingress age combines source processing and transport. It is available without Kafka or Consumer timestamps.
 
-### Kafka queue delay
+### Kafka delivery or queue delay
 
 ```text
 consumerStartedAt - kafkaTimestamp
 ```
 
-Large values can be caused by insufficient Consumer capacity, a hot partition, Consumer downtime, or burst backlog. They do not prove a Kafka broker defect.
+The metric name depends on the timestamp policy:
+
+- With `CreateTime`, use `fraud.kafka.producer.to.consumer.delay`. This interval includes producer-to-broker transport, broker handling, and backlog before Consumer processing.
+- With `LogAppendTime`, `fraud.kafka.queue.latency` may be used because the interval starts at broker append time. This requires an explicit broker policy and verified runtime configuration.
+
+Do not expose `fraud.kafka.queue.latency` while the timestamp type is unresolved. A large value under either policy can be caused by insufficient Consumer capacity, a hot partition, Consumer downtime, or burst backlog; it does not prove a Kafka broker defect.
 
 ### Consumer service time
 
