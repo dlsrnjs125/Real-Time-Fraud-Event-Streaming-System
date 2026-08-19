@@ -106,6 +106,7 @@ Start here:
 - [Evidence Index](docs/20-evidence-index.md)
 - [Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [V2 Final Readiness](docs/34-v2-final-readiness.md)
+- [V3 Production Hardening Direction](docs/41-v3-production-hardening-direction.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Series Plan](blog/README.md)
 
@@ -136,6 +137,12 @@ V2 범위에는 다음 내용이 포함됩니다.
 - active runtime ruleVersion, stored result ruleVersion, evaluator expected ruleVersion 분리
 
 구현된 기능, local/manual 검증, future work의 구분은 [V2 Final Readiness](docs/34-v2-final-readiness.md)에 정리했습니다.
+
+## V3 Production Hardening Preparation
+
+V3 고도화는 기능 수를 늘리는 작업이 아니라, burst traffic, DB bottleneck, Kafka partition skew, Consumer rebalance/redelivery, retry/DLT recovery, replay safety, real-time result delivery, slow consumer/backpressure를 재현하고 관측/개선/evidence로 닫는 방향입니다.
+
+Phase 0 구현을 시작하기 전 전체 목표, 공통 phase 규칙, phase별 준비 범위는 [V3 Production Hardening Direction](docs/41-v3-production-hardening-direction.md)에 정리했습니다.
 
 ## V2 PaySim Evaluation
 

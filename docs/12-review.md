@@ -19,6 +19,42 @@
 - 설계 변경은 `docs/11-troubleshooting-log.md`에 누적합니다.
 - 구조화 로그에 계좌, 기기, IP 등 민감 필드 원문이 남지 않도록 확인합니다.
 
+## V3 Docs Setup Review
+
+Date: 2026-08-19
+
+Scope:
+
+- Added `docs/41-v3-production-hardening-direction.md`.
+- Linked V3 direction from `README.md`, `docs/00-index.md`, and `docs/13-development-roadmap.md`.
+- Kept V3 phases as planned/not started. No runtime feature, metric, script, migration, or API implementation was added.
+
+Review notes:
+
+- V3 is intentionally separated from Core Phase 0~17 and V2 PaySim phases.
+- The V3 common loop requires baseline, realistic bottleneck injection, observation, hypothesis, isolation, improvement, same-load retest, trade-off, and evidence.
+- V3 Phase 6 and Phase 7 remain optional until a real-time delivery surface is explicitly chosen.
+- Example metric values from the Notion plan were converted to `TBD` where they would otherwise look like measured repository evidence.
+
+Open checks before V3 Phase 0 implementation:
+
+- Define exact metric boundaries for Kafka queue latency, rule latency, DB persistence latency, and event E2E latency.
+- Decide which Grafana panels belong to Phase 0 versus later burst/hot-partition experiments.
+- Keep implementation PRs separate from this documentation setup branch.
+
+Follow-up review response:
+
+- Clarified that Redis sliding-window timeout/unavailability remains `Degraded / Continue`, not Kafka retry, unless that policy is explicitly changed later.
+- Added retry mechanism decision criteria for `DefaultErrorHandler` and `@RetryableTopic`, including same-`userId` ordering trade-offs.
+- Added a V3 latency model that separates event age, Kafka queue latency, Consumer processing latency, ingestion-to-detection latency, and live-only business E2E latency.
+- Added redelivery evidence definitions for duplicate consumption, redelivery candidates, and duplicate persistence prevention.
+- Added a phase mapping note because repository V3 intentionally separates Recovery / Replay Safety into Phase 5.
+- Added experiment fingerprint requirements for commit, workload, resource limits, Kafka partitions, Consumer concurrency, HikariCP config, component versions, and dataset/seed.
+- Clarified that Kafka queue latency must choose either Kafka record timestamp or an explicitly propagated producer timestamp before implementation.
+- Defined lag recovery time as burst end to baseline-threshold recovery sustained for 30 seconds, and separated peak total group lag from peak partition lag.
+- Added retry budget requirements: max attempts, max elapsed time, backoff, and jitter.
+- Split Phase 3 always-on runtime metrics from controlled failure-drill redelivery evidence to avoid unnecessary stateful metric complexity.
+
 ## Phase 12 Review
 
 ### 잘한 점
