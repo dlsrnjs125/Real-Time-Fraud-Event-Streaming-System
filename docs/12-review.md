@@ -42,6 +42,15 @@ Open checks before V3 Phase 0 implementation:
 - Decide which Grafana panels belong to Phase 0 versus later burst/hot-partition experiments.
 - Keep implementation PRs separate from this documentation setup branch.
 
+Follow-up review response:
+
+- Clarified that Redis sliding-window timeout/unavailability remains `Degraded / Continue`, not Kafka retry, unless that policy is explicitly changed later.
+- Added retry mechanism decision criteria for `DefaultErrorHandler` and `@RetryableTopic`, including same-`userId` ordering trade-offs.
+- Added a V3 latency model that separates event age, Kafka queue latency, Consumer processing latency, ingestion-to-detection latency, and live-only business E2E latency.
+- Added redelivery evidence definitions for duplicate consumption, redelivery candidates, and duplicate persistence prevention.
+- Added a phase mapping note because repository V3 intentionally separates Recovery / Replay Safety into Phase 5.
+- Added experiment fingerprint requirements for commit, workload, resource limits, Kafka partitions, Consumer concurrency, HikariCP config, component versions, and dataset/seed.
+
 ## Phase 12 Review
 
 ### 잘한 점

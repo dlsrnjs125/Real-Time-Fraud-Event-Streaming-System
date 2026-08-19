@@ -54,6 +54,15 @@ Do not close a V3 phase only because a feature was added. A phase closes only wh
 
 Each phase should record at least:
 
+- experiment fingerprint:
+  - commit SHA
+  - workload scenario name and version
+  - host hardware notes and container CPU/memory limits
+  - Kafka partition count
+  - Consumer instance count and Consumer concurrency
+  - HikariCP pool configuration
+  - PostgreSQL, Redis, Kafka, and Docker image versions
+  - dataset name, sample policy, and deterministic seed when applicable
 - workload shape, duration, event count, and environment notes
 - input TPS and Consumer TPS
 - Kafka Consumer Lag, preferably by partition when relevant
@@ -81,6 +90,17 @@ Do not write estimated numbers as measured results. Use `TBD` until evidence exi
 | Phase 7 | Slow Consumer / Backpressure | Can slow clients be isolated with bounded buffering and catch-up? | Optional / not started |
 
 Phase 6 and Phase 7 are optional until the project explicitly adds a real-time delivery surface. If added, SSE should be considered before WebSocket when the flow is server-to-client only.
+
+### Phase Mapping Note
+
+The repository V3 plan intentionally expands the Notion draft by separating Recovery / Replay Safety into its own Phase 5.
+
+Therefore:
+
+- Notion Real-Time Delivery Phase 5 maps to repository V3 Phase 6.
+- Notion Slow Consumer Phase 6 maps to repository V3 Phase 7.
+
+Once V3 implementation starts, this repository roadmap and direction document are the implementation source of truth. The Notion page remains planning input, not the phase-number authority.
 
 ## Phase 0. Performance Observability Foundation
 
@@ -116,8 +136,34 @@ fraud.consumer.processing.latency
 fraud.redis.window.latency
 fraud.rule.processing.latency
 fraud.db.persistence.latency
-fraud.event.e2e.latency
+fraud.event.age
+fraud.ingestion.to.detection.latency
+fraud.business.event.e2e.latency
 ```
+
+### Latency Model
+
+V3 must not use a single overloaded "E2E latency" metric for every workload. Live traffic and replay traffic have different time semantics.
+
+Canonical time fields:
+
+- `eventTime`: when the financial/business event occurred
+- `receivedAt`: when `app-api` accepted and published the event
+- `producerPublishedAt`: when the API producer publish completed or was acknowledged
+- `consumerStart`: when `app-consumer` starts handling the Kafka record
+- `processingEnd` / `detectedAt`: when fraud processing and persistence complete
+
+V3 latency metrics:
+
+| Metric | Boundary | Primary Use |
+|---|---|---|
+| `fraud.event.age` | `consumerStart - eventTime` | how old the business event is when consumed |
+| `fraud.kafka.queue.latency` | `consumerStart - producerPublishedAt` | Kafka queueing and Consumer backlog |
+| `fraud.consumer.processing.latency` | `processingEnd - consumerStart` | Consumer work after record delivery |
+| `fraud.ingestion.to.detection.latency` | `detectedAt - receivedAt` | online ingestion-to-detection delay |
+| `fraud.business.event.e2e.latency` | `detectedAt - eventTime` | live-traffic business E2E only |
+
+`fraud.business.event.e2e.latency` must not be interpreted as an operational SLA for replay workloads. PaySim or historical replay can carry old `eventTime` values, so `detectedAt - eventTime` may describe event age rather than current system latency. For replay evidence, use ingestion-to-detection latency and clearly exclude historical business E2E from live latency claims.
 
 HikariCP signals:
 
@@ -226,15 +272,26 @@ Business result remains unique
 - define redelivery and duplicate consumption metrics
 - define DB count verification commands
 - document how unique constraint violations are interpreted as idempotent duplicate handling, not fatal processing failure
+- define how `topic`, `partition`, `offset`, and `eventId` are captured together in evidence
 
 ### Candidate Metrics
 
 ```text
 fraud.kafka.records.consumed
-fraud.kafka.redelivery.total
 fraud.duplicate.consumption.total
+fraud.kafka.redelivery.candidate.total
 fraud.duplicate.persistence.prevented.total
 ```
+
+### Redelivery Definitions
+
+Kafka `ConsumerRecord` does not expose a simple `redelivered=true` flag. V3 therefore separates duplicate and redelivery evidence:
+
+- `duplicate_consumption`: the same `eventId` is observed by the Consumer more than once.
+- `redelivery_candidate`: the same `topic` + `partition` + `offset` is consumed again after a crash, restart, or rebalance drill.
+- `duplicate_persistence_prevented`: a duplicate `eventId` did not create another `fraud_detection_results` row because the application path or PostgreSQL unique constraint prevented it.
+
+DB unique conflicts alone are not enough to prove Kafka redelivery, because the API could publish two different records with the same `eventId`. Phase 3 drill evidence must retain `topic`, `partition`, `offset`, and `eventId` together.
 
 ### Closure Evidence
 
@@ -242,7 +299,8 @@ fraud.duplicate.persistence.prevented.total
 |---|---:|
 | Produced Events | TBD |
 | Consumed Records | TBD |
-| Redelivered Records | TBD |
+| Unique Event IDs | TBD |
+| Reconsumed Offsets | TBD |
 | Stored Fraud Results | TBD |
 | Duplicate Fraud Results | 0 required |
 
@@ -254,19 +312,27 @@ Having a retry topic is not the same as having a retry architecture. V3 should c
 
 ### Required Preparation
 
-- document retryable, non-retryable, and idempotent duplicate classifications
+- document retryable, degraded/continue, non-retryable, and idempotent duplicate classifications
 - choose Spring Kafka retry mechanism intentionally, such as `DefaultErrorHandler` or `@RetryableTopic`
 - define retry topic naming and backoff policy
 - define permanent failure isolation into DLT
 - document how invalid payloads avoid repeated pointless retries
+- document how retry changes same-`userId` ordering semantics
 
 ### Failure Classification
 
 Retryable:
 
-- temporary DB connection timeout
-- temporary Redis timeout
-- temporary network or Kafka publish failure
+- PostgreSQL connection acquisition timeout
+- PostgreSQL transient connectivity failure
+- Kafka or DLT publish transient failure
+- other temporary infrastructure failures where processing cannot be completed safely
+
+Degraded / Continue:
+
+- Redis sliding-window timeout or Redis unavailable
+
+Redis sliding-window failure follows the existing degraded-mode policy: continue Consumer processing, skip Redis-dependent rules, persist a degraded fraud result, increment degraded/skipped-rule metrics, and acknowledge after required persistence succeeds. Do not route Redis sliding-window unavailability through Kafka retry unless the degraded-mode policy is explicitly changed in the same phase.
 
 Non-retryable:
 
@@ -280,6 +346,26 @@ Idempotent duplicate:
 - duplicate `eventId`
 - PostgreSQL unique constraint conflict after redelivery
 
+### Retry Mechanism Decision Criteria
+
+`DefaultErrorHandler` and `@RetryableTopic` have different ordering and blocking behavior. The retry mechanism must be selected with `userId` ordering in mind.
+
+`DefaultErrorHandler`:
+
+- keeps retry closer to the original partition processing path
+- makes same-partition ordering easier to reason about
+- can delay partition progress while a retryable record is retried
+- requires an explicit poison-record and retry-exhaustion policy
+
+`@RetryableTopic`:
+
+- can reduce blocking of the main topic partition
+- moves failed records to retry topics, which can allow later same-`userId` records on the main topic to be processed first
+- can change effective user-level ordering from `event #100 -> event #101` to `event #101 -> retried event #100`
+- requires separate validation against fraud rule semantics, especially sliding-window rules
+
+Phase 4 completion must document how retry affects same-`userId` ordering and whether that trade-off is accepted, mitigated, or rejected.
+
 ### Closure Evidence
 
 | Metric | Before | After |
@@ -288,6 +374,7 @@ Idempotent duplicate:
 | Poison Message Blocking | TBD | TBD |
 | DLT Isolation | TBD | TBD |
 | Recovery Success | TBD | TBD |
+| Same-user Ordering Semantics | TBD | TBD |
 
 ## Phase 5. Recovery / Replay Safety
 
