@@ -24,7 +24,6 @@ This index is the navigation entry point for the detailed engineering documents.
 - [Load Test Plan](09-load-test-plan.md)
 - [SLO and Operational Readiness](15-slo-and-operational-readiness.md)
 - [DevOps Architecture](17-devops-architecture.md)
-- [V3 Production Hardening Direction](41-v3-production-hardening-direction.md)
 - [Final Readiness Checklist](19-final-readiness-checklist.md)
 - [Phase 10 Final Readiness](19-phase-10-final-readiness.md)
 - [Evidence Index](20-evidence-index.md)
@@ -46,6 +45,12 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V2 PaySim Native Replay Contract](32-v2-paysim-native-replay-contract.md)
 - [V2 Rule Threshold Regression Evidence](33-v2-rule-threshold-regression-evidence.md)
 - [V2 Final Readiness](34-v2-final-readiness.md)
+
+## V3 High-Throughput Stream Processing
+
+- [V3 High-Throughput Stream Processing Direction](41-v3-high-throughput-stream-processing-direction.md)
+- [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)
+- [V3 Phase 0 Foundation Plan](43-v3-phase0-foundation-plan.md)
 
 ## Rule Version Traceability
 

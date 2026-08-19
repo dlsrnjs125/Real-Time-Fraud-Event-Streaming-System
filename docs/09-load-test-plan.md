@@ -4,6 +4,22 @@
 
 정상 부하, 피크 부하, Consumer 장애, Redis 장애를 재현하고 API 응답성과 비동기 탐지 지연을 분리해서 측정합니다.
 
+## V3 Workload Boundary
+
+기존 Phase 13 k6 시나리오는 HTTP intake, duplicate 방어, Redis degraded mode를 검증하는 재사용 가능한 기반입니다. V3 workload contract가 완료된 것으로 해석하지 않습니다.
+
+V3는 다음 workload를 별도 ID와 version으로 관리합니다.
+
+- Volume / Correctness
+- Normal / Capacity
+- Organic Burst
+- Catch-up Burst
+- Skew / Hot-Key
+- Late / Out-of-Order
+- Historical Replay
+
+상세 의미와 driver 분리 기준은 [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)을 따릅니다. `HTTP_K6` 결과와 향후 `KAFKA_DIRECT_PRODUCER` 결과는 같은 capacity 수치로 직접 비교하지 않습니다.
+
 ## 2. 시나리오
 
 ## Phase 13 k6 Scenarios

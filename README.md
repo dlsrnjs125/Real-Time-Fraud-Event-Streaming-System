@@ -1,42 +1,42 @@
-# Real-Time Fraud Event Streaming System
+# High-Throughput Fraud Stream Processing System
 
-대량의 금융 거래 이벤트를 Kafka로 수집하고, Spring Boot Consumer가 사용자별 거래 패턴을 기반으로 이상거래를 탐지하며, 처리 지연, Consumer Lag, DLQ, 재처리 가능성을 측정하는 이벤트 기반 시스템입니다.
+Kafka 기반 금융 거래 스트림에서 대량·Burst·Hot-Key·Late Event 상황을 재현하고, Redis에 사용자별 최근 상태를 유지하면서 처리량, 지연, Partition 확장성, Event Freshness를 측정하는 Stateful Stream Processing 시스템입니다.
 
 ## 해결하려는 문제
 
-금융 거래 이벤트는 짧은 시간에 대량으로 발생할 수 있습니다. 이상거래 탐지가 지연되면 위험 거래를 사후에 발견하게 되므로, 거래 이벤트를 비동기로 수집하고 사용자별 최근 거래 패턴을 기준으로 위험도를 계산하는 구조가 필요합니다.
+금융 거래 이벤트는 일정한 속도로 도착하지 않습니다. 신규 거래가 순간적으로 증가할 수 있고, 특정 사용자에게 트래픽이 집중될 수 있으며, 외부 시스템에 누적된 오래된 이벤트가 한꺼번에 도착할 수도 있습니다.
 
-이 프로젝트는 거래 저장 자체보다 다음 문제를 중심으로 다룹니다.
+이 프로젝트는 다음 세 축을 중심으로 다룹니다.
 
-- 대량 거래 이벤트 유입
-- 사용자별 거래 순서 보장
-- 실시간 이상거래 탐지 지연
-- Consumer 장애 시 이벤트 재처리
-- Redis 장애 시 degraded mode
-- DLQ 보관과 수동 재처리
-- 처리 결과와 감사 로그 저장
+- Throughput: 지속 처리 가능한 EPS, Consumer Lag 증가와 회복, Partition별 처리량
+- Stateful Processing: Redis Sliding Window의 사용자별 상태 비용과 정확성
+- Event Freshness: event/source/ingress/Kafka/Consumer 경계별 지연과 Late Event
+
+PostgreSQL idempotency, manual ack, Retry/DLT, degraded mode는 안전장치로 유지하지만 V3의 중심 주제는 아닙니다. 실제 금융 원장, 정산, 계좌 승인, DR 시스템은 구현 범위가 아닙니다.
 
 ## 선택한 아키텍처
 
 Spring Boot Modular Monolith + Kafka Event-Driven Worker 구조를 선택합니다.
 
-- `app-api`: 거래 이벤트 접수 API, 운영자 조회 API, DLQ 재처리 API, Actuator
-- `app-consumer`: Kafka Consumer, Rule Engine, Redis 기반 최근 거래 패턴 계산, PostgreSQL 저장, Retry/DLT
+- `app-api`: 거래 이벤트 접수, Kafka publish, 운영 조회 API, Actuator
+- `app-consumer`: Kafka Consumer, Redis 사용자 상태, Rule Engine, PostgreSQL result sink
 - `app-common`: 공통 이벤트 스키마, 공통 응답/예외, traceId/eventId 전파 유틸
 - `infra`: Kafka, PostgreSQL, Redis, Prometheus, Grafana
-- `load-test`: k6 성능 테스트
+- `load-test`: HTTP intake workload와 장애 시나리오
+- `scripts/data`: PaySim preprocessing, profiling 후보, replay/evaluation 도구
 
-API 서버와 Consumer Worker를 분리해 API latency와 Consumer processing latency를 따로 측정하고, Consumer 장애가 거래 이벤트 접수 기능에 직접 전파되지 않도록 합니다.
+API intake와 Kafka Consumer를 분리하고, Kafka를 burst buffer와 partition-based parallelism 경계로 사용합니다. 기본 partition key는 `userId`이며, 이 선택으로 얻는 사용자별 순서와 hot partition 위험을 함께 측정합니다.
 
 ## 설계 원칙
 
-- API 응답성과 이상거래 탐지 지연을 분리해서 측정합니다.
-- Kafka는 이벤트 전달과 재처리 기반으로 사용합니다.
+- Dataset volume과 runtime event velocity를 분리합니다.
+- 평균 처리량뿐 아니라 total/partition Lag과 backlog recovery를 측정합니다.
+- Event Time과 arrival/processing time을 분리해 지연 경계를 추적합니다.
 - PostgreSQL은 탐지 결과와 감사 로그의 기준 저장소로 사용합니다.
-- Redis는 실시간 탐지를 위한 단기 상태 저장소로만 사용합니다.
-- Consumer 장애, Redis 장애, DLQ 재처리를 처음부터 검증 대상으로 둡니다.
+- Redis는 사용자별 최근 거래 상태를 위한 online state store로 사용합니다.
+- 동일 workload와 환경 fingerprint로 개선 전후를 비교합니다.
 
-Kafka를 선택한 이유는 거래 이벤트가 지속적으로 대량 유입되고, 탐지·저장·알림·통계 처리를 서로 분리해야 하며, Consumer 장애 이후에도 이벤트 로그를 기준으로 재처리할 수 있어야 하기 때문입니다. 또한 Consumer Lag을 통해 비동기 탐지 지연을 관측하고, `userId` 기반 partition key로 사용자별 이벤트 순서를 유지하는 것을 핵심 설계 기준으로 둡니다.
+측정하지 않은 처리량이나 장애 원인을 단정하지 않습니다. Local Docker 환경의 workload, duration, achieved EPS, Lag, p95/p99, resource 조건을 함께 기록한 경우에만 해당 범위의 결과로 사용합니다.
 
 ## 기술 스택
 
@@ -106,7 +106,9 @@ Start here:
 - [Evidence Index](docs/20-evidence-index.md)
 - [Troubleshooting Index](docs/21-troubleshooting-index.md)
 - [V2 Final Readiness](docs/34-v2-final-readiness.md)
-- [V3 Production Hardening Direction](docs/41-v3-production-hardening-direction.md)
+- [V3 High-Throughput Stream Direction](docs/41-v3-high-throughput-stream-processing-direction.md)
+- [V3 Dataset, Workload, and Time Contract](docs/42-v3-dataset-workload-time-contract.md)
+- [V3 Phase 0 Foundation Plan](docs/43-v3-phase0-foundation-plan.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Series Plan](blog/README.md)
 
@@ -114,13 +116,13 @@ Start here:
 
 이 프로젝트는 대량 거래 이벤트를 API에서 접수한 뒤 Kafka를 통해 Consumer로 전달하고, Consumer가 Redis 기반 최근 거래 패턴과 Rule Engine을 이용해 이상거래 결과를 계산한 뒤 PostgreSQL에 저장하는 구조까지 구현했습니다.
 
-운영 관점에서는 다음 범위를 검증 대상으로 포함했습니다.
+현재 구현에는 다음 안전장치와 실험 기반이 있습니다.
 
 - Kafka Consumer manual ack와 processing log 기반 처리 추적
 - PostgreSQL unique constraint 기반 idempotency 보장
 - Redis sliding window rule과 Redis 장애 시 degraded/skipped rule 기록
 - DLT 격리, 재처리, 폐기, audit log, max reprocess attempts 정책
-- Consumer Lag, detection latency, degraded count, DLT count 중심의 관측 기준
+- Consumer Lag, processing latency, degraded count, DLT count 중심의 기존 관측 기준
 - k6 기반 normal/peak/duplicate/Redis down 부하·장애 테스트 기준
 - `make final-check` 기반 repository readiness guardrail
 
@@ -138,21 +140,8 @@ V2 범위에는 다음 내용이 포함됩니다.
 
 구현된 기능, local/manual 검증, future work의 구분은 [V2 Final Readiness](docs/34-v2-final-readiness.md)에 정리했습니다.
 
-## V3 Production Hardening Preparation
+## V3 High-Throughput Stream Processing
 
-V3 고도화는 기능 수를 늘리는 작업이 아니라, burst traffic, DB bottleneck, Kafka partition skew, Consumer rebalance/redelivery, retry/DLT recovery, replay safety, real-time result delivery, slow consumer/backpressure를 재현하고 관측/개선/evidence로 닫는 방향입니다.
+V3는 Throughput, Stateful Processing, Event Freshness를 핵심 축으로 둡니다. PaySim Dataset 자체의 크기와 runtime workload 속도를 분리하고, Normal/Organic Burst/Catch-up Burst/Skew/Late/Replay를 서로 다른 실험으로 관리합니다.
 
-Phase 0 구현을 시작하기 전 전체 목표, 공통 phase 규칙, phase별 준비 범위는 [V3 Production Hardening Direction](docs/41-v3-production-hardening-direction.md)에 정리했습니다.
-
-## V2 PaySim Evaluation
-
-V2 extends the fraud detection pipeline with PaySim-based replay/evaluation workflows. The goal is not to claim production fraud model performance, but to make rule baseline evaluation reproducible with documented data, mapping, and threshold contracts.
-
-Raw and full processed PaySim data are intentionally excluded from the repository.
-
-Details:
-
-- [PaySim Data Scripts](scripts/data/README.md)
-- [V2 Final Readiness](docs/34-v2-final-readiness.md)
-- [Evidence Index](docs/20-evidence-index.md)
-- [Troubleshooting Index](docs/21-troubleshooting-index.md)
+현재는 Phase 0 구현 전 문서 기준만 확정한 상태입니다. 전체 방향은 [V3 High-Throughput Stream Direction](docs/41-v3-high-throughput-stream-processing-direction.md), 데이터·워크로드·시간 계약은 [V3 Dataset, Workload, and Time Contract](docs/42-v3-dataset-workload-time-contract.md), Phase 0 작업 순서는 [V3 Phase 0 Foundation Plan](docs/43-v3-phase0-foundation-plan.md)을 기준으로 합니다.

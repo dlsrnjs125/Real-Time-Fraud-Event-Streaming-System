@@ -2555,3 +2555,13 @@ V2 문서에서는 항상 V2 prefix를 유지합니다.
 
 해결:
 새 문서와 blog 제목에서 V2 Phase 15를 명시하고, core Phase 14와 별도 흐름이라고 설명합니다.
+## V3 방향을 PostgreSQL/Retry 중심 Production Hardening으로 고정한 문제
+
+문제:
+이전 V3 문서는 PostgreSQL 병목, Retry/DLT recovery, downstream delivery를 주요 Phase로 먼저 고정했습니다. 이 구성은 Kafka Partition, Redis user state, workload velocity, event freshness를 핵심으로 하는 새 기획과 맞지 않습니다.
+
+판단:
+V3의 대표 질문을 Throughput, Stateful Processing, Event Freshness로 다시 정의합니다. PostgreSQL은 측정 결과에 따라 조사할 result sink이며, Retry/DLT와 idempotency는 제거하지 않되 안전장치로 유지합니다.
+
+해결:
+기존 `docs/41-v3-production-hardening-direction.md`를 삭제하고 전체 방향, dataset/workload/time 계약, Phase 0 계획을 각각 `docs/41`, `docs/42`, `docs/43`으로 분리했습니다. Phase 0 구현 전까지 새 schema, metric, profiler, emulator, workload 기능이 구현된 것으로 표시하지 않습니다.
