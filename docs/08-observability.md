@@ -4,7 +4,7 @@
 
 API가 빠르게 응답하더라도 Consumer Lag이 계속 증가하면 위험 거래 탐지가 늦어집니다. 따라서 API latency뿐 아니라 Consumer Lag, end-to-end detection latency, DLQ backlog/status count를 함께 보는 것이 운영 목표입니다.
 
-Phase 17 local dashboard는 이 목표 지표 전체를 완성한 것이 아니라, 로컬에서 재현 가능한 Prometheus/Grafana evidence foundation을 연결합니다. Kafka Consumer Lag은 `kafka-exporter` 기반 consumer group lag panel로 확인하고, end-to-end detection latency와 DLT backlog/status gauge는 future work로 분리합니다.
+Phase 17에서 로컬 Prometheus/Grafana foundation을 연결했고, V3 Phase 0에서 Consumer queue/processing/Redis/Rule/DB/E2E latency와 HikariCP/Kafka runtime panel을 추가했습니다. DLT backlog/status gauge는 future work입니다.
 
 ## 2. 핵심 지표
 
@@ -48,24 +48,28 @@ Phase 7부터 app-consumer는 Redis Sliding Window와 degraded mode를 관측하
 
 | Metric | Type | Purpose |
 |---|---|---|
-| `fraud.redis.window.record.latency` | Timer | Redis window record/get 처리 시간 |
+| `fraud.kafka.queue.latency` | Timer | Kafka record timestamp부터 Consumer listener 진입까지 |
+| `fraud.consumer.processing.latency` | Timer | listener 진입부터 신규 fraud result 저장 완료까지 |
+| `fraud.redis.window.latency` | Timer | Redis window record/get 전체 처리 시간 |
+| `fraud.rule.processing.latency` | Timer | Rule Engine 평가 시간 |
+| `fraud.db.persistence.latency` | Timer | Consumer path의 동기 PostgreSQL 호출 시간, bounded `operation` tag 사용 |
+| `fraud.event.e2e.latency` | Timer | `eventTime`부터 신규 fraud result 저장 완료까지 |
 | `fraud.redis.window.degraded.total` | Counter | Redis unavailable로 degraded window result를 반환한 횟수 |
 | `fraud.rule.skipped.total` | Counter | degraded mode로 skipped 처리된 rule 수 |
 | `fraud.detection.degraded.total` | Counter | `degraded=true` fraud result 저장 횟수 |
-| `fraud.detection.processing.latency` | Timer | Kafka listener 처리 시작부터 신규 fraud result 저장 완료까지의 처리 시간 |
 | `fraud.dlt.published.total` | Counter | Consumer가 DLT envelope publish에 성공한 횟수 |
 | `fraud.dlt.reprocess.requested.total` | Counter | Admin API DLT reprocess 요청 결과 |
 | `fraud.dlt.discarded.total` | Counter | Admin API DLT discard 요청 결과 |
 | `kafka_consumergroup_lag` | Gauge | Kafka exporter가 수집한 consumer group/topic 기준 lag |
 
 Prometheus scrape에서는 dot format metric 이름이 snake_case 형태로 노출될 수 있습니다.
-Timer인 `fraud.redis.window.record.latency`는 Prometheus에서 `fraud_redis_window_record_latency_seconds_count`, `fraud_redis_window_record_latency_seconds_sum`, `fraud_redis_window_record_latency_seconds_max`처럼 `_seconds_*` suffix가 붙은 시계열로 노출될 수 있습니다.
+Timer인 `fraud.redis.window.latency`는 Prometheus에서 `fraud_redis_window_latency_seconds_count`, `fraud_redis_window_latency_seconds_sum`, `fraud_redis_window_latency_seconds_bucket`처럼 suffix가 붙은 시계열로 노출됩니다. V3 Phase 0 Timer는 histogram과 p50/p95/p99 publication을 활성화합니다.
 
 Metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 넣지 않습니다. 이 값들은 cardinality가 높아 Prometheus 저장 비용과 query 성능에 악영향을 줄 수 있고, 운영 환경에서는 식별자 노출 위험도 있습니다. 개별 이벤트 추적은 structured log의 `traceId`/`eventId`로 수행하고, metric은 `rule`, `mode`, `result` 수준의 낮은 cardinality tag만 사용합니다.
 
 `fraud.redis.window.degraded.total`은 Redis window store가 degraded result를 반환한 횟수이고, `fraud.detection.degraded.total`은 `degraded=true` fraud result가 신규 저장된 횟수입니다. Detection degraded/skipped rule metric은 fraud result가 신규 저장된 경우에만 증가시키고, duplicate result path에서는 증가시키지 않습니다.
 
-`fraud.detection.processing.latency`는 event 발생 시각 기준의 end-to-end latency가 아니라 Consumer 내부 처리 latency입니다. 기준은 Kafka listener가 message 처리를 시작한 시각부터 신규 fraud result 저장 직후까지입니다. `eventTime`, `receivedAt`, `detectedAt` 기준 end-to-end latency는 별도 지표로 확장할 수 있으나, Phase 17에서는 명명 과장을 피하기 위해 processing latency로 기록합니다. 음수 duration은 기록하지 않고, duplicate/idempotent path에서는 중복 기록하지 않습니다.
+V3 Phase 0의 정확한 metric boundary, DB operation tag, replay E2E 해석, HikariCP 설정과 PromQL은 [V3 Phase 0 Performance Observability Foundation](42-v3-phase0-performance-observability.md)을 기준으로 합니다. `fraud.event.e2e.latency`는 과거 replay 처리 SLA로 사용하지 않습니다.
 
 DLT metric은 status별 gauge가 아니라 operation counter로 구현했습니다. `fraud.dlt.reprocess.requested.total`과 `fraud.dlt.discarded.total`은 `result=success|failed` tag만 사용합니다. `operatorId`, `eventId`, `traceId`, `reason`, raw payload는 metric tag 또는 value로 노출하지 않습니다.
 
@@ -80,7 +84,7 @@ Phase 17 dashboard는 `infra/grafana/dashboards/fraud-observability.json`에 저
 
 Dashboard title은 `Fraud Event Streaming Observability`입니다. 목적은 production monitoring completeness가 아니라 local evidence capture입니다.
 
-Phase 17 local dashboard에서 실제 연결한 panels:
+Local dashboard에서 연결한 주요 panels:
 
 - Target Health: `up{job=~"app-api|app-consumer"}`
 - API Requests by Status: `sum by (status) (increase(http_server_requests_seconds_count{job="app-api", uri!~"/actuator.*"}[$__range]))`
@@ -88,8 +92,11 @@ Phase 17 local dashboard에서 실제 연결한 panels:
 - Redis Window Degraded Total: `sum(increase(fraud_redis_window_degraded_total[$__range]))`
 - Detection Degraded Total: `sum(increase(fraud_detection_degraded_total[$__range]))`
 - Rule Skipped Total: `sum by (rule) (increase(fraud_rule_skipped_total[$__range]))`
-- Redis Window Record Latency: `max(fraud_redis_window_record_latency_seconds_max)`
-- Consumer Processing Latency for New Results: `max(fraud_detection_processing_latency_seconds_max)`
+- Redis Window p95 Latency: `fraud_redis_window_latency_seconds_bucket`
+- Consumer Stage p95 Latency: Consumer/Rule/DB histogram bucket
+- Queue and Event E2E p95 Latency: queue/E2E histogram bucket
+- Consumer HikariCP Pool: active/idle/pending/timeout
+- Kafka Consumer Runtime: consumed records rate/assigned partitions/rebalance
 - Kafka Consumer Lag by Consumer Group: `sum by (consumergroup, topic) (kafka_consumergroup_lag{job="kafka-exporter"})`
 - DLT Operation Counters: `fraud_dlt_published_total`, `fraud_dlt_reprocess_requested_total`, `fraud_dlt_discarded_total`
 - API p95 Latency: `histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="app-api", uri!~"/actuator.*"}[1m])))`
@@ -104,7 +111,7 @@ Local Admin operation evidence는 `make failure-drill-dlt`로 만들 수 있습�
 
 DLT metric endpoint도 소유 앱을 구분합니다. `fraud.dlt.published.total`은 app-consumer Prometheus endpoint에서 확인하고, `fraud.dlt.reprocess.requested.total`과 `fraud.dlt.discarded.total`은 app-api Prometheus endpoint에서 확인합니다.
 
-Kafka Consumer Lag panel은 애플리케이션 내부 처리 시간이 아니라, consumer group이 topic latest offset을 얼마나 따라가지 못하고 있는지를 보여주는 backlog 지표입니다. Local Docker Compose에서는 `kafka-exporter`를 통해 `kafka_consumergroup_lag`를 수집하고, Grafana에서는 consumer group/topic 단위로 합산해 표시합니다. 이 panel은 local evidence capture용이며, production alert threshold나 exporter HA 구성은 별도 hardening 범위입니다.
+Kafka Consumer Lag panel은 애플리케이션 내부 처리 시간이 아니라, consumer group이 topic latest offset을 얼마나 따라가지 못하고 있는지를 보여주는 backlog 지표입니다. Local Docker Compose에서는 `kafka-exporter`를 통해 `kafka_consumergroup_lag`를 수집하고, Grafana에서는 consumer group/topic 합계와 partition별 값을 함께 표시합니다. 이 panel은 local evidence capture용이며, production alert threshold나 exporter HA 구성은 별도 hardening 범위입니다.
 
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 
@@ -115,8 +122,7 @@ Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡
 | Candidate | Purpose |
 |---|---|
 | Kafka lag alert threshold | 비동기 탐지 지연과 backlog alert 기준 정의 |
-| End-to-end detection latency | `receivedAt` 또는 `eventTime`부터 `detectedAt`까지의 실제 탐지 지연 확인 |
-| DB insert latency | fraud result, processing log, DLT 저장 지연 확인 |
+| Ingestion-to-detection latency | `receivedAt`부터 `detectedAt`까지의 online ingestion 지연 확인 |
 | DLT status gauge | PENDING, REPROCESS_FAILED 등 상태별 backlog 확인 |
 | Consumer DLT publish drill | magic trigger 없이 안전한 poison event policy가 정의될 때 Consumer failure path 검증 |
 | Alertmanager routing | local alert rule을 실제 notification route와 연결 |
@@ -150,7 +156,7 @@ Phase 4 Consumer log 최소 필드:
 - `offset`
 - `duplicateSkipped`
 
-Phase 7에서는 Redis degraded와 skipped rule을 먼저 metric foundation으로 추가했습니다. Phase 17에서는 local dashboard에 실제 노출 metric을 연결했습니다. Consumer Lag은 `kafka-exporter` 기반 local dashboard panel로 연결하고, end-to-end detection latency와 DLT backlog/status dashboard는 후속 Observability Phase에서 연결합니다.
+Phase 7에서는 Redis degraded와 skipped rule을 먼저 metric foundation으로 추가했습니다. Phase 17에서는 local dashboard에 실제 노출 metric을 연결했고, V3 Phase 0에서는 단계별 latency와 event E2E를 추가했습니다. Consumer Lag은 `kafka-exporter` 기반 local dashboard panel로 연결하며 DLT backlog/status dashboard는 후속 Observability Phase에서 연결합니다.
 
 ## 6. Failure Drill에서 확인할 신호
 
@@ -161,7 +167,7 @@ Redis down drill에서 증가를 확인할 metric:
 - `fraud_redis_window_degraded_total`
 - `fraud_detection_degraded_total`
 - `fraud_rule_skipped_total`
-- `fraud_redis_window_record_latency_seconds_count`
+- `fraud_redis_window_latency_seconds_count`
 
 Redis down drill에서 확인할 API evidence:
 
@@ -195,9 +201,9 @@ k6에서 확인할 항목:
 
 Redis down load에서 확인할 Prometheus metric:
 
-- `fraud_redis_window_record_latency_seconds_count`
-- `fraud_redis_window_record_latency_seconds_sum`
-- `fraud_redis_window_record_latency_seconds_max`
+- `fraud_redis_window_latency_seconds_count`
+- `fraud_redis_window_latency_seconds_sum`
+- `fraud_redis_window_latency_seconds_bucket`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`
@@ -222,9 +228,9 @@ Phase 13에서는 k6 결과와 Prometheus/Actuator metric을 같은 시간대의
 
 Redis down load에서 확인할 metric:
 
-- `fraud_redis_window_record_latency_seconds_count`
-- `fraud_redis_window_record_latency_seconds_sum`
-- `fraud_redis_window_record_latency_seconds_max`
+- `fraud_redis_window_latency_seconds_count`
+- `fraud_redis_window_latency_seconds_sum`
+- `fraud_redis_window_latency_seconds_bucket`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`

@@ -70,8 +70,8 @@
 | Redis degraded metric | `curl http://localhost:8081/actuator/prometheus` | `fraud_redis_window_degraded_total` |
 | Skipped rule metric | `curl http://localhost:8081/actuator/prometheus` | `fraud_rule_skipped_total` |
 | Detection degraded metric | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_degraded_total` |
-| Redis latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_redis_window_record_latency_seconds_*` |
-| Detection processing latency timer | `curl http://localhost:8081/actuator/prometheus` | `fraud_detection_processing_latency_seconds_*` |
+| V3 Phase 0 latency timers | `curl http://localhost:8081/actuator/prometheus` after traffic | `fraud_kafka_queue_latency_seconds_*`, `fraud_consumer_processing_latency_seconds_*`, `fraud_redis_window_latency_seconds_*`, `fraud_rule_processing_latency_seconds_*`, `fraud_db_persistence_latency_seconds_*`, `fraud_event_e2e_latency_seconds_*` |
+| HikariCP pool | `curl http://localhost:8081/actuator/prometheus` | `hikaricp_connections_active`, `hikaricp_connections_idle`, `hikaricp_connections_pending`, `hikaricp_connections_timeout_total` |
 | DLT operation counters | `curl http://localhost:8080/actuator/prometheus` and `curl http://localhost:8081/actuator/prometheus` | `fraud_dlt_reprocess_requested_total`, `fraud_dlt_discarded_total`, `fraud_dlt_published_total` |
 | DLT admin discard operation | `make failure-drill-dlt` | Admin discard response succeeds, `admin_audit_logs` has `DLT_DISCARD`, `fraud_dlt_discarded_total{result="success"}` increases |
 | HTTP request histogram bucket | `curl http://localhost:8080/actuator/prometheus` | `http_server_requests_seconds_bucket` |

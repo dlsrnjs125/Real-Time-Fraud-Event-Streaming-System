@@ -39,7 +39,7 @@
 | V2 Phase 14 | Done | Rule version change runbook / rollback readiness evidence 문서화 완료 | pre/post checklist, rollback/hold criteria, evidence template, troubleshooting/blog | deployment changelog, bounded summary query, alert/automation |
 | V2 Phase 15 | Done | Final evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails | Final Docs/Blog Closure에 통합 |
 | V3 Docs Setup | Done | 고도화 Phase 0 시작 전 목표/규칙/방향성 문서화 | V3 production hardening direction, README/docs index links | V3 Phase 0 observability spec |
-| V3 Phase 0 | Not Started | Performance Observability Foundation | planned metrics and evidence rules only | split Consumer path metrics |
+| V3 Phase 0 | In Progress | Consumer path Timer/Hikari/Kafka dashboard foundation implemented; runtime evidence pending | queue/processing/Redis/rule/DB/E2E metrics, Hikari variables, Grafana panels, Phase 0 runbook | capture local baseline and controlled bottleneck evidence |
 | V3 Phase 1 | Not Started | Market open burst / PostgreSQL bottleneck | planned workload and bottleneck profile only | burst k6 and DB pool experiment |
 | V3 Phase 2 | Not Started | Kafka hot partition / data skew | planned skew evidence only | hot-key workload and partition metrics |
 | V3 Phase 3 | Not Started | Consumer rebalance / redelivery / idempotency | planned failure drill only | controlled redelivery drill |
@@ -64,7 +64,7 @@ Phase numbering policy:
 - `V2 Phase 15` can be marked done because the V2 evidence closure is complete.
 - `Final Docs/Blog Closure` remains in progress until selected image capture is completed. Blog series publication candidate text is complete in `blog/series/`.
 - Production hardening beyond Phase 14 remains future follow-up and should be opened as separate feature PRs only when implemented.
-- V3 Production Hardening is a new planning track. V3 rows must stay `Not Started` until implementation and measured evidence exist.
+- V3 Production Hardening is a new planning track. A row moves to `In Progress` when implementation starts and to `Done` only after measured evidence exists.
 - V3 Phase 6 and Phase 7 are optional until a real-time delivery surface is explicitly added.
 
 ## V3 Production Hardening Planning
@@ -72,6 +72,7 @@ Phase numbering policy:
 V3 starts after the Core runtime and V2 PaySim evidence tracks. It is not a continuation of V2 model/evaluation work. It is a production hardening track focused on bottleneck isolation, failure reproduction, recovery safety, and real-time delivery resilience.
 
 The V3 preparation document is [V3 Production Hardening Direction](41-v3-production-hardening-direction.md).
+The active Phase 0 contract and evidence template are in [V3 Phase 0 Performance Observability Foundation](42-v3-phase0-performance-observability.md).
 
 ### V3 Common Rule
 

@@ -1470,3 +1470,24 @@ make final-check
 - Full PaySim local evidence는 raw data와 local infra가 필요합니다.
 - Final summary는 production fraud model validation이 아닙니다.
 - Dashboard, deployment changelog, alerting, historical backfill은 future work입니다.
+## V3 Phase 0 Performance Observability Review
+
+### 반영한 설계 결정
+
+- Queue latency source는 event contract 변경 없이 `ConsumerRecord.timestamp()`로 고정했습니다.
+- Consumer의 실제 DB 접근이 Redis 전후에 존재하므로 `fraud.db.persistence.latency`에 bounded `operation` tag를 사용해 processing log, duplicate lookup, fraud result operation을 구분했습니다.
+- Queue/Consumer/Redis/Rule/DB/E2E Timer에 histogram과 p50/p95/p99 publication을 적용했습니다.
+- HikariCP pool size, minimum idle, connection timeout을 Consumer 환경변수로 노출했습니다.
+- Grafana에서 Kafka lag 결과와 Consumer stage/HikariCP 원인 후보를 같은 시간축으로 비교하도록 panel을 추가했습니다.
+- Historical replay의 `eventTime` 기반 E2E를 처리 SLA로 해석하지 않도록 제한을 기록했습니다.
+
+### 검토가 남은 항목
+
+- 실제 실행 중 Kafka client metric 이름이 문서의 Prometheus series와 일치하는지 확인
+- local traffic 이후 여섯 Timer와 HikariCP series 노출 확인
+- controlled DB bottleneck run과 동일 부하 재실행 evidence 확보
+- pool size 변경 전에 connection waiting과 PostgreSQL query execution을 분리했는지 확인
+
+### 현재 판정
+
+구현 및 정적 검증 단계는 완료했지만 runtime baseline과 bottleneck evidence가 없어 V3 Phase 0은 `In Progress`입니다.

@@ -58,6 +58,7 @@
 - DLT operation counter vs backlog gauge: `docs/40-phase17-observability-dashboard-hardening.md`
 - DLT admin operation drill: `docs/40-phase17-observability-dashboard-hardening.md`
 - High-cardinality metric tag avoidance: `docs/08-observability.md`
+- V3 Phase 0 lag symptom vs DB/Hikari cause isolation: `docs/42-v3-phase0-performance-observability.md#8-troubleshooting-drill`
 
 ## V2 PaySim Replay Evaluation
 

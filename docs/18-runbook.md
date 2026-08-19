@@ -185,17 +185,20 @@ curl http://localhost:8081/actuator/prometheus | grep fraud
 
 현재 Phase에서 확인 가능한 metric:
 
-- `fraud_redis_window_record_latency_seconds_*`
+- `fraud_redis_window_latency_seconds_*`
+- `fraud_consumer_processing_latency_seconds_*`
+- `fraud_rule_processing_latency_seconds_*`
+- `fraud_db_persistence_latency_seconds_*`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`
 
-후속 Observability Phase 후보:
+추가로 확인할 metric:
 
-- `kafka_consumer_lag`
-- `fraud_consumer_processing_duration_seconds`
-- `db_insert_latency`
-- `publish_failure_count`
+- `kafka_consumergroup_lag`
+- `fraud_kafka_queue_latency_seconds_*`
+- `hikaricp_connections_pending`
+- `hikaricp_connections_timeout_total`
 
 영향:
 
@@ -236,7 +239,7 @@ Kafka UI에서 consumer group lag을 확인하고, Grafana Consumer dashboard에
 
 탐지 지표:
 
-- `fraud_redis_window_record_latency_seconds_*`
+- `fraud_redis_window_latency_seconds_*`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`
@@ -861,14 +864,14 @@ curl http://localhost:8081/actuator/prometheus | grep fraud
 
 확인할 metric 후보:
 
-- `fraud_redis_window_record_latency_seconds_count`
-- `fraud_redis_window_record_latency_seconds_sum`
-- `fraud_redis_window_record_latency_seconds_max`
+- `fraud_redis_window_latency_seconds_count`
+- `fraud_redis_window_latency_seconds_sum`
+- `fraud_redis_window_latency_seconds_bucket`
 - `fraud_redis_window_degraded_total`
 - `fraud_rule_skipped_total`
 - `fraud_detection_degraded_total`
 
-`fraud.redis.window.record.latency`는 Micrometer Timer이므로 Prometheus에서는 `_seconds_*` suffix가 붙은 시계열로 노출될 수 있습니다. Prefix grep을 사용할 때는 `fraud_redis_window_record_latency`로 확인할 수 있습니다.
+`fraud.redis.window.latency`는 Micrometer Timer이므로 Prometheus에서는 `_seconds_*` suffix가 붙은 시계열로 노출됩니다. Prefix grep을 사용할 때는 `fraud_redis_window_latency`로 확인할 수 있습니다.
 
 Redis degraded metric 확인 절차:
 

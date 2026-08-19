@@ -25,6 +25,7 @@ This index is the navigation entry point for the detailed engineering documents.
 - [SLO and Operational Readiness](15-slo-and-operational-readiness.md)
 - [DevOps Architecture](17-devops-architecture.md)
 - [V3 Production Hardening Direction](41-v3-production-hardening-direction.md)
+- [V3 Phase 0 Performance Observability Foundation](42-v3-phase0-performance-observability.md)
 - [Final Readiness Checklist](19-final-readiness-checklist.md)
 - [Phase 10 Final Readiness](19-phase-10-final-readiness.md)
 - [Evidence Index](20-evidence-index.md)

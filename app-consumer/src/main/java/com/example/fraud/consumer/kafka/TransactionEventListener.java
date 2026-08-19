@@ -27,7 +27,6 @@ import org.springframework.stereotype.Component;
 public class TransactionEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionEventListener.class);
-
     private final EventProcessingLogService processingLogService;
     private final RecentTransactionWindowStore recentTransactionWindowStore;
     private final FraudRuleEngine fraudRuleEngine;
@@ -56,17 +55,26 @@ public class TransactionEventListener {
 
     @KafkaListener(topics = KafkaTopicNames.TRANSACTION_EVENTS)
     public void onMessage(ConsumerRecord<String, TransactionEventMessage> record, Acknowledgment acknowledgment) {
-        Instant processingStartedAt = Instant.now();
+        Instant consumerStartedAt = Instant.now();
+        long processingStartedAtNanos = System.nanoTime();
         TransactionEventMessage message = record.value();
+        recordKafkaQueueLatency(record, consumerStartedAt);
 
-        ProcessingLogResult result = processingLogService.recordProcessedEvent(
-                message,
-                record.topic(),
-                record.partition(),
-                record.offset(),
-                consumerGroupId
+        ProcessingLogResult result = metrics.recordDbPersistenceLatency(
+                FraudConsumerMetrics.DB_OPERATION_PROCESSING_LOG,
+                () -> processingLogService.recordProcessedEvent(
+                        message,
+                        record.topic(),
+                        record.partition(),
+                        record.offset(),
+                        consumerGroupId
+                )
         );
-        if (fraudDetectionResultService.existsResultForEventId(message.eventId())) {
+        boolean resultExists = metrics.recordDbPersistenceLatency(
+                FraudConsumerMetrics.DB_OPERATION_FRAUD_RESULT_LOOKUP,
+                () -> fraudDetectionResultService.existsResultForEventId(message.eventId())
+        );
+        if (resultExists) {
             acknowledgment.acknowledge();
             log.info(
                     "transaction event duplicate fraud result skipped traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={}",
@@ -84,15 +92,20 @@ public class TransactionEventListener {
         RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
         FraudRuleEngineResult ruleResult;
         try {
-            ruleResult = fraudRuleEngine.evaluate(message, windowResult);
+            ruleResult = metrics.recordRuleProcessingLatency(() -> fraudRuleEngine.evaluate(message, windowResult));
         } catch (RuntimeException exception) {
             recordDeadLetterAndAcknowledge(record, acknowledgment, FailureStage.RULE_ENGINE_ERROR, exception);
             return;
         }
-        FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
+        FraudDetectionResultSaveResult saveResult = metrics.recordDbPersistenceLatency(
+                FraudConsumerMetrics.DB_OPERATION_FRAUD_RESULT,
+                () -> fraudDetectionResultService.saveResult(message, ruleResult)
+        );
         recordDetectionMetrics(ruleResult, saveResult);
         if (!saveResult.duplicateSkipped()) {
-            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, Instant.now()));
+            Instant processingEndedAt = Instant.now();
+            metrics.recordConsumerProcessingLatency(Duration.ofNanos(System.nanoTime() - processingStartedAtNanos));
+            metrics.recordEventE2eLatency(Duration.between(message.eventTime().toInstant(), processingEndedAt));
         }
 
         acknowledgment.acknowledge();
@@ -117,6 +130,16 @@ public class TransactionEventListener {
                 ruleResult.riskLevel(),
                 ruleResult.decision()
         );
+    }
+
+    private void recordKafkaQueueLatency(
+            ConsumerRecord<String, TransactionEventMessage> record,
+            Instant consumerStartedAt
+    ) {
+        if (record.timestamp() == ConsumerRecord.NO_TIMESTAMP) {
+            return;
+        }
+        metrics.recordKafkaQueueLatency(Duration.between(Instant.ofEpochMilli(record.timestamp()), consumerStartedAt));
     }
 
     private void recordDeadLetterAndAcknowledge(

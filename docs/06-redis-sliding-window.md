@@ -59,7 +59,7 @@ Redis timeout은 Consumer thread가 Redis 장애에 오래 묶이지 않도록 `
 
 ## 5. 측정 항목
 
-- `fraud.redis.window.record.latency`: Redis window record/get 처리 시간
+- `fraud.redis.window.latency`: Redis window record/get 처리 시간
 - `fraud.redis.window.degraded.total`: Redis 장애 중 degraded window result 횟수
 - `fraud.detection.degraded.total`: `degraded=true` fraud result 저장 횟수
 - `fraud.rule.skipped.total{rule=...}`: Redis 기반 rule skipped count

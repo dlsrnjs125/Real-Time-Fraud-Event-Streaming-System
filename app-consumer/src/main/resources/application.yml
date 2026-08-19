@@ -13,6 +13,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/fraud
     username: fraud
     password: fraud
+    hikari:
+      maximum-pool-size: ${CONSUMER_DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${CONSUMER_DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${CONSUMER_DB_CONNECTION_TIMEOUT_MS:30000}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -46,5 +50,17 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+        fraud.kafka.queue.latency: true
+        fraud.consumer.processing.latency: true
+        fraud.redis.window.latency: true
+        fraud.rule.processing.latency: true
+        fraud.db.persistence.latency: true
+        fraud.event.e2e.latency: true
       percentiles:
         http.server.requests: 0.5,0.95,0.99
+        fraud.kafka.queue.latency: 0.5,0.95,0.99
+        fraud.consumer.processing.latency: 0.5,0.95,0.99
+        fraud.redis.window.latency: 0.5,0.95,0.99
+        fraud.rule.processing.latency: 0.5,0.95,0.99
+        fraud.db.persistence.latency: 0.5,0.95,0.99
+        fraud.event.e2e.latency: 0.5,0.95,0.99

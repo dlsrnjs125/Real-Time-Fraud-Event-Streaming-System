@@ -2555,3 +2555,13 @@ V2 문서에서는 항상 V2 prefix를 유지합니다.
 
 해결:
 새 문서와 blog 제목에서 V2 Phase 15를 명시하고, core Phase 14와 별도 흐름이라고 설명합니다.
+## V3 Phase 0 Kafka Lag을 Kafka 자체 병목으로 단정하는 문제
+
+문제:
+Consumer Lag은 처리 지연의 결과이므로 Lag 증가만으로 Kafka broker 처리량 부족을 원인으로 결론 내릴 수 없습니다. 현재 Consumer는 Redis와 Rule Engine뿐 아니라 processing log 저장, fraud result 중복 조회, fraud result 저장 과정에서 PostgreSQL/HikariCP를 사용합니다.
+
+판단:
+Queue latency와 Consumer processing latency를 먼저 비교하고, 같은 시간 구간의 Redis/Rule/DB operation p95 및 Hikari active/idle/pending/timeout을 확인합니다. DB p95와 pending이 먼저 증가한 뒤 queue latency와 lag이 따라 증가한다면 DB connection waiting 또는 query execution을 우선 가설로 둡니다.
+
+해결:
+V3 Phase 0에서 Consumer path Timer를 단계별로 분리하고 HikariCP/Kafka runtime panel을 추가했습니다. 구체적인 metric boundary, PromQL, 판정 순서, evidence template은 `docs/42-v3-phase0-performance-observability.md`에 둡니다. 예시 수치는 실측 evidence가 아니며 Phase 0은 local baseline과 controlled bottleneck run을 남기기 전까지 `In Progress`입니다.

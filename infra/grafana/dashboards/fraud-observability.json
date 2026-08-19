@@ -418,12 +418,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(fraud_redis_window_record_latency_seconds_max)",
-          "legendFormat": "max latency",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_redis_window_latency_seconds_bucket[1m])))",
+          "legendFormat": "redis p95",
           "refId": "A"
         }
       ],
-      "title": "Redis Window Record Latency",
+      "title": "Redis Window p95 Latency",
       "type": "stat"
     },
     {
@@ -482,12 +482,30 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(fraud_detection_processing_latency_seconds_max)",
-          "legendFormat": "processing latency max",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_consumer_processing_latency_seconds_bucket[1m])))",
+          "legendFormat": "consumer p95",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_rule_processing_latency_seconds_bucket[1m])))",
+          "legendFormat": "rule p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(fraud_db_persistence_latency_seconds_bucket[1m])))",
+          "legendFormat": "db {{operation}} p95",
+          "refId": "C"
         }
       ],
-      "title": "Consumer Processing Latency for New Results",
+      "title": "Consumer Stage p95 Latency",
       "type": "timeseries"
     },
     {
@@ -682,11 +700,196 @@
             "uid": "prometheus"
           },
           "expr": "sum by (consumergroup, topic) (kafka_consumergroup_lag{job=\"kafka-exporter\"})",
-          "legendFormat": "{{consumergroup}} {{topic}}",
+          "legendFormat": "total {{consumergroup}} {{topic}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (consumergroup, topic, partition) (kafka_consumergroup_lag{job=\"kafka-exporter\"})",
+          "legendFormat": "partition {{partition}}",
+          "refId": "B"
         }
       ],
-      "title": "Kafka Consumer Lag by Consumer Group",
+      "title": "Kafka Consumer Lag Total and by Partition",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_kafka_queue_latency_seconds_bucket[1m])))",
+          "legendFormat": "queue p95",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_event_e2e_latency_seconds_bucket[1m])))",
+          "legendFormat": "event E2E p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Queue and Event E2E p95 Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "hikaricp_connections_active{job=\"app-consumer\"}",
+          "legendFormat": "active",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "hikaricp_connections_idle{job=\"app-consumer\"}",
+          "legendFormat": "idle",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "hikaricp_connections_pending{job=\"app-consumer\"}",
+          "legendFormat": "pending",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "increase(hikaricp_connections_timeout_total{job=\"app-consumer\"}[$__range])",
+          "legendFormat": "timeouts in range",
+          "refId": "D"
+        }
+      ],
+      "title": "Consumer HikariCP Pool",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(kafka_consumer_fetch_manager_records_consumed_rate{job=\"app-consumer\"})",
+          "legendFormat": "records/sec",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(kafka_consumer_coordinator_assigned_partitions{job=\"app-consumer\"})",
+          "legendFormat": "assigned partitions",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(kafka_consumer_coordinator_rebalance_total{job=\"app-consumer\"}[$__range]))",
+          "legendFormat": "rebalances in range",
+          "refId": "C"
+        }
+      ],
+      "title": "Kafka Consumer Runtime",
       "type": "timeseries"
     }
   ],
@@ -708,6 +911,6 @@
   "timezone": "browser",
   "title": "Fraud Event Streaming Observability",
   "uid": "fraud-event-streaming-observability",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

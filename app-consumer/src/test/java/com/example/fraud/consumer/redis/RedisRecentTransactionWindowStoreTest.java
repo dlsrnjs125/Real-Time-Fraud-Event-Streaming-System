@@ -59,7 +59,7 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(result.degraded()).isFalse();
         assertThat(result.transactionCount()).isEqualTo(2);
         assertThat(result.amountSum()).isEqualByComparingTo("2100000");
-        assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_RECORD_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_LATENCY).count()).isEqualTo(1);
         verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
         verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
         verify(zSet).removeRangeByScore("fraud:tx:user:user-1001:events", 0, millis("2026-06-19T09:55:00Z") - 1);
@@ -152,7 +152,7 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(result.amountSum()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.reason()).contains("Redis sliding window unavailable");
         assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_DEGRADED_TOTAL).count()).isEqualTo(1.0);
-        assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_RECORD_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_LATENCY).count()).isEqualTo(1);
     }
 
     private void mockRedisOperations() {

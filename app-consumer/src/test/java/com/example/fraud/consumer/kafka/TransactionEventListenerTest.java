@@ -29,7 +29,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.kafka.common.record.TimestampType;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.support.Acknowledgment;
 
@@ -82,6 +85,56 @@ class TransactionEventListenerTest {
 
         verify(acknowledgment).acknowledge();
         assertThatMetric(FraudConsumerMetrics.DETECTION_DEGRADED_TOTAL).isZero();
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.CONSUMER_PROCESSING_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.RULE_PROCESSING_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(
+                FraudConsumerMetrics.DB_PERSISTENCE_LATENCY,
+                "operation",
+                FraudConsumerMetrics.DB_OPERATION_PROCESSING_LOG
+        ).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(
+                FraudConsumerMetrics.DB_PERSISTENCE_LATENCY,
+                "operation",
+                FraudConsumerMetrics.DB_OPERATION_FRAUD_RESULT_LOOKUP
+        ).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(
+                FraudConsumerMetrics.DB_PERSISTENCE_LATENCY,
+                "operation",
+                FraudConsumerMetrics.DB_OPERATION_FRAUD_RESULT
+        ).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.EVENT_E2E_LATENCY).count()).isEqualTo(1);
+    }
+
+    @Test
+    void recordsKafkaQueueLatencyFromKafkaRecordTimestamp() {
+        TransactionEventMessage message = message("evt-listener-queue-latency");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                17L,
+                System.currentTimeMillis() - 100,
+                TimestampType.CREATE_TIME,
+                -1,
+                -1,
+                "user-1001",
+                message,
+                new RecordHeaders(),
+                Optional.empty()
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                2,
+                17L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(true);
+
+        listener.onMessage(record, acknowledgment);
+
+        verify(acknowledgment).acknowledge();
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.KAFKA_QUEUE_LATENCY).count()).isEqualTo(1);
     }
 
     @Test

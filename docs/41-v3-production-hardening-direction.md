@@ -80,7 +80,7 @@ Do not write estimated numbers as measured results. Use `TBD` until evidence exi
 
 | V3 Phase | Theme | Primary Question | Status Before Start |
 |---:|---|---|---|
-| Phase 0 | Performance Observability Foundation | Can we identify where Consumer processing time is spent? | Not started |
+| Phase 0 | Performance Observability Foundation | Can we identify where Consumer processing time is spent? | In progress |
 | Phase 1 | Market Open Burst / PostgreSQL Bottleneck | Can the system handle burst traffic and recover lag after DB saturation? | Not started |
 | Phase 2 | Kafka Hot Partition / Data Skew | Can we detect and explain partition-level traffic skew? | Not started |
 | Phase 3 | Consumer Rebalance / Redelivery / Idempotency | Can redelivery happen without duplicate business results? | Not started |
@@ -120,13 +120,15 @@ Ack
 
 If only total processing latency is visible, the system cannot reliably tell whether a 300ms event spent most of its time in Redis, rule execution, DB persistence, or waiting for DB connection.
 
-### Required Documentation Before Implementation
+### Implementation Contract
 
 - define metric names and exact measurement boundaries
 - decide which timers are application metrics and which are infrastructure/exporter metrics
 - document cardinality rules for labels
 - document how HikariCP metrics will be exposed and interpreted
 - define a Grafana panel list for V3 experiments
+
+The implementation and verification contract is maintained in [V3 Phase 0 Performance Observability Foundation](42-v3-phase0-performance-observability.md). Phase 0 selected Kafka record timestamp as the queue-latency source and did not add producer observability fields to the event contract.
 
 ### Candidate Metrics
 
@@ -138,7 +140,7 @@ fraud.rule.processing.latency
 fraud.db.persistence.latency
 fraud.event.age
 fraud.ingestion.to.detection.latency
-fraud.business.event.e2e.latency
+fraud.event.e2e.latency
 ```
 
 ### Latency Model
@@ -161,9 +163,9 @@ V3 latency metrics:
 | `fraud.kafka.queue.latency` | `consumerStart - Kafka record timestamp or explicitly defined producer timestamp` | Kafka queueing and Consumer backlog |
 | `fraud.consumer.processing.latency` | `processingEnd - consumerStart` | Consumer work after record delivery |
 | `fraud.ingestion.to.detection.latency` | `detectedAt - receivedAt` | online ingestion-to-detection delay |
-| `fraud.business.event.e2e.latency` | `detectedAt - eventTime` | live-traffic business E2E only |
+| `fraud.event.e2e.latency` | `detectedAt - eventTime` | live-traffic business E2E only |
 
-`fraud.business.event.e2e.latency` must not be interpreted as an operational SLA for replay workloads. PaySim or historical replay can carry old `eventTime` values, so `detectedAt - eventTime` may describe event age rather than current system latency. For replay evidence, use ingestion-to-detection latency and clearly exclude historical business E2E from live latency claims.
+`fraud.event.e2e.latency` must not be interpreted as an operational SLA for replay workloads. PaySim or historical replay can carry old `eventTime` values, so `detectedAt - eventTime` may describe event age rather than current system latency. For replay evidence, use Consumer processing and queue latency and clearly exclude historical business E2E from live latency claims.
 
 `fraud.kafka.queue.latency` implementation must decide whether its source timestamp is the Kafka record timestamp, such as `ConsumerRecord.timestamp()`, or an explicitly propagated producer timestamp. Do not introduce `producerPublishedAt` into the event contract only for observability without evaluating the Kafka contract cost. Phase 0 must document the chosen timestamp source before adding the metric.
 
