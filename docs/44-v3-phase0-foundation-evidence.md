@@ -86,7 +86,7 @@ Histogram buckets are enabled and Prometheus `histogram_quantile` queries provid
 
 | Field | Value |
 |---|---|
-| Code-under-test SHA | `TBD_AFTER_IMPLEMENTATION_COMMIT` based on `63c76d9c213d70ea80b10221fb1ec1ceb6c09cf8` |
+| Code-under-test SHA | `8edbe2d00a42f177b1d846feab5f2cad3dc5bd72` based on `63c76d9c213d70ea80b10221fb1ec1ceb6c09cf8` |
 | Run ID | `20260819-phase0-baseline-150` |
 | Workload | `v3-phase0-normal-baseline` / `v1` |
 | Driver / time mode | `HTTP_K6` / `REBASE_TO_ARRIVAL` |
