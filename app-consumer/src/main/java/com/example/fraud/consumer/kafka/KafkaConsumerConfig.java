@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.kafka;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -12,6 +13,7 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
@@ -22,7 +24,8 @@ public class KafkaConsumerConfig {
     @Bean
     public ConsumerFactory<String, TransactionEventMessage> transactionEventConsumerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
-            @Value("${spring.kafka.consumer.group-id}") String groupId
+            @Value("${spring.kafka.consumer.group-id}") String groupId,
+            MeterRegistry meterRegistry
     ) {
         Map<String, Object> properties = new HashMap<>();
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -34,7 +37,9 @@ public class KafkaConsumerConfig {
         properties.put(JsonDeserializer.VALUE_DEFAULT_TYPE, TransactionEventMessage.class.getName());
         properties.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.fraud.common.event");
         properties.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        return new DefaultKafkaConsumerFactory<>(properties);
+        var consumerFactory = new DefaultKafkaConsumerFactory<String, TransactionEventMessage>(properties);
+        consumerFactory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return consumerFactory;
     }
 
     @Bean

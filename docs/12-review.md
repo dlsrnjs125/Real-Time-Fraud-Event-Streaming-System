@@ -1499,3 +1499,48 @@ make final-check
 - Full PaySim local evidence는 raw data와 local infra가 필요합니다.
 - Final summary는 production fraud model validation이 아닙니다.
 - Dashboard, deployment changelog, alerting, historical backfill은 future work입니다.
+
+## V3 Phase 0 Review
+
+### 검토 결론
+
+- PaySim hourly source-step와 five-minute runtime window를 분리했고, full profile은 source-step 반복만 보고합니다.
+- Source metadata를 observability만을 위해 event contract에 추가하지 않았습니다. 따라서 source/transport delay는 구현되지 않았다고 명시했습니다.
+- Kafka broker의 `CreateTime`을 실제 확인해 producer-to-Consumer delay만 노출하고 queue latency는 노출하지 않았습니다.
+- Receipt/publish counter는 transaction commit 뒤에 증가하며 rollback과 duplicate population을 테스트했습니다.
+- Consumer delivery와 service Timer는 typed listener redelivery를 포함하고, stage Timer의 duplicate/degraded/failure inclusion을 문서화했습니다.
+- Application metric tag에 eventId, traceId, userId, accountId, partition offset을 추가하지 않았습니다.
+- Normal baseline의 target과 achieved user/partition distribution을 구분했습니다.
+- 두 실패한 workload 실행과 clean-start schema race를 성공 결과에서 제외하고 troubleshooting으로 남겼습니다.
+- 5 EPS 결과를 sustainable throughput 또는 성능 개선으로 해석하지 않았습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] nearest-rank quantile과 `(user, sourceStep)` population 정의가 실험 목적에 맞는가
+- [ ] source metadata를 Phase 6까지 test-only로 유지하는 결정에 동의하는가
+- [ ] typed listener 이전 deserialization failure가 delivery counter에서 제외되는 한계를 수용하는가
+- [ ] Result Sink Timer를 fraud-result save boundary로 제한한 것이 Phase 1 병목 분리에 충분한가
+- [ ] 15초 scrape와 one-minute Lag derivation window가 Phase 1 plateau 길이에 적합한가
+- [ ] uniform users의 measured partition distribution을 skew evidence로 오해하지 않는가
+- [ ] local full profile과 raw PaySim report가 staged되지 않았는가
+
+### 검증 기록
+
+```bash
+python3 scripts/data/profile_paysim_v3.py --force
+make verify-v3-phase0
+make test-data-scripts-ci
+make data-policy-check
+./gradlew :app-api:test :app-consumer:test
+docker compose -f infra/docker-compose.yml config --quiet
+make observability-check
+V3_RUN_ID=20260819-phase0-baseline-150 make k6-v3-baseline
+make final-check
+```
+
+### 남은 한계
+
+- Source processing/transport delay와 lateness semantics는 미구현입니다.
+- Phase 0 baseline은 capacity, recovery, hot partition, redelivery, out-of-order 결과가 아닙니다.
+- Clean environment에서는 app-api migration 완료 후 app-consumer를 시작해야 합니다.
+- p99에는 startup/warm-up tail이 포함되어 steady-state SLO로 사용할 수 없습니다.

@@ -51,6 +51,7 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 High-Throughput Stream Processing Direction](41-v3-high-throughput-stream-processing-direction.md)
 - [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)
 - [V3 Phase 0 Foundation Plan](43-v3-phase0-foundation-plan.md)
+- [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)
 
 ## Rule Version Traceability
 

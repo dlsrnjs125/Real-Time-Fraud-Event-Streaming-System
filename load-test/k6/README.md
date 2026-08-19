@@ -33,6 +33,7 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | Duplicate Replay | `make k6-duplicate` | Duplicate `eventId` consistency check |
 | Duplicate Replay Check | `make k6-duplicate-check` | Duplicate replay plus DB count check |
 | Redis Down Load | `make k6-redis-down` | Degraded mode load with Redis stopped by script |
+| V3 Phase 0 Baseline | `make k6-v3-baseline` | Versioned 5 EPS normal HTTP baseline with arrival-time event timestamps |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -43,3 +44,15 @@ make k6-duplicate-check
 `make k6-redis-down` checks that Redis degraded and detection degraded metrics increase when `app-consumer` metrics are reachable. It also starts Redis again and waits for `redis-cli ping` during cleanup.
 
 Raw k6 result files should be written under `load-test/k6/results/` and must not be committed. Keep only `results/.gitkeep`.
+
+## V3 Workload Contract
+
+V3 manifests are stored under `load-test/workloads/v3` and validated with `make verify-v3-workload-manifests`. The committed Phase 0 baseline uses `driverType=HTTP_K6` and `eventTimeMode=REBASE_TO_ARRIVAL`; its PaySim-like transaction attributes do not imply PaySim hourly timestamps or observed five-minute density.
+
+Set a unique run identifier when retaining local evidence:
+
+```bash
+V3_RUN_ID=<run-id> make k6-v3-baseline
+```
+
+The generated summary under `load-test/k6/results` records target and achieved EPS. User and partition distributions remain `null` until measured from an appropriate driver/report or Kafka evidence; the k6 HTTP driver does not infer Kafka partition placement.

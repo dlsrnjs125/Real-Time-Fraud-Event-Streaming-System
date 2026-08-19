@@ -23,7 +23,7 @@ Spring Boot Modular Monolith + Kafka Event-Driven Worker 구조를 선택합니�
 - `app-common`: 공통 이벤트 스키마, 공통 응답/예외, traceId/eventId 전파 유틸
 - `infra`: Kafka, PostgreSQL, Redis, Prometheus, Grafana
 - `load-test`: HTTP intake workload와 장애 시나리오
-- `scripts/data`: PaySim preprocessing, profiling 후보, replay/evaluation 도구
+- `scripts/data`: PaySim preprocessing, V3 corpus profiling, replay/evaluation 도구
 
 API intake와 Kafka Consumer를 분리하고, Kafka를 burst buffer와 partition-based parallelism 경계로 사용합니다. 기본 partition key는 `userId`이며, 이 선택으로 얻는 사용자별 순서와 hot partition 위험을 함께 측정합니다.
 
@@ -78,6 +78,7 @@ Representative verification:
 
 ```bash
 make final-check
+make k6-v3-baseline # requires running local infrastructure and applications
 ```
 
 `make final-check` validates repository readiness guardrails, not production fraud detection quality.
@@ -109,6 +110,7 @@ Start here:
 - [V3 High-Throughput Stream Direction](docs/41-v3-high-throughput-stream-processing-direction.md)
 - [V3 Dataset, Workload, and Time Contract](docs/42-v3-dataset-workload-time-contract.md)
 - [V3 Phase 0 Foundation Plan](docs/43-v3-phase0-foundation-plan.md)
+- [V3 Phase 0 Foundation Evidence](docs/44-v3-phase0-foundation-evidence.md)
 - [PaySim Data Scripts](scripts/data/README.md)
 - [Blog Series Plan](blog/README.md)
 
@@ -144,4 +146,4 @@ V2 범위에는 다음 내용이 포함됩니다.
 
 V3는 Throughput, Stateful Processing, Event Freshness를 핵심 축으로 둡니다. PaySim Dataset 자체의 크기와 runtime workload 속도를 분리하고, Normal/Organic Burst/Catch-up Burst/Skew/Late/Replay를 서로 다른 실험으로 관리합니다.
 
-현재는 Phase 0 구현 전 문서 기준만 확정한 상태입니다. 전체 방향은 [V3 High-Throughput Stream Direction](docs/41-v3-high-throughput-stream-processing-direction.md), 데이터·워크로드·시간 계약은 [V3 Dataset, Workload, and Time Contract](docs/42-v3-dataset-workload-time-contract.md), Phase 0 작업 순서는 [V3 Phase 0 Foundation Plan](docs/43-v3-phase0-foundation-plan.md)을 기준으로 합니다.
+V3 Phase 0의 dataset profile, versioned workload manifest, stream-stage metrics, timestamp decision, Grafana dashboard, low-rate baseline evidence를 완료했습니다. 상세 구현과 측정 한계는 [V3 Phase 0 Foundation Evidence](docs/44-v3-phase0-foundation-evidence.md)를 기준으로 하며, 다음 단계는 동일한 계약을 사용해 sustainable EPS와 backlog recovery를 측정하는 V3 Phase 1입니다.

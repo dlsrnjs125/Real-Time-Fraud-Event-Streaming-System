@@ -1,0 +1,23 @@
+{
+  "workloadId": "v3-phase0-normal-baseline",
+  "workloadVersion": "v1",
+  "workloadRole": "NORMAL_CAPACITY",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 5,
+  "duration": "30s",
+  "eventLimit": 150,
+  "userCardinality": 50,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "randomSeed": 310519
+}

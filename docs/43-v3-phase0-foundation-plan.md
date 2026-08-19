@@ -2,11 +2,11 @@
 
 ## 1. Status
 
-- Documentation setup: complete in this branch
-- Phase 0 implementation: not started
-- Measured V3 baseline: not available
+- Documentation setup: complete
+- Phase 0 implementation: complete; see [Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)
+- Measured V3 baseline: local low-rate baseline recorded in the evidence document
 
-This document defines what must be built and verified after the documentation branch is reviewed. It does not claim that the profiler, Source emulator, new metrics, workload manifests, or dashboard panels exist.
+This document remains the Phase 0 plan and contract. Actual implementation, local measurements, limitations, and verification commands are recorded separately in the evidence document. A Source emulator remains outside Phase 0.
 
 ## 2. Phase Goal
 
@@ -89,8 +89,8 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 | `fraud.rule.processing.latency` | Timer | Rule Engine evaluation |
 | `fraud.result.sink.latency` | Timer | required detection-result sink operation |
 | `fraud.consumer.service.latency` | Timer | Consumer start to detection/result completion |
-| `fraud.event.source.processing.delay` | Timer | `sourceSentAt - eventTime`, when source timestamp exists |
-| `fraud.event.transport.delay` | Timer | `receivedAt - sourceSentAt`, when source timestamp exists |
+| `fraud.event.source.processing.delay` | Deferred | requires a trustworthy `sourceSentAt` owner; not registered in Phase 0 |
+| `fraud.event.transport.delay` | Deferred | requires a trustworthy `sourceSentAt` owner; not registered in Phase 0 |
 | `fraud.event.ingress.age` | Timer | `receivedAt - eventTime` |
 
 Derived queries:
@@ -293,19 +293,19 @@ Completion statement:
 - downstream SSE/WebSocket delivery
 - measured capacity claims
 
-## 13. Pre-Implementation Checklist
+## 13. Reviewed Implementation Checklist
 
-- [ ] Review the three V3 direction documents together.
-- [ ] Confirm Phase 0 metric names and populations.
-- [ ] Confirm profiler report schema and quantile definitions.
-- [ ] Confirm workload manifest path and schema.
-- [ ] Confirm PaySim source-step and synthetic runtime-window profiles remain separate.
-- [ ] Confirm workload `eventTimeMode` and API future-time compatibility.
-- [ ] Decide source metadata propagation.
-- [ ] Decide Kafka timestamp policy and corresponding delay metric name.
-- [ ] Separate HTTP and direct-Kafka experiments.
-- [ ] Define baseline environment fingerprint.
-- [ ] Keep V3 Phase 1+ code out of the Phase 0 implementation branch.
+- [x] Review the three V3 direction documents together.
+- [x] Confirm Phase 0 metric names and populations.
+- [x] Confirm profiler report schema and nearest-rank quantile definitions.
+- [x] Store manifest schema and baseline under `load-test/workloads/v3`.
+- [x] Keep PaySim source-step and synthetic runtime-window profiles separate.
+- [x] Use `REBASE_TO_ARRIVAL` for the normal baseline to remain compatible with API future-time validation.
+- [x] Keep source metadata in test-only manifest/report artifacts in Phase 0.
+- [x] Verify broker `CreateTime` and expose producer-to-Consumer delay only.
+- [x] Separate experiments by `driverType`.
+- [x] Record the local baseline environment fingerprint.
+- [x] Keep V3 Phase 1+ optimization and semantic changes out of Phase 0.
 
 ## 14. Source
 

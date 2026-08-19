@@ -2565,3 +2565,87 @@ V3의 대표 질문을 Throughput, Stateful Processing, Event Freshness로 다�
 
 해결:
 기존 `docs/41-v3-production-hardening-direction.md`를 삭제하고 전체 방향, dataset/workload/time 계약, Phase 0 계획을 각각 `docs/41`, `docs/42`, `docs/43`으로 분리했습니다. Phase 0 구현 전까지 새 schema, metric, profiler, emulator, workload 기능이 구현된 것으로 표시하지 않습니다.
+
+## V3 Phase 0 Baseline Generator Contract Drift
+
+### Problem
+
+Early normal-baseline runs did not match the manifest even though k6 completed its scheduled iterations.
+
+### Expected
+
+The `UNIFORM` workload must emit exactly 150 valid events across 50 users, with three events per user and no HTTP failures.
+
+### Observation
+
+The first run reached all 150 stream boundaries but used only 12 users. After replacing the random mixer, a second run produced signed 32-bit values and 71 negative amounts, leaving only 79 accepted events. After fixing that defect, k6 scheduled 151 iterations at the duration boundary and emitted one event beyond `eventLimit`.
+
+### Hypothesis
+
+The workload's hidden generator arithmetic and scheduler boundary, rather than API, Kafka, or Consumer capacity, caused the mismatches.
+
+### Isolation
+
+Receipt, publish, delivery, processing-log, and fraud-result counts were compared with k6 iterations. PostgreSQL user counts exposed the 12-user modulo pattern, API validation logs exposed negative amounts, and the k6 summary exposed the 151st emission.
+
+### Root Cause
+
+The original linear congruential expression had a short modulo-50 pattern. A later bitwise XOR returned a signed JavaScript integer because the final unsigned conversion was missing. The scenario also treated duration/rate as an exact event limit instead of enforcing `manifest.eventLimit`.
+
+### Change
+
+The manifest now owns `userCardinality`; global scenario iteration assigns users round-robin. The value mixer returns `>>> 0`, event emission stops at `eventLimit`, and the summary derives achieved EPS and concentration from actual `http_reqs`. HTTP failure rate and check success are retained in the report.
+
+### Verification
+
+The accepted run emitted 150 HTTP requests, used 50 users with min/max three events each, recorded zero HTTP failures, and persisted 150 receipt, processing-log, and fraud-result rows.
+
+### Trade-off
+
+Round-robin users deliberately make the Phase 0 normal baseline uniform and reproducible. It is not a model of PaySim user popularity; measured and skewed distributions remain separate workload roles.
+
+### Evidence
+
+`load-test/workloads/v3/normal-baseline-v1.json`, `load-test/k6/scenarios/v3-normal-baseline.js`, and [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md).
+
+## V3 Phase 0 Clean-Start Schema Validation Race
+
+### Problem
+
+Starting app-api and app-consumer concurrently after deleting the PostgreSQL volume intermittently caused Consumer startup failure.
+
+### Expected
+
+Both applications should become ready before the baseline starts.
+
+### Observation
+
+app-consumer failed Hibernate validation with `missing table [dead_letter_events]` while app-api was still applying Flyway migrations.
+
+### Hypothesis
+
+The Consumer connected after PostgreSQL health passed but before the API-owned schema migration completed.
+
+### Isolation
+
+PostgreSQL was healthy and reachable, and the same Consumer binary started without error immediately after app-api readiness.
+
+### Root Cause
+
+Container database readiness does not imply application schema readiness. app-api owns Flyway migrations while app-consumer uses schema validation, so concurrent clean startup has an ordering dependency.
+
+### Change
+
+The Phase 0 baseline procedure starts app-api, waits for `/actuator/health`, then starts app-consumer and verifies group assignment before load.
+
+### Verification
+
+The sequential startup completed migrations, Consumer schema validation, and six-partition assignment before the accepted 150-event run.
+
+### Trade-off
+
+This is an operational sequencing rule, not a distributed migration coordinator. Deployment-level migration ownership remains future work.
+
+### Evidence
+
+Consumer startup log, health checks, `kafka-consumer-groups.sh --describe`, and [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md).

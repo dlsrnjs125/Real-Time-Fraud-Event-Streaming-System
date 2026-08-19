@@ -14,7 +14,9 @@ import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,7 @@ public class TransactionEventListener {
     private final FraudDetectionResultService fraudDetectionResultService;
     private final DeadLetterEventService deadLetterEventService;
     private final FraudConsumerMetrics metrics;
+    private final Clock clock;
     private final String consumerGroupId;
 
     public TransactionEventListener(
@@ -43,6 +46,7 @@ public class TransactionEventListener {
             FraudDetectionResultService fraudDetectionResultService,
             DeadLetterEventService deadLetterEventService,
             FraudConsumerMetrics metrics,
+            Clock clock,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
     ) {
         this.processingLogService = processingLogService;
@@ -51,13 +55,31 @@ public class TransactionEventListener {
         this.fraudDetectionResultService = fraudDetectionResultService;
         this.deadLetterEventService = deadLetterEventService;
         this.metrics = metrics;
+        this.clock = clock;
         this.consumerGroupId = consumerGroupId;
     }
 
     @KafkaListener(topics = KafkaTopicNames.TRANSACTION_EVENTS)
     public void onMessage(ConsumerRecord<String, TransactionEventMessage> record, Acknowledgment acknowledgment) {
-        Instant processingStartedAt = Instant.now();
+        Instant processingStartedAt = clock.instant();
         TransactionEventMessage message = record.value();
+        metrics.incrementConsumerDelivery();
+        metrics.recordProducerToConsumerDelay(record.timestamp(), processingStartedAt);
+        metrics.recordIngressAge(message.eventTime(), message.receivedAt());
+
+        try {
+            processMessage(record, acknowledgment, processingStartedAt, message);
+        } finally {
+            metrics.recordConsumerServiceLatency(Duration.between(processingStartedAt, clock.instant()));
+        }
+    }
+
+    private void processMessage(
+            ConsumerRecord<String, TransactionEventMessage> record,
+            Acknowledgment acknowledgment,
+            Instant processingStartedAt,
+            TransactionEventMessage message
+    ) {
 
         ProcessingLogResult result = processingLogService.recordProcessedEvent(
                 message,
@@ -84,15 +106,17 @@ public class TransactionEventListener {
         RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
         FraudRuleEngineResult ruleResult;
         try {
-            ruleResult = fraudRuleEngine.evaluate(message, windowResult);
+            ruleResult = metrics.recordRuleProcessingLatency(() -> fraudRuleEngine.evaluate(message, windowResult));
         } catch (RuntimeException exception) {
             recordDeadLetterAndAcknowledge(record, acknowledgment, FailureStage.RULE_ENGINE_ERROR, exception);
             return;
         }
-        FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
+        FraudDetectionResultSaveResult saveResult = metrics.recordResultSinkLatency(
+                () -> fraudDetectionResultService.saveResult(message, ruleResult)
+        );
         recordDetectionMetrics(ruleResult, saveResult);
         if (!saveResult.duplicateSkipped()) {
-            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, Instant.now()));
+            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, clock.instant()));
         }
 
         acknowledgment.acknowledge();
@@ -126,7 +150,7 @@ public class TransactionEventListener {
             RuntimeException exception
     ) {
         DeadLetterEventEntity event = deadLetterEventService.recordFailure(record, failureStage, exception);
-        deadLetterEventService.publish(event, record.value(), java.time.OffsetDateTime.now());
+        deadLetterEventService.publish(event, record.value(), OffsetDateTime.now(clock));
         acknowledgment.acknowledge();
         log.warn(
                 "transaction event moved to dlt traceId={} eventId={} userId={} topic={} partition={} offset={} failureStage={} errorType={}",

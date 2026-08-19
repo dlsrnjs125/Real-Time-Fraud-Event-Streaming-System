@@ -27,7 +27,10 @@ import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import com.example.fraud.consumer.rule.FraudRuleVersions;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,7 @@ class TransactionEventListenerTest {
     private final DeadLetterEventService deadLetterEventService = mock(DeadLetterEventService.class);
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     private final FraudConsumerMetrics metrics = new FraudConsumerMetrics(meterRegistry);
+    private final Clock clock = Clock.fixed(Instant.parse("2026-06-17T10:00:02Z"), ZoneOffset.UTC);
     private final TransactionEventListener listener = new TransactionEventListener(
             processingLogService,
             recentTransactionWindowStore,
@@ -49,6 +53,7 @@ class TransactionEventListenerTest {
             fraudDetectionResultService,
             deadLetterEventService,
             metrics,
+            clock,
             "fraud-event-consumer"
     );
 
@@ -82,6 +87,11 @@ class TransactionEventListenerTest {
 
         verify(acknowledgment).acknowledge();
         assertThatMetric(FraudConsumerMetrics.DETECTION_DEGRADED_TOTAL).isZero();
+        assertThatMetric(FraudConsumerMetrics.STREAM_CONSUMER_DELIVERY_TOTAL).isEqualTo(1.0);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.RULE_PROCESSING_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.RESULT_SINK_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.CONSUMER_SERVICE_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.EVENT_INGRESS_AGE).count()).isEqualTo(1);
     }
 
     @Test

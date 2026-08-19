@@ -8,6 +8,7 @@
 - Consumer restart replay: `docs/18-runbook.md#18-phase-8-failure-drill`
 - DLT publish failure: `docs/18-runbook.md#19-phase-9-dlt-운영-절차`
 - Kafka unavailable drill: `scripts/failure_drills/kafka_unavailable_drill.md`
+- V3 clean-start migration race: `docs/11-troubleshooting-log.md#v3-phase-0-clean-start-schema-validation-race`
 
 ## Redis
 
@@ -32,6 +33,7 @@
 ## CI / Script
 
 - GitHub Actions minimum gate: `.github/workflows/ci.yml`
+- V3 baseline generator contract drift: `docs/11-troubleshooting-log.md#v3-phase-0-baseline-generator-contract-drift`
 - Redis integration test separation: `Makefile`, `docs/18-runbook.md#17-redis-integration-test와-metric-확인`
 - Failure drill script line ending issue: `docs/11-troubleshooting-log.md`
 - Phase 11 evidence index: `docs/20-evidence-index.md`

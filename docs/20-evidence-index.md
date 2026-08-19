@@ -33,6 +33,7 @@
 | V2 Phase 13 | Runtime rule version observability evidence | `./gradlew test`, `make final-check`; `make verify-v2-phase13` for data/evaluation guardrails | `docs/37-v2-rule-version-observability-evidence.md` |
 | V2 Phase 14 | Rule version change runbook and rollback readiness evidence | `make final-check`, `./gradlew test`; local/manual actuator/admin checks documented in runbook | `docs/38-v2-rule-version-change-runbook.md` |
 | V2 Phase 15 | Final evidence closure | `make final-check`; documentation review | `docs/39-v2-final-evidence-closure.md` |
+| V3 Phase 0 | Dataset, workload, timestamp, stream observability foundation | `make verify-v3-phase0`, `make k6-v3-baseline`, Prometheus/Grafana local checks | `docs/44-v3-phase0-foundation-evidence.md` |
 
 ## CI / Build
 
@@ -78,6 +79,7 @@
 | Prometheus targets UP | `http://localhost:9090/targets` | `app-api`, `app-consumer` scrape targets up after apps start |
 | Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |
 | Grafana dashboard loaded | `http://localhost:3000` | `Fraud Event Streaming Observability` under `Fraud Event Streaming` folder |
+| V3 stream dashboard loaded | Grafana search API or `http://localhost:3000` | `V3 Stream Processing Foundation` with boundary, Lag, stage, freshness, partition, and resource panels |
 | API status panel | `make k6-duplicate` then Grafana | 2xx/409 distribution visible in `API Requests by Status` |
 | Redis degraded/skipped panels | `make k6-redis-down` then Grafana | Redis degraded and skipped rule panels increase |
 
