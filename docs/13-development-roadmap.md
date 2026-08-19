@@ -38,16 +38,16 @@
 | V2 Phase 13 | Done | Runtime rule version observability evidence 구현 완료 | app-consumer Actuator info, app-api ruleVersion summary, CI-safe data/evaluation gate, Gradle tests, docs/blog | ruleVersion filter/dashboard/deployment changelog |
 | V2 Phase 14 | Done | Rule version change runbook / rollback readiness evidence 문서화 완료 | pre/post checklist, rollback/hold criteria, evidence template, troubleshooting/blog | deployment changelog, bounded summary query, alert/automation |
 | V2 Phase 15 | Done | Final evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails | Final Docs/Blog Closure에 통합 |
-| V3 Docs Setup | Done | 고도화 Phase 0 시작 전 목표/규칙/방향성 문서화 | V3 production hardening direction, README/docs index links | V3 Phase 0 observability spec |
-| V3 Phase 0 | Not Started | Performance Observability Foundation | planned metrics and evidence rules only | split Consumer path metrics |
-| V3 Phase 1 | Not Started | Market open burst / PostgreSQL bottleneck | planned workload and bottleneck profile only | burst k6 and DB pool experiment |
-| V3 Phase 2 | Not Started | Kafka hot partition / data skew | planned skew evidence only | hot-key workload and partition metrics |
-| V3 Phase 3 | Not Started | Consumer rebalance / redelivery / idempotency | planned failure drill only | controlled redelivery drill |
-| V3 Phase 4 | Not Started | Retry / DLT recovery architecture | planned classification only | retry handler and poison-message policy |
-| V3 Phase 5 | Not Started | Recovery / replay safety | planned replay safety only | rate-limited replay design |
-| V3 Phase 6 | Not Started | Real-time fraud result delivery | optional planned delivery phase | SSE/WebSocket decision |
-| V3 Phase 7 | Not Started | Slow consumer / backpressure | optional planned downstream resilience phase | bounded queue and catch-up policy |
-| Future Follow-up | Not Started | Production hardening 후보 | dashboard/alert hardening, CI/E2E drill, deployment safety | 별도 기능 PR로 분리 |
+| V3 Direction Reset | Done | High-Throughput Stateful Stream Processing 방향과 Phase 0 사전 계약 문서화 | V3 direction, dataset/workload/time contract, Phase 0 plan | review contracts before implementation |
+| V3 Phase 0 | Not Started | Dataset, Workload, and Stream Observability Foundation | documentation contract only | PaySim profiler, workload manifests, time model, stream metrics |
+| V3 Phase 1 | Not Started | Sustainable Throughput and Backlog Recovery | planned capacity-curve experiment | find sustainable EPS and recovery behavior |
+| V3 Phase 2 | Not Started | Stateful Sliding-Window Scaling | planned state-size experiment | measure Redis cost by events/user and window size |
+| V3 Phase 3 | Not Started | Kafka Partition Skew and Consumer Parallelism | planned uniform/skew experiment | quantify hot-partition and scale-out limits |
+| V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
+| V3 Phase 5 | Not Started | Event-Time, Late, and Out-of-Order Processing | planned lateness policy | define allowed lateness and live-state update behavior |
+| V3 Phase 6 | Not Started | External Delay and Catch-up Burst | planned Source emulator profiles | distinguish organic burst from upstream catch-up |
+| V3 Phase 7 | Not Started | Historical Replay Isolation | planned live/replay isolation | isolate topic/group/state/metrics and replay rate |
+| V3 Optional Phase 8 | Deferred | Downstream Streaming and Backpressure | outside core V3 sequence | reconsider after Phase 0~7 evidence |
 
 Status 기준:
 
@@ -63,15 +63,20 @@ Phase numbering policy:
 - V2 Phase 15 is the V2 evidence closure subset that feeds the broader final docs/blog closure work.
 - `V2 Phase 15` can be marked done because the V2 evidence closure is complete.
 - `Final Docs/Blog Closure` remains in progress until selected image capture is completed. Blog series publication candidate text is complete in `blog/series/`.
-- Production hardening beyond Phase 14 remains future follow-up and should be opened as separate feature PRs only when implemented.
-- V3 Production Hardening is a new planning track. V3 rows must stay `Not Started` until implementation and measured evidence exist.
-- V3 Phase 6 and Phase 7 are optional until a real-time delivery surface is explicitly added.
+- V3 is a separate High-Throughput Stateful Stream Processing track built on the existing runtime and V2 data toolchain.
+- V3 Phase rows remain `Not Started` until their implementation begins and cannot be marked `Done` without measured evidence.
+- Retry/DLT and PostgreSQL idempotency remain safeguards but are not independent primary V3 phases.
+- Optional downstream streaming remains deferred until Phase 0~7 stream-processing evidence exists.
 
-## V3 Production Hardening Planning
+## V3 High-Throughput Stream Processing Planning
 
-V3 starts after the Core runtime and V2 PaySim evidence tracks. It is not a continuation of V2 model/evaluation work. It is a production hardening track focused on bottleneck isolation, failure reproduction, recovery safety, and real-time delivery resilience.
+V3 uses the existing Core runtime and V2 PaySim toolchain to investigate three axes: Throughput, Stateful Processing, and Event Freshness. Dataset size and runtime workload velocity are versioned and interpreted separately.
 
-The V3 preparation document is [V3 Production Hardening Direction](41-v3-production-hardening-direction.md).
+V3 preparation documents:
+
+- [V3 High-Throughput Stream Processing Direction](41-v3-high-throughput-stream-processing-direction.md)
+- [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)
+- [V3 Phase 0 Foundation Plan](43-v3-phase0-foundation-plan.md)
 
 ### V3 Common Rule
 
@@ -79,7 +84,7 @@ Every V3 phase must follow this loop:
 
 ```text
 Baseline
-Realistic Bottleneck Injection
+Controlled Workload / Injection
 Observation
 Hypothesis
 Isolation
@@ -93,27 +98,29 @@ The same workload must be used for Before/After comparison. If the workload, env
 
 ### V3 Phase Start Policy
 
-V3 Phase 0 can start only after:
+V3 Phase 0 implementation can start only after:
 
-- the phase metric boundaries are documented
-- the expected evidence table is defined
-- the implementation scope is limited to observability foundation
-- no V3 phase is marked complete before measured evidence exists
+- PaySim profile fields and quantile definitions are reviewed
+- workload A-G semantics and manifest ownership are reviewed
+- timestamp ownership and source metadata options are reviewed
+- stream metric boundaries and cardinality rules are reviewed
+- the expected dashboard and evidence table are defined
+- implementation remains inside Phase 0
 
-V3 Phase 1 and later can start only after Phase 0 provides enough metric separation to distinguish Kafka, Consumer, Redis, DB, and downstream effects.
+V3 Phase 1 and later can start only after Phase 0 can distinguish source age, Kafka backlog, Consumer service, Redis state, Rule Engine, and result-sink effects.
 
 ### V3 Planned Phase Summary
 
 | V3 Phase | Summary | Completion Signal |
 |---:|---|---|
-| 0 | Split Consumer-path observability into queue, Redis, rule, DB, processing, and E2E signals | metric boundaries and dashboard evidence exist |
-| 1 | Reproduce market-open burst and PostgreSQL bottleneck | Before/After burst evidence and DB pool trade-off recorded |
-| 2 | Reproduce Kafka partition skew from hot keys | partition-level skew and scale-out limit recorded |
-| 3 | Reproduce redelivery during rebalance/failure | duplicate consumption observed with duplicate fraud results staying 0 |
-| 4 | Implement retry/DLT failure classification | retryable vs permanent vs duplicate paths verified |
-| 5 | Harden DLT replay as an operational recovery path | rate/batch policy and post-replay verification recorded |
-| 6 | Add real-time result delivery boundary if needed | detection path and delivery path are decoupled |
-| 7 | Add slow-consumer backpressure if streaming is added | bounded queue and catch-up behavior verified |
+| 0 | Establish dataset profile, workload/time contracts, stage metrics, freshness, and dashboard | one reproducible baseline can be explained by stream boundary |
+| 1 | Find sustainable throughput and backlog recovery behavior | capacity curve, knee point, Lag growth/drain, recovery recorded |
+| 2 | Scale Redis user state across events/user and window sizes | same-load state optimization evidence recorded |
+| 3 | Compare uniform/skew traffic and Consumer parallelism | partition skew and scale-out limit recorded |
+| 4 | Inject redelivery at stateful processing failure points | Redis state and subsequent decisions remain explainable |
+| 5 | Define and verify late/out-of-order state semantics | allowed-lateness and too-late behavior recorded |
+| 6 | Compare organic burst with upstream catch-up | delay attribution separates the two workload meanings |
+| 7 | Isolate historical replay from live processing | live state, Lag, and latency remain uncontaminated |
 
 ## Phase 0. Initial Planning
 

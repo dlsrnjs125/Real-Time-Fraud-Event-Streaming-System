@@ -19,41 +19,48 @@
 - 설계 변경은 `docs/11-troubleshooting-log.md`에 누적합니다.
 - 구조화 로그에 계좌, 기기, IP 등 민감 필드 원문이 남지 않도록 확인합니다.
 
-## V3 Docs Setup Review
+## V3 Direction Reset Review
 
 Date: 2026-08-19
 
-Scope:
+### Changed direction
 
-- Added `docs/41-v3-production-hardening-direction.md`.
-- Linked V3 direction from `README.md`, `docs/00-index.md`, and `docs/13-development-roadmap.md`.
-- Kept V3 phases as planned/not started. No runtime feature, metric, script, migration, or API implementation was added.
+- Superseded the previous V3 Production Hardening plan with the High-Throughput Stateful Stream Processing direction.
+- Reorganized V3 around Throughput, Stateful Processing, and Event Freshness.
+- Moved PostgreSQL tuning from a predetermined Phase 1 topic to a measured result-sink candidate.
+- Kept Retry/DLT, PostgreSQL idempotency, manual ack, and Redis degraded mode as safety mechanisms rather than independent primary phases.
+- Deferred downstream SSE/WebSocket and backpressure until the core stream-processing phases have evidence.
 
-Review notes:
+### Documentation outputs
 
-- V3 is intentionally separated from Core Phase 0~17 and V2 PaySim phases.
-- The V3 common loop requires baseline, realistic bottleneck injection, observation, hypothesis, isolation, improvement, same-load retest, trade-off, and evidence.
-- V3 Phase 6 and Phase 7 remain optional until a real-time delivery surface is explicitly chosen.
-- Example metric values from the Notion plan were converted to `TBD` where they would otherwise look like measured repository evidence.
+- `docs/41-v3-high-throughput-stream-processing-direction.md`
+- `docs/42-v3-dataset-workload-time-contract.md`
+- `docs/43-v3-phase0-foundation-plan.md`
+- Updated README, documentation index, domain problem, and roadmap.
 
-Open checks before V3 Phase 0 implementation:
+### Design checks applied
 
-- Define exact metric boundaries for Kafka queue latency, rule latency, DB persistence latency, and event E2E latency.
-- Decide which Grafana panels belong to Phase 0 versus later burst/hot-partition experiments.
-- Keep implementation PRs separate from this documentation setup branch.
+- Separated dataset volume from runtime event velocity.
+- Defined Volume, Normal, Organic Burst, Catch-up Burst, Skew, Late/Out-of-Order, and Historical Replay workloads.
+- Defined ownership for `eventTime`, `sourceSentAt`, `receivedAt`, Kafka timestamp, Consumer start, and detection completion.
+- Did not claim `sourceSentAt` exists in the current event contract.
+- Avoided duplicating ingress age and lateness before an allowed-lateness policy exists.
+- Defined EPS as a rate derived from Counters rather than an application-managed rate gauge.
+- Separated HTTP intake tests from future direct-Kafka producer tests.
+- Preserved measured-evidence and experiment-fingerprint requirements.
 
-Follow-up review response:
+### Open checks before Phase 0 code
 
-- Clarified that Redis sliding-window timeout/unavailability remains `Degraded / Continue`, not Kafka retry, unless that policy is explicitly changed later.
-- Added retry mechanism decision criteria for `DefaultErrorHandler` and `@RetryableTopic`, including same-`userId` ordering trade-offs.
-- Added a V3 latency model that separates event age, Kafka queue latency, Consumer processing latency, ingestion-to-detection latency, and live-only business E2E latency.
-- Added redelivery evidence definitions for duplicate consumption, redelivery candidates, and duplicate persistence prevention.
-- Added a phase mapping note because repository V3 intentionally separates Recovery / Replay Safety into Phase 5.
-- Added experiment fingerprint requirements for commit, workload, resource limits, Kafka partitions, Consumer concurrency, HikariCP config, component versions, and dataset/seed.
-- Clarified that Kafka queue latency must choose either Kafka record timestamp or an explicitly propagated producer timestamp before implementation.
-- Defined lag recovery time as burst end to baseline-threshold recovery sustained for 30 seconds, and separated peak total group lag from peak partition lag.
-- Added retry budget requirements: max attempts, max elapsed time, backoff, and jitter.
-- Split Phase 3 always-on runtime metrics from controlled failure-drill redelivery evidence to avoid unnecessary stateful metric complexity.
+- Choose the PaySim quantile algorithm and top-1% rounding rule.
+- Choose the workload manifest schema and path.
+- Decide event-field versus Kafka-header propagation for source metadata.
+- Define the trusted clock/skew policy.
+- Define the exact ingress and result-sink metric populations.
+- Confirm actual Kafka/exporter metric names in the running environment.
+
+### Scope decision
+
+This setup is documentation-only. No runtime schema, metric, profiler, Source emulator, load generator, dashboard, or infrastructure behavior is implemented by this branch.
 
 ## Phase 12 Review
 
