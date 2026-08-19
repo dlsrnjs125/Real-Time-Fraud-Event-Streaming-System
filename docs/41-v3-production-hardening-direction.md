@@ -149,7 +149,7 @@ Canonical time fields:
 
 - `eventTime`: when the financial/business event occurred
 - `receivedAt`: when `app-api` accepted and published the event
-- `producerPublishedAt`: when the API producer publish completed or was acknowledged
+- `producerPublishedAt`: producer-side publish timestamp if explicitly defined after Phase 0 review
 - `consumerStart`: when `app-consumer` starts handling the Kafka record
 - `processingEnd` / `detectedAt`: when fraud processing and persistence complete
 
@@ -158,12 +158,14 @@ V3 latency metrics:
 | Metric | Boundary | Primary Use |
 |---|---|---|
 | `fraud.event.age` | `consumerStart - eventTime` | how old the business event is when consumed |
-| `fraud.kafka.queue.latency` | `consumerStart - producerPublishedAt` | Kafka queueing and Consumer backlog |
+| `fraud.kafka.queue.latency` | `consumerStart - Kafka record timestamp or explicitly defined producer timestamp` | Kafka queueing and Consumer backlog |
 | `fraud.consumer.processing.latency` | `processingEnd - consumerStart` | Consumer work after record delivery |
 | `fraud.ingestion.to.detection.latency` | `detectedAt - receivedAt` | online ingestion-to-detection delay |
 | `fraud.business.event.e2e.latency` | `detectedAt - eventTime` | live-traffic business E2E only |
 
 `fraud.business.event.e2e.latency` must not be interpreted as an operational SLA for replay workloads. PaySim or historical replay can carry old `eventTime` values, so `detectedAt - eventTime` may describe event age rather than current system latency. For replay evidence, use ingestion-to-detection latency and clearly exclude historical business E2E from live latency claims.
+
+`fraud.kafka.queue.latency` implementation must decide whether its source timestamp is the Kafka record timestamp, such as `ConsumerRecord.timestamp()`, or an explicitly propagated producer timestamp. Do not introduce `producerPublishedAt` into the event contract only for observability without evaluating the Kafka contract cost. Phase 0 must document the chosen timestamp source before adding the metric.
 
 HikariCP signals:
 
@@ -215,14 +217,23 @@ Input TPS > Consumer sustainable TPS
 
 The phase should distinguish Kafka Lag as a symptom from PostgreSQL saturation as a possible root cause.
 
+Lag evidence must separate:
+
+- `peak_total_group_lag`: highest total lag across the Consumer group during the experiment
+- `peak_partition_lag`: highest single-partition lag during the experiment
+- `lag_recovery_time`: time from burst phase end until Consumer group lag falls below the baseline threshold and stays there for 30 consecutive seconds
+
+The baseline threshold must be recorded with the experiment. For example, a threshold can be `lag <= baseline_p95_lag` or a fixed local threshold such as `lag < 100`, but it must be chosen before comparing Before/After results.
+
 Example evidence shape:
 
 | Metric | Before | After |
 |---|---:|---:|
 | Input TPS | TBD | TBD |
 | Consumer TPS | TBD | TBD |
-| Peak Lag | TBD | TBD |
-| Recovery Time | TBD | TBD |
+| Peak Total Group Lag | TBD | TBD |
+| Peak Partition Lag | TBD | TBD |
+| Lag Recovery Time | TBD | TBD |
 | DB p95 | TBD | TBD |
 | E2E p99 | TBD | TBD |
 
@@ -274,14 +285,17 @@ Business result remains unique
 - document how unique constraint violations are interpreted as idempotent duplicate handling, not fatal processing failure
 - define how `topic`, `partition`, `offset`, and `eventId` are captured together in evidence
 
-### Candidate Metrics
+### Runtime Metrics
 
 ```text
 fraud.kafka.records.consumed
 fraud.duplicate.consumption.total
-fraud.kafka.redelivery.candidate.total
 fraud.duplicate.persistence.prevented.total
 ```
+
+Runtime metrics should avoid state-heavy redelivery detection unless the operational value justifies the complexity. Tracking whether a `topic` + `partition` + `offset` has already been consumed may require additional state and can be unnecessary as an always-on production metric.
+
+Candidate runtime signals can also include Kafka exporter or client metrics such as rebalance count when available.
 
 ### Redelivery Definitions
 
@@ -292,6 +306,10 @@ Kafka `ConsumerRecord` does not expose a simple `redelivered=true` flag. V3 ther
 - `duplicate_persistence_prevented`: a duplicate `eventId` did not create another `fraud_detection_results` row because the application path or PostgreSQL unique constraint prevented it.
 
 DB unique conflicts alone are not enough to prove Kafka redelivery, because the API could publish two different records with the same `eventId`. Phase 3 drill evidence must retain `topic`, `partition`, `offset`, and `eventId` together.
+
+### Failure Drill Evidence
+
+`redelivery_candidate` can remain controlled drill evidence rather than a first-class runtime counter. The drill should compare consumed records, unique event IDs, reconsumed offsets, stored fraud results, and duplicate result count using logs, DB queries, or drill output.
 
 ### Closure Evidence
 
@@ -315,6 +333,7 @@ Having a retry topic is not the same as having a retry architecture. V3 should c
 - document retryable, degraded/continue, non-retryable, and idempotent duplicate classifications
 - choose Spring Kafka retry mechanism intentionally, such as `DefaultErrorHandler` or `@RetryableTopic`
 - define retry topic naming and backoff policy
+- define retry budget including max attempts, max elapsed time, backoff, and jitter
 - define permanent failure isolation into DLT
 - document how invalid payloads avoid repeated pointless retries
 - document how retry changes same-`userId` ordering semantics

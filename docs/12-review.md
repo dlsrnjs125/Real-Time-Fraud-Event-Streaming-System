@@ -50,6 +50,10 @@ Follow-up review response:
 - Added redelivery evidence definitions for duplicate consumption, redelivery candidates, and duplicate persistence prevention.
 - Added a phase mapping note because repository V3 intentionally separates Recovery / Replay Safety into Phase 5.
 - Added experiment fingerprint requirements for commit, workload, resource limits, Kafka partitions, Consumer concurrency, HikariCP config, component versions, and dataset/seed.
+- Clarified that Kafka queue latency must choose either Kafka record timestamp or an explicitly propagated producer timestamp before implementation.
+- Defined lag recovery time as burst end to baseline-threshold recovery sustained for 30 seconds, and separated peak total group lag from peak partition lag.
+- Added retry budget requirements: max attempts, max elapsed time, backoff, and jitter.
+- Split Phase 3 always-on runtime metrics from controlled failure-drill redelivery evidence to avoid unnecessary stateful metric complexity.
 
 ## Phase 12 Review
 
