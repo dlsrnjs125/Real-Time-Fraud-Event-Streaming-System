@@ -34,6 +34,7 @@
 | V2 Phase 14 | Rule version change runbook and rollback readiness evidence | `make final-check`, `./gradlew test`; local/manual actuator/admin checks documented in runbook | `docs/38-v2-rule-version-change-runbook.md` |
 | V2 Phase 15 | Final evidence closure | `make final-check`; documentation review | `docs/39-v2-final-evidence-closure.md` |
 | V3 Phase 0 | Dataset, workload, timestamp, stream observability foundation | `make verify-v3-phase0`, `make k6-v3-baseline`, Prometheus/Grafana local checks | `docs/44-v3-phase0-foundation-evidence.md` |
+| V3 Phase 1 | Sustainable throughput and backlog recovery | `make k6-v3-phase1-capacity`, `make k6-v3-phase1-knee`, `make k6-v3-phase1-recovery` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 
 ## CI / Build
 
@@ -80,6 +81,7 @@
 | Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |
 | Grafana dashboard loaded | `http://localhost:3000` | `Fraud Event Streaming Observability` under `Fraud Event Streaming` folder |
 | V3 stream dashboard loaded | Grafana search API or `http://localhost:3000` | `V3 Stream Processing Foundation` with boundary, Lag, stage, freshness, partition, and resource panels |
+| V3 Phase 1 API intake diagnostics | `curl http://localhost:8080/actuator/prometheus` | `fraud_api_intake_service_latency_seconds_*`, `fraud_kafka_publish_wait_latency_seconds_*` |
 | API status panel | `make k6-duplicate` then Grafana | 2xx/409 distribution visible in `API Requests by Status` |
 | Redis degraded/skipped panels | `make k6-redis-down` then Grafana | Redis degraded and skipped rule panels increase |
 
@@ -93,6 +95,9 @@
 | Duplicate replay consistency | `make k6-duplicate` | `docs/22-load-test-results.md` |
 | Redis down degraded mode | `make k6-redis-down` | `docs/22-load-test-results.md` |
 | Phase 13 load/failure evidence | `make k6-smoke`, `make k6-normal`, `make k6-peak`, `make k6-duplicate-check`, `make k6-redis-down` | `docs/23-load-test-results.md` |
+| V3 Phase 1 capacity discovery | `V3_RUN_ID=<run-id> make k6-v3-phase1-capacity` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
+| V3 Phase 1 knee confirmation | `V3_RUN_ID=<run-id> make k6-v3-phase1-knee` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
+| V3 Phase 1 backlog recovery | `V3_RUN_ID=<run-id> make k6-v3-phase1-recovery` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 
 ## Documentation
 

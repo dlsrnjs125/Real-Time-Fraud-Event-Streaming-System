@@ -48,6 +48,20 @@
     "timeScaleFactor": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "latenessProfile": {"type": ["object", "null"]},
     "replayRate": {"type": ["number", "null"], "exclusiveMinimum": 0},
-    "randomSeed": {"type": "integer", "minimum": 0}
+    "randomSeed": {"type": "integer", "minimum": 0},
+    "stages": {
+      "type": ["array", "null"],
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "targetEps", "duration"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+          "targetEps": {"type": "number", "minimum": 0},
+          "duration": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"}
+        }
+      }
+    }
   }
 }

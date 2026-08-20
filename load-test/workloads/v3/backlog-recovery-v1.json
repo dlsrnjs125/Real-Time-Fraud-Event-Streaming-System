@@ -1,0 +1,29 @@
+{
+  "workloadId": "v3-phase1-backlog-recovery",
+  "workloadVersion": "v1",
+  "workloadRole": "ORGANIC_BURST",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 300,
+  "duration": "6m",
+  "eventLimit": 51000,
+  "userCardinality": 3000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "randomSeed": 430519,
+  "stages": [
+    {"name": "warmup-50eps", "targetEps": 50, "duration": "60s"},
+    {"name": "sustainable-100eps", "targetEps": 100, "duration": "60s"},
+    {"name": "overload-300eps", "targetEps": 300, "duration": "120s"},
+    {"name": "recovery-50eps", "targetEps": 50, "duration": "120s"}
+  ]
+}

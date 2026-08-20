@@ -84,6 +84,41 @@ Date: 2026-08-19
 
 These changes refine the Phase 0 design contract only. No runtime metric, profiler, workload generator, event-time mode, or Kafka broker policy has been implemented. The only non-document change remains `**/bin/` in `.gitignore`, which excludes generated module-local `bin` artifacts and does not change runtime behavior.
 
+## V3 Phase 1 Review
+
+Date: 2026-08-21
+
+### Accepted changes
+
+- Added API intake stage metrics for service latency, receipt persistence, Kafka publish wait, and receipt status update.
+- Added `SLOW_INTAKE` structured diagnostic logging without adding event-level identifiers as metric tags.
+- Added staged Phase 1 workload manifests and a k6 runner for capacity, knee, and backlog recovery evidence.
+- Added JSON Schema and unittest coverage for staged workload manifest contracts.
+- Added V3 dashboard panels for API intake, Kafka publish wait, receipt DB stages, Hikari pending/active, and separated resource units.
+- Added configurable app-consumer listener concurrency and set the local default to 6 after runtime evidence showed one listener thread owned all six partitions.
+- Changed API intake stage Timer recording to use `System.nanoTime()` measured durations instead of supplier-based Timer recording.
+
+### Checks applied
+
+- Did not tune PostgreSQL, Redis, Kafka partitions, or Hikari before evidence identified the bottleneck.
+- Kept HTTP k6 results separate from future direct-Kafka producer benchmarks.
+- Treated the first malformed capacity run as discarded evidence after the k6 stage contract drift was found.
+- Confirmed same-load before/after using `knee-confirmation-v1`.
+- Preserved manual ack and persistence-before-ack processing behavior.
+- Kept Consumer concurrency bounded by local partition count and documented that skew/scale-out remains V3 Phase 3.
+- Guarded Timer recording against negative durations after runtime logs showed a possible negative Timer amount during a local clock adjustment.
+
+### Evidence decision
+
+Phase 1 can be marked complete for local Docker evidence because capacity discovery, knee confirmation, backlog recovery, bottleneck attribution, targeted fix, and same-load re-test are recorded in `docs/46-v3-phase1-sustainable-throughput-evidence.md`.
+
+### Remaining risks
+
+- Capacity above 300 EPS is unmeasured.
+- The current evidence is HTTP-driver local evidence only.
+- Consumer p99 increased after adding parallelism, so later phases should check stage-level p99 under higher rates and skew.
+- Partition skew and hot-key behavior remain intentionally outside this phase.
+
 ## Phase 12 Review
 
 ### 잘한 점

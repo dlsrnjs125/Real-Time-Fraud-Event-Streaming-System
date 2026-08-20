@@ -52,6 +52,8 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)
 - [V3 Phase 0 Foundation Plan](43-v3-phase0-foundation-plan.md)
 - [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)
+- [V3 Phase 1 Sustainable Throughput Plan](45-v3-phase1-sustainable-throughput-plan.md)
+- [V3 Phase 1 Sustainable Throughput Evidence](46-v3-phase1-sustainable-throughput-evidence.md)
 
 ## Rule Version Traceability
 

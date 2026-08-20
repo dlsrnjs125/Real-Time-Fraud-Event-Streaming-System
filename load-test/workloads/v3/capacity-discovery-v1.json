@@ -1,0 +1,29 @@
+{
+  "workloadId": "v3-phase1-capacity-discovery",
+  "workloadVersion": "v1",
+  "workloadRole": "NORMAL_CAPACITY",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 200,
+  "duration": "4m",
+  "eventLimit": 22500,
+  "userCardinality": 2000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "randomSeed": 410519,
+  "stages": [
+    {"name": "warmup-25eps", "targetEps": 25, "duration": "60s"},
+    {"name": "plateau-50eps", "targetEps": 50, "duration": "60s"},
+    {"name": "plateau-100eps", "targetEps": 100, "duration": "60s"},
+    {"name": "plateau-200eps", "targetEps": 200, "duration": "60s"}
+  ]
+}

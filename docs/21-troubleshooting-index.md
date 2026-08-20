@@ -34,6 +34,7 @@
 
 - GitHub Actions minimum gate: `.github/workflows/ci.yml`
 - V3 baseline generator contract drift: `docs/11-troubleshooting-log.md#v3-phase-0-baseline-generator-contract-drift`
+- V3 workload dependency ownership / CI python env: `docs/11-troubleshooting-log.md#v3-phase-0-ci-data-test-python-environment-drift`
 - Redis integration test separation: `Makefile`, `docs/18-runbook.md#17-redis-integration-test와-metric-확인`
 - Failure drill script line ending issue: `docs/11-troubleshooting-log.md`
 - Phase 11 evidence index: `docs/20-evidence-index.md`
@@ -48,6 +49,9 @@
 - Phase 13 load/failure evidence: `docs/23-load-test-results.md`
 - Phase 13 runbook: `docs/18-runbook.md#1-3-phase-13-load-test-runbook`
 - Phase 13 duplicate replay interpretation: `docs/11-troubleshooting-log.md#phase-13-duplicate-replay와-k6-failure-기준`
+- V3 Phase 1 capacity discovery: `docs/46-v3-phase1-sustainable-throughput-evidence.md`
+- V3 Phase 1 k6 stage contract drift: `docs/11-troubleshooting-log.md#v3-phase-1-k6-stage-contract-drift`
+- V3 Phase 1 Consumer concurrency bottleneck: `docs/11-troubleshooting-log.md#v3-phase-1-consumer-concurrency-bottleneck`
 
 ## Observability
 

@@ -13,7 +13,8 @@ assert SPEC.loader is not None
 sys.modules["validate_v3_workload_manifest"] = validator
 SPEC.loader.exec_module(validator)
 
-MANIFEST_PATH = Path(__file__).parents[2] / "load-test" / "workloads" / "v3" / "normal-baseline-v1.json"
+WORKLOAD_DIR = Path(__file__).parents[2] / "load-test" / "workloads" / "v3"
+MANIFEST_PATH = WORKLOAD_DIR / "normal-baseline-v1.json"
 
 
 class ValidateV3WorkloadManifestTest(unittest.TestCase):
@@ -27,6 +28,16 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(310519, self.manifest["randomSeed"])
         self.assertEqual(50, self.manifest["userCardinality"])
+
+    def test_committed_phase1_manifests_are_valid(self):
+        for filename in [
+            "capacity-discovery-v1.json",
+            "knee-confirmation-v1.json",
+            "backlog-recovery-v1.json",
+        ]:
+            with self.subTest(filename=filename):
+                manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
+                validator.validate_manifest(manifest)
 
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
@@ -68,6 +79,18 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         invalid = copy.deepcopy(self.manifest)
         invalid["userCardinality"] = 0
         with self.assertRaisesRegex(validator.ManifestError, "userCardinality"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stage_event_limit_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "capacity-discovery-v1.json").read_text(encoding="utf-8"))
+        invalid["eventLimit"] = invalid["eventLimit"] + 1
+        with self.assertRaisesRegex(validator.ManifestError, "eventLimit must equal"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stage_target_eps_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "capacity-discovery-v1.json").read_text(encoding="utf-8"))
+        invalid["targetEps"] = 999
+        with self.assertRaisesRegex(validator.ManifestError, "targetEps must equal"):
             validator.validate_manifest(invalid)
 
 

@@ -17,6 +17,7 @@ import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -34,7 +35,8 @@ class TransactionEventIntakeServiceMetricsTest {
             mapper,
             producer,
             metrics,
-            clock
+            clock,
+            Duration.ofMillis(500)
     );
 
     @Test
