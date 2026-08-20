@@ -261,8 +261,8 @@ v2-phase9-evidence: evaluate-paysim-threshold-policy-report
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
-test-data-scripts-ci:
-	python3 -m unittest discover -s scripts/data -p 'test_*.py'
+test-data-scripts-ci: data-env
+	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
 topics:
 	./scripts/create-topics.sh
