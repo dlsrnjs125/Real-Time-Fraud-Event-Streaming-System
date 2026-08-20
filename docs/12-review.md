@@ -1499,3 +1499,71 @@ make final-check
 - Full PaySim local evidence는 raw data와 local infra가 필요합니다.
 - Final summary는 production fraud model validation이 아닙니다.
 - Dashboard, deployment changelog, alerting, historical backfill은 future work입니다.
+
+## V3 Phase 0 Review
+
+### 검토 결론
+
+- PaySim hourly source-step와 five-minute runtime window를 분리했고, full profile은 source-step 반복만 보고합니다.
+- Source metadata를 observability만을 위해 event contract에 추가하지 않았습니다. 따라서 source/transport delay는 구현되지 않았다고 명시했습니다.
+- Kafka broker의 `CreateTime`을 실제 확인해 producer-to-Consumer delay만 노출하고 queue latency는 노출하지 않았습니다.
+- Receipt/publish counter는 transaction commit 뒤에 증가하며 rollback과 duplicate population을 테스트했습니다.
+- Consumer delivery와 service Timer는 typed listener redelivery를 포함하고, stage Timer의 duplicate/degraded/failure inclusion을 문서화했습니다.
+- Application metric tag에 eventId, traceId, userId, accountId, partition offset을 추가하지 않았습니다.
+- Normal baseline의 target과 achieved user/partition distribution을 구분했습니다.
+- 두 실패한 workload 실행과 clean-start schema race를 성공 결과에서 제외하고 troubleshooting으로 남겼습니다.
+- 5 EPS 결과를 sustainable throughput 또는 성능 개선으로 해석하지 않았습니다.
+
+### 사람 검토 체크리스트
+
+- [ ] nearest-rank quantile과 `(user, sourceStep)` population 정의가 실험 목적에 맞는가
+- [ ] source metadata를 Phase 6까지 test-only로 유지하는 결정에 동의하는가
+- [ ] typed listener 이전 deserialization failure가 delivery counter에서 제외되는 한계를 수용하는가
+- [ ] Result Sink Timer를 fraud-result save boundary로 제한한 것이 Phase 1 병목 분리에 충분한가
+- [ ] 15초 scrape와 one-minute Lag derivation window가 Phase 1 plateau 길이에 적합한가
+- [ ] uniform users의 measured partition distribution을 skew evidence로 오해하지 않는가
+- [ ] local full profile과 raw PaySim report가 staged되지 않았는가
+
+### 검증 기록
+
+```bash
+python3 scripts/data/profile_paysim_v3.py --force
+make verify-v3-phase0
+make test-data-scripts-ci
+make data-policy-check
+./gradlew :app-api:test :app-consumer:test
+docker compose -f infra/docker-compose.yml config --quiet
+make observability-check
+V3_RUN_ID=20260819-phase0-baseline-150 make k6-v3-baseline
+make final-check
+```
+
+### 남은 한계
+
+- Source processing/transport delay와 lateness semantics는 미구현입니다.
+- Phase 0 baseline은 capacity, recovery, hot partition, redelivery, out-of-order 결과가 아닙니다.
+- Clean environment에서는 app-api migration 완료 후 app-consumer를 시작해야 합니다.
+- p99에는 startup/warm-up tail이 포함되어 steady-state SLO로 사용할 수 없습니다.
+
+## V3 Phase 1 Preflight Review
+
+### 검토 결론
+
+- Consumer service latency 내부에서 보이지 않던 PostgreSQL preprocessing path를 분리했습니다.
+- `fraud.processing.log.latency`는 processing log duplicate check와 insert/flush 경계를 측정합니다.
+- `fraud.result.precheck.latency`는 Redis/Rule 실행 전 fraud result duplicate guard 조회를 측정합니다.
+- Slow Consumer event에 대해서만 `type=SLOW_EVENT` WARN log를 남기고, stage별 duration을 포함합니다.
+- Workload manifest validation은 JSON Schema를 structural source of truth로 사용하고 Python validator는 cross-field semantic rule을 담당합니다.
+- V3 k6 baseline은 `V3_RUN_ID` 없이는 실행하지 않고 summary에 commit SHA를 기록합니다.
+
+### 의도적으로 변경하지 않은 것
+
+- Processing log와 fraud result의 check-then-insert 구조는 유지했습니다. Phase 1에서 실제 DB bottleneck evidence가 나온 뒤 unique constraint conflict 처리 중심 구조로 바꿀지 판단합니다.
+- `app-api`의 transaction 내부 synchronous Kafka publish도 유지했습니다. 이 구조는 Kafka publish wait, DB transaction duration, Hikari active/pending이 함께 움직일 수 있는 known architecture constraint로 문서화했습니다.
+- Redis legacy timer `fraud.redis.window.record.latency`는 compatibility를 위해 유지했습니다. V3 dashboard는 `fraud.redis.state.latency`를 기준으로 봅니다.
+
+### 검증 포인트
+
+- Consumer service p99 상승 시 Processing Log, Duplicate Guard, Redis, Rule, Result Sink 중 어느 경계가 지배적인지 확인합니다.
+- API latency 상승 시 Kafka publish wait과 Hikari active/pending을 함께 확인해 원인과 전파 결과를 분리합니다.
+- 새 workload manifest는 JSON Schema 구조 검증과 Python semantic 검증을 모두 통과해야 합니다.

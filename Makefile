@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke profile-paysim-v3 validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 verify-v3-workload-manifests verify-v3-phase0 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down k6-v3-baseline final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -33,6 +33,7 @@ help:
 	@echo "  make download-paysim - Download PaySim raw CSV locally"
 	@echo "  make prepare-paysim - Normalize PaySim CSV into processed JSONL"
 	@echo "  make prepare-paysim-smoke - Normalize a limited PaySim subset"
+	@echo "  make profile-paysim-v3 - Generate the local ignored V3 PaySim corpus profile"
 	@echo "  make validate-paysim - Validate processed PaySim outputs"
 	@echo "  make validate-paysim-strict - Validate PaySim outputs with non-default salt policy"
 	@echo "  make generate-paysim-sample - Generate safe PaySim JSONL samples"
@@ -52,6 +53,8 @@ help:
 	@echo "  make verify-v2-phase11 - Run CI-safe Phase 11 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase12 - Run CI-safe Phase 12 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase13 - Run CI-safe V2 data/evaluation guardrails; Phase 13 Java tests run through Gradle build/final-check"
+	@echo "  make verify-v3-workload-manifests - Validate committed V3 workload manifests"
+	@echo "  make verify-v3-phase0 - Run CI-safe V3 Phase 0 data/workload checks"
 	@echo "  make v2-phase7-evidence - Generate local/manual Phase 7 evidence from existing detection result export"
 	@echo "  make v2-phase8-evidence - Generate local/manual Phase 8 evidence from existing detection result export"
 	@echo "  make v2-phase9-evidence - Generate local/manual Phase 9 evidence from existing detection result export"
@@ -65,6 +68,7 @@ help:
 	@echo "  make k6-duplicate   - Run duplicate replay k6 scenario"
 	@echo "  make k6-duplicate-check - Run duplicate replay and DB count check"
 	@echo "  make k6-redis-down  - Run Redis down load k6 scenario"
+	@echo "  make k6-v3-baseline - Run the committed V3 Phase 0 normal baseline"
 	@echo "  make final-check    - Run Phase validation checks"
 
 build:
@@ -130,7 +134,9 @@ observability-check:
 	test -f infra/grafana/provisioning/datasources/prometheus.yml
 	test -f infra/grafana/provisioning/dashboards/dashboard-provider.yml
 	test -f infra/grafana/dashboards/fraud-observability.json
+	test -f infra/grafana/dashboards/v3-stream-foundation.json
 	python3 -m json.tool infra/grafana/dashboards/fraud-observability.json >/dev/null
+	python3 -m json.tool infra/grafana/dashboards/v3-stream-foundation.json >/dev/null
 	test -f infra/prometheus/rules/fraud-alerts.yml
 
 observability-rules-check:
@@ -175,6 +181,9 @@ prepare-paysim: data-env
 
 prepare-paysim-smoke: data-env
 	$(DATA_PYTHON) scripts/data/prepare_paysim_dataset.py --limit 1000 --force
+
+profile-paysim-v3: data-env
+	$(DATA_PYTHON) scripts/data/profile_paysim_v3.py --force
 
 validate-paysim: data-env
 	$(DATA_PYTHON) scripts/data/validate_paysim_outputs.py
@@ -238,6 +247,11 @@ verify-v2-phase12: test-data-scripts data-policy-check verify-paysim-evaluation-
 
 verify-v2-phase13: verify-v2-phase12
 
+verify-v3-workload-manifests: data-env
+	$(DATA_PYTHON) scripts/data/validate_v3_workload_manifest.py load-test/workloads/v3/normal-baseline-v1.json
+
+verify-v3-phase0: test-data-scripts data-policy-check verify-v3-workload-manifests
+
 v2-phase7-evidence: evaluate-paysim-replay
 
 v2-phase8-evidence: evaluate-paysim-native-replay
@@ -247,8 +261,8 @@ v2-phase9-evidence: evaluate-paysim-threshold-policy-report
 test-data-scripts: data-env
 	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
-test-data-scripts-ci:
-	python3 -m unittest discover -s scripts/data -p 'test_*.py'
+test-data-scripts-ci: data-env
+	$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'
 
 topics:
 	./scripts/create-topics.sh
@@ -275,4 +289,8 @@ k6-duplicate-check:
 k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
-final-check: build infra-config observability-check scripts-check verify-v2-phase13
+k6-v3-baseline:
+	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=20260819-phase0-baseline-150 make k6-v3-baseline" && exit 1)
+	V3_COMMIT_SHA=$$(git rev-parse --short HEAD) k6 run load-test/k6/scenarios/v3-normal-baseline.js
+
+final-check: build infra-config observability-check scripts-check verify-v2-phase13 verify-v3-phase0

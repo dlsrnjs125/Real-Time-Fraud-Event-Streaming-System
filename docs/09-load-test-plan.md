@@ -6,7 +6,7 @@
 
 ## V3 Workload Boundary
 
-기존 Phase 13 k6 시나리오는 HTTP intake, duplicate 방어, Redis degraded mode를 검증하는 재사용 가능한 기반입니다. V3 workload contract가 완료된 것으로 해석하지 않습니다.
+기존 Phase 13 k6 시나리오는 HTTP intake, duplicate 방어, Redis degraded mode를 검증하는 재사용 가능한 기반입니다. V3는 별도의 versioned manifest contract를 사용하며 Phase 13 결과와 직접 비교하지 않습니다.
 
 V3는 다음 workload를 별도 ID와 version으로 관리합니다.
 
@@ -19,6 +19,8 @@ V3는 다음 workload를 별도 ID와 version으로 관리합니다.
 - Historical Replay
 
 상세 의미와 driver 분리 기준은 [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)을 따릅니다. `HTTP_K6` 결과와 향후 `KAFKA_DIRECT_PRODUCER` 결과는 같은 capacity 수치로 직접 비교하지 않습니다.
+
+Phase 0 implemented `load-test/workloads/v3/normal-baseline-v1.json` and `make k6-v3-baseline`. This fixed 5 EPS, 30 seconds, 150 emissions, 50 uniform users, and `REBASE_TO_ARRIVAL` workload validates stream-observability wiring only. Its accepted local result is in [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md). Sustainable throughput and recovery measurement begin in V3 Phase 1.
 
 ## 2. 시나리오
 

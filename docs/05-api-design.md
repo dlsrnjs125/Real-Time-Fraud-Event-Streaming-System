@@ -79,6 +79,18 @@ Validation failure는 재시도해도 성공하지 않는 입력 오류입니다
 
 거래 이벤트를 검증하고 접수 기록을 저장한 뒤 `transaction-events` topic으로 발행합니다.
 
+### Known Architecture Constraint
+
+현재 `app-api` intake flow는 DB transaction 안에서 receipt insert/flush 후 Kafka publish result를 동기 대기합니다. `KafkaTemplate.send(...).get(5s)`가 늦어지면 DB transaction과 connection 점유 시간이 함께 늘어날 수 있습니다.
+
+이 구조는 Phase 1 throughput/backlog 실험에서 반드시 함께 해석해야 합니다.
+
+- Kafka publish wait 증가가 API transaction duration을 늘릴 수 있습니다.
+- 길어진 transaction은 Hikari active/pending 증가와 API latency 상승으로 전파될 수 있습니다.
+- Kafka publish 성공 후 DB commit 실패, 또는 publish timeout 후 broker write 성공 가능성은 DB + Kafka dual-write 제약으로 남아 있습니다.
+
+V3 Phase 1에서는 구조를 즉시 Outbox로 바꾸기보다 `Kafka publish wait latency`, API DB transaction duration, Hikari active/pending, receipt status를 함께 측정합니다. 병목 evidence가 나온 뒤 sync 유지, commit 이후 publish, transactional outbox를 비교합니다.
+
 Request:
 
 ```json

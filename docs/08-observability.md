@@ -57,6 +57,18 @@ Phase 7부터 app-consumer는 Redis Sliding Window와 degraded mode를 관측하
 | `fraud.dlt.reprocess.requested.total` | Counter | Admin API DLT reprocess 요청 결과 |
 | `fraud.dlt.discarded.total` | Counter | Admin API DLT discard 요청 결과 |
 | `kafka_consumergroup_lag` | Gauge | Kafka exporter가 수집한 consumer group/topic 기준 lag |
+| `fraud.stream.intake.receipt.persisted.total` | Counter | commit된 신규 receipt 수 |
+| `fraud.stream.kafka.publish.success.total` | Counter | commit된 Kafka publish 성공 수 |
+| `fraud.stream.kafka.publish.failure.total` | Counter | durable failure 상태가 commit된 publish 실패 수 |
+| `fraud.stream.consumer.delivery.total` | Counter | redelivery를 포함한 typed listener invocation 수 |
+| `fraud.kafka.producer.to.consumer.delay` | Histogram Timer | Kafka CreateTime부터 Consumer 시작까지의 non-negative delay |
+| `fraud.event.ingress.age` | Histogram Timer | `receivedAt - eventTime` |
+| `fraud.redis.state.latency` | Histogram Timer | Redis state update/read 시도 시간 |
+| `fraud.rule.processing.latency` | Histogram Timer | Rule Engine 평가 시도 시간 |
+| `fraud.result.sink.latency` | Histogram Timer | detection result sink 시도 시간 |
+| `fraud.consumer.service.latency` | Histogram Timer | typed listener 시작부터 성공/실패 종료까지의 시간 |
+| `fraud.processing.log.latency` | Histogram Timer | `event_processing_logs` duplicate check와 insert/flush 경계 |
+| `fraud.result.precheck.latency` | Histogram Timer | Rule/Redis 실행 전 fraud result duplicate guard 조회 경계 |
 
 Prometheus scrape에서는 dot format metric 이름이 snake_case 형태로 노출될 수 있습니다.
 Timer인 `fraud.redis.window.record.latency`는 Prometheus에서 `fraud_redis_window_record_latency_seconds_count`, `fraud_redis_window_record_latency_seconds_sum`, `fraud_redis_window_record_latency_seconds_max`처럼 `_seconds_*` suffix가 붙은 시계열로 노출될 수 있습니다.
@@ -66,6 +78,10 @@ Metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 넣지 않습니
 `fraud.redis.window.degraded.total`은 Redis window store가 degraded result를 반환한 횟수이고, `fraud.detection.degraded.total`은 `degraded=true` fraud result가 신규 저장된 횟수입니다. Detection degraded/skipped rule metric은 fraud result가 신규 저장된 경우에만 증가시키고, duplicate result path에서는 증가시키지 않습니다.
 
 `fraud.detection.processing.latency`는 event 발생 시각 기준의 end-to-end latency가 아니라 Consumer 내부 처리 latency입니다. 기준은 Kafka listener가 message 처리를 시작한 시각부터 신규 fraud result 저장 직후까지입니다. `eventTime`, `receivedAt`, `detectedAt` 기준 end-to-end latency는 별도 지표로 확장할 수 있으나, Phase 17에서는 명명 과장을 피하기 위해 processing latency로 기록합니다. 음수 duration은 기록하지 않고, duplicate/idempotent path에서는 중복 기록하지 않습니다.
+
+V3 Phase 1 전 보완으로 Consumer service latency 내부의 PostgreSQL 전처리 blind spot을 분리했습니다. `fraud.processing.log.latency`는 processing log의 offset duplicate check와 flush를 포함하고, `fraud.result.precheck.latency`는 Redis/Rule 실행 전에 수행하는 eventId duplicate guard만 포함합니다. Consumer service p99가 증가하는데 Redis, Rule, Result Sink가 정상이면 이 두 Timer를 먼저 확인합니다.
+
+Consumer service duration이 `fraud.consumer.slow-event-threshold`를 초과하면 `type=SLOW_EVENT` WARN log를 남깁니다. 이 로그는 `consumerServiceMs`, `processingLogMs`, `duplicateGuardMs`, `redisMs`, `ruleMs`, `resultSinkMs`를 포함해 metric p99 상승과 특정 event-level 원인을 연결합니다. 모든 이벤트에 stage log를 남기지 않고 slow path에만 기록해 로그 I/O가 병목이 되는 것을 피합니다.
 
 DLT metric은 status별 gauge가 아니라 operation counter로 구현했습니다. `fraud.dlt.reprocess.requested.total`과 `fraud.dlt.discarded.total`은 `result=success|failed` tag만 사용합니다. `operatorId`, `eventId`, `traceId`, `reason`, raw payload는 metric tag 또는 value로 노출하지 않습니다.
 
@@ -105,6 +121,8 @@ Local Admin operation evidence는 `make failure-drill-dlt`로 만들 수 있습�
 DLT metric endpoint도 소유 앱을 구분합니다. `fraud.dlt.published.total`은 app-consumer Prometheus endpoint에서 확인하고, `fraud.dlt.reprocess.requested.total`과 `fraud.dlt.discarded.total`은 app-api Prometheus endpoint에서 확인합니다.
 
 Kafka Consumer Lag panel은 애플리케이션 내부 처리 시간이 아니라, consumer group이 topic latest offset을 얼마나 따라가지 못하고 있는지를 보여주는 backlog 지표입니다. Local Docker Compose에서는 `kafka-exporter`를 통해 `kafka_consumergroup_lag`를 수집하고, Grafana에서는 consumer group/topic 단위로 합산해 표시합니다. 이 panel은 local evidence capture용이며, production alert threshold나 exporter HA 구성은 별도 hardening 범위입니다.
+
+V3 Phase 0 dashboard는 `infra/grafana/dashboards/v3-stream-foundation.json`에 별도로 provision합니다. Stream boundary EPS, total/partition Lag, 15초 scrape 기반 Lag growth/drain, stage p95/p99, ingress age, partition incoming rate, Consumer assignment/rebalance, Redis/Consumer resource를 연결합니다. Broker는 `CreateTime`으로 검증되었으므로 dashboard는 producer-to-Consumer delay를 표시하며 queue latency라는 이름을 사용하지 않습니다. `sourceSentAt` 기반 source/transport delay는 구현하지 않아 No Data가 정상입니다. 상세 population과 실제 series 검증은 [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)를 따릅니다.
 
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 

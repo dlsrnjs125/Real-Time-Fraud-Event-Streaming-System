@@ -4,6 +4,8 @@ import com.example.fraud.api.transaction.dto.TransactionEventAcceptedResponse;
 import com.example.fraud.api.transaction.dto.TransactionEventReceiptResponse;
 import com.example.fraud.api.transaction.dto.TransactionEventRequest;
 import com.example.fraud.api.transaction.kafka.TransactionEventProducer;
+import com.example.fraud.api.transaction.metrics.TransactionIntakeMetrics;
+import com.example.fraud.api.transaction.metrics.TransactionIntakeMetrics.PublishOutcome;
 import com.example.fraud.api.transaction.persistence.TransactionEventReceiptEntity;
 import com.example.fraud.api.transaction.persistence.TransactionEventReceiptRepository;
 import com.example.fraud.common.event.TransactionEventMessage;
@@ -21,17 +23,20 @@ public class TransactionEventIntakeService {
     private final TransactionEventReceiptRepository receiptRepository;
     private final TransactionEventMessageMapper messageMapper;
     private final TransactionEventProducer producer;
+    private final TransactionIntakeMetrics metrics;
     private final Clock clock;
 
     public TransactionEventIntakeService(
             TransactionEventReceiptRepository receiptRepository,
             TransactionEventMessageMapper messageMapper,
             TransactionEventProducer producer,
+            TransactionIntakeMetrics metrics,
             Clock clock
     ) {
         this.receiptRepository = receiptRepository;
         this.messageMapper = messageMapper;
         this.producer = producer;
+        this.metrics = metrics;
         this.clock = clock;
     }
 
@@ -51,9 +56,11 @@ public class TransactionEventIntakeService {
             producer.publish(message);
             receipt.markPublished();
             receiptRepository.save(receipt);
+            metrics.recordAfterCommit(PublishOutcome.SUCCESS);
         } catch (KafkaPublishFailedException exception) {
             receipt.markPublishFailed(exception.getMessage());
             receiptRepository.save(receipt);
+            metrics.recordAfterCommit(PublishOutcome.FAILURE);
             throw exception;
         }
 

@@ -196,6 +196,7 @@ driverType
 targetEps
 duration
 eventLimit
+userCardinality
 userDistribution
 heavyUserRatio
 targetUserConcentration
@@ -243,7 +244,7 @@ Every workload report must repeat the effective `eventTimeMode`, `sourceTimeReso
 | `consumerStartedAt` | time listener processing started | app-consumer |
 | `detectedAt` | time fraud processing and required result persistence finished | app-consumer |
 
-Existing runtime events already carry `eventTime` and `receivedAt`. `sourceSentAt` and source metadata are planned contract candidates, not implemented fields.
+Existing runtime events carry `eventTime` and `receivedAt`. Phase 0 keeps source metadata in the workload manifest and driver report only. It does not add `sourceSentAt` to the event schema or Kafka headers because the normal baseline does not require that contract cost and no source emulator yet owns a trustworthy dispatch timestamp. Source-processing and source-transport delay therefore remain unavailable until a later phase introduces and validates that owner.
 
 Before using `kafkaTimestamp` for a latency metric, Phase 0 must record:
 
@@ -327,12 +328,13 @@ Planned source profiles:
 
 The emulator must apply the manifest's `eventTimeMode`, create `sourceSentAt`, and produce a report containing configured versus achieved delay and EPS. It preserves original `eventTime` only for `PRESERVE_SOURCE_TIME`; other modes must record the generated timestamp policy.
 
-Open decisions before implementation:
+Phase 0 decisions:
 
-- whether source metadata belongs in the Kafka event contract or test-only headers
-- clock source and skew assumptions
-- compatibility behavior for events without `sourceSentAt`
-- whether k6 can represent the profile accurately or a dedicated emulator is required
+- Source profile metadata remains test-only in the versioned manifest and driver report; it is not propagated in the event contract or Kafka headers.
+- `REBASE_TO_ARRIVAL` uses the k6 host's UTC wall clock for `eventTime`; app-api and app-consumer use their JVM clocks, and Kafka `CreateTime` uses the producer clock.
+- No cross-host clock correction is applied. Negative ingress or producer-to-Consumer durations are rejected from Timer populations instead of being clamped to zero.
+- Events without `sourceSentAt` remain backward compatible. Source-processing and transport-delay meters are not registered in Phase 0, so their dashboard absence is expected.
+- k6 is sufficient for the normal HTTP baseline. Controlled source delay and catch-up ownership require a dedicated source emulator decision in Phase 6.
 
 ## 11. Live and Replay Isolation Contract
 

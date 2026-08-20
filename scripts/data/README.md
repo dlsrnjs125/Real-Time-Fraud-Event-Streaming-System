@@ -115,6 +115,27 @@ Do not commit a production salt, local private salt, `.env` file, or report/mani
 - V2 Phase 13: runtime/admin ruleVersion observability for app-consumer active version and stored app-api result summaries
 - V2 Phase 14: ruleVersion change runbook and rollback readiness evidence; PaySim evaluator strict mode and contract verifiers are pre-change evidence, while actuator/admin checks remain local/manual
 - V2 Phase 15: final evidence closure, not a new data script phase; `docs/39-v2-final-evidence-closure.md` links Phase 7~14 evidence while this README remains the PaySim command reference
+- V3 Phase 0: privacy-safe corpus profiling for user concentration, source-step density, type distribution, amount quantiles, and time-step shape
+
+## V3 Corpus Profile
+
+Generate the full local profile:
+
+```bash
+make profile-paysim-v3
+```
+
+The default output is `data/processed/paysim-v3-profile.json`. It is ignored and must not be committed. The committed schema and deterministic fixture are under `scripts/data/schema` and `scripts/data/fixtures`.
+
+The profiler streams the CSV into a temporary SQLite aggregate store so memory use is bounded by database pages rather than the 6.3 million raw rows. Integer count and amount quantiles use nearest-rank positions. SQLite orders PaySim's two-decimal amount values numerically while the report preserves normalized decimal strings. This costs local disk and execution time but avoids loading all amounts or user-step keys into process memory.
+
+`sourceTimeResolution=1h` is a hard interpretation boundary. Source-step repetition is a PaySim corpus property; it is not evidence of density inside the runtime five-minute Redis window. Finer runtime-window density must come from an explicitly synthetic workload.
+
+Fixture and workload-contract verification:
+
+```bash
+make verify-v3-phase0
+```
 
 ## Command Matrix
 

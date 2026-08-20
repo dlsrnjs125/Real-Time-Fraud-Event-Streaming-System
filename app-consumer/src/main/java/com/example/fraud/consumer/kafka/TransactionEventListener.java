@@ -14,7 +14,9 @@ import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
 import com.example.fraud.consumer.rule.FraudRuleEngineResult;
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +36,9 @@ public class TransactionEventListener {
     private final FraudDetectionResultService fraudDetectionResultService;
     private final DeadLetterEventService deadLetterEventService;
     private final FraudConsumerMetrics metrics;
+    private final Clock clock;
     private final String consumerGroupId;
+    private final Duration slowEventThreshold;
 
     public TransactionEventListener(
             EventProcessingLogService processingLogService,
@@ -43,7 +47,9 @@ public class TransactionEventListener {
             FraudDetectionResultService fraudDetectionResultService,
             DeadLetterEventService deadLetterEventService,
             FraudConsumerMetrics metrics,
-            @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
+            Clock clock,
+            @Value("${spring.kafka.consumer.group-id}") String consumerGroupId,
+            @Value("${fraud.consumer.slow-event-threshold:500ms}") Duration slowEventThreshold
     ) {
         this.processingLogService = processingLogService;
         this.recentTransactionWindowStore = recentTransactionWindowStore;
@@ -51,23 +57,59 @@ public class TransactionEventListener {
         this.fraudDetectionResultService = fraudDetectionResultService;
         this.deadLetterEventService = deadLetterEventService;
         this.metrics = metrics;
+        this.clock = clock;
         this.consumerGroupId = consumerGroupId;
+        this.slowEventThreshold = slowEventThreshold;
     }
 
     @KafkaListener(topics = KafkaTopicNames.TRANSACTION_EVENTS)
     public void onMessage(ConsumerRecord<String, TransactionEventMessage> record, Acknowledgment acknowledgment) {
-        Instant processingStartedAt = Instant.now();
+        Instant processingStartedAt = clock.instant();
         TransactionEventMessage message = record.value();
+        metrics.incrementConsumerDelivery();
+        metrics.recordProducerToConsumerDelay(record.timestamp(), processingStartedAt);
+        metrics.recordIngressAge(message.eventTime(), message.receivedAt());
 
-        ProcessingLogResult result = processingLogService.recordProcessedEvent(
-                message,
-                record.topic(),
-                record.partition(),
-                record.offset(),
-                consumerGroupId
-        );
-        if (fraudDetectionResultService.existsResultForEventId(message.eventId())) {
+        try {
+            processMessage(record, acknowledgment, processingStartedAt, message);
+        } finally {
+            metrics.recordConsumerServiceLatency(Duration.between(processingStartedAt, clock.instant()));
+        }
+    }
+
+    private void processMessage(
+            ConsumerRecord<String, TransactionEventMessage> record,
+            Acknowledgment acknowledgment,
+            Instant processingStartedAt,
+            TransactionEventMessage message
+    ) {
+
+        TimedResult<ProcessingLogResult> processingLog = time(() -> metrics.recordProcessingLogLatency(
+                () -> processingLogService.recordProcessedEvent(
+                        message,
+                        record.topic(),
+                        record.partition(),
+                        record.offset(),
+                        consumerGroupId
+                )
+        ));
+        ProcessingLogResult result = processingLog.result();
+
+        TimedResult<Boolean> duplicatePrecheck = time(() -> metrics.recordResultPrecheckLatency(
+                () -> fraudDetectionResultService.existsResultForEventId(message.eventId())
+        ));
+        if (duplicatePrecheck.result()) {
             acknowledgment.acknowledge();
+            logSlowEventIfNeeded(
+                    record,
+                    message,
+                    processingStartedAt,
+                    processingLog.duration(),
+                    duplicatePrecheck.duration(),
+                    Duration.ZERO,
+                    Duration.ZERO,
+                    Duration.ZERO
+            );
             log.info(
                     "transaction event duplicate fraud result skipped traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={}",
                     message.traceId(),
@@ -81,21 +123,41 @@ public class TransactionEventListener {
             return;
         }
 
-        RecentTransactionWindowResult windowResult = recentTransactionWindowStore.recordAndGetWindow(message);
+        TimedResult<RecentTransactionWindowResult> redisWindow = time(
+                () -> recentTransactionWindowStore.recordAndGetWindow(message)
+        );
+        RecentTransactionWindowResult windowResult = redisWindow.result();
         FraudRuleEngineResult ruleResult;
+        TimedResult<FraudRuleEngineResult> ruleProcessing;
         try {
-            ruleResult = fraudRuleEngine.evaluate(message, windowResult);
+            ruleProcessing = time(
+                    () -> metrics.recordRuleProcessingLatency(() -> fraudRuleEngine.evaluate(message, windowResult))
+            );
+            ruleResult = ruleProcessing.result();
         } catch (RuntimeException exception) {
             recordDeadLetterAndAcknowledge(record, acknowledgment, FailureStage.RULE_ENGINE_ERROR, exception);
             return;
         }
-        FraudDetectionResultSaveResult saveResult = fraudDetectionResultService.saveResult(message, ruleResult);
+        TimedResult<FraudDetectionResultSaveResult> resultSink = time(() -> metrics.recordResultSinkLatency(
+                () -> fraudDetectionResultService.saveResult(message, ruleResult)
+        ));
+        FraudDetectionResultSaveResult saveResult = resultSink.result();
         recordDetectionMetrics(ruleResult, saveResult);
         if (!saveResult.duplicateSkipped()) {
-            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, Instant.now()));
+            metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, clock.instant()));
         }
 
         acknowledgment.acknowledge();
+        logSlowEventIfNeeded(
+                record,
+                message,
+                processingStartedAt,
+                processingLog.duration(),
+                duplicatePrecheck.duration(),
+                redisWindow.duration(),
+                ruleProcessing.duration(),
+                resultSink.duration()
+        );
 
         log.info(
                 "transaction event consumed traceId={} eventId={} userId={} topic={} partition={} offset={} processingDuplicateSkipped={} fraudDuplicateSkipped={} redisDegraded={} degradedReason={} transactionCount={} amountSum={} matchedRules={} skippedRules={} riskScore={} riskLevel={} decision={}",
@@ -119,6 +181,47 @@ public class TransactionEventListener {
         );
     }
 
+    private <T> TimedResult<T> time(java.util.function.Supplier<T> supplier) {
+        Instant startedAt = clock.instant();
+        try {
+            return new TimedResult<>(supplier.get(), Duration.between(startedAt, clock.instant()));
+        } catch (RuntimeException exception) {
+            Duration duration = Duration.between(startedAt, clock.instant());
+            log.debug("consumer stage failed after {}ms", duration.toMillis(), exception);
+            throw exception;
+        }
+    }
+
+    private void logSlowEventIfNeeded(
+            ConsumerRecord<String, TransactionEventMessage> record,
+            TransactionEventMessage message,
+            Instant processingStartedAt,
+            Duration processingLogDuration,
+            Duration duplicatePrecheckDuration,
+            Duration redisDuration,
+            Duration ruleDuration,
+            Duration resultSinkDuration
+    ) {
+        Duration consumerServiceDuration = Duration.between(processingStartedAt, clock.instant());
+        if (slowEventThreshold == null || consumerServiceDuration.compareTo(slowEventThreshold) <= 0) {
+            return;
+        }
+        log.warn(
+                "slow consumer event type=SLOW_EVENT traceId={} eventId={} topic={} partition={} offset={} consumerServiceMs={} processingLogMs={} duplicateGuardMs={} redisMs={} ruleMs={} resultSinkMs={}",
+                message.traceId(),
+                message.eventId(),
+                record.topic(),
+                record.partition(),
+                record.offset(),
+                consumerServiceDuration.toMillis(),
+                processingLogDuration.toMillis(),
+                duplicatePrecheckDuration.toMillis(),
+                redisDuration.toMillis(),
+                ruleDuration.toMillis(),
+                resultSinkDuration.toMillis()
+        );
+    }
+
     private void recordDeadLetterAndAcknowledge(
             ConsumerRecord<String, TransactionEventMessage> record,
             Acknowledgment acknowledgment,
@@ -126,7 +229,7 @@ public class TransactionEventListener {
             RuntimeException exception
     ) {
         DeadLetterEventEntity event = deadLetterEventService.recordFailure(record, failureStage, exception);
-        deadLetterEventService.publish(event, record.value(), java.time.OffsetDateTime.now());
+        deadLetterEventService.publish(event, record.value(), OffsetDateTime.now(clock));
         acknowledgment.acknowledge();
         log.warn(
                 "transaction event moved to dlt traceId={} eventId={} userId={} topic={} partition={} offset={} failureStage={} errorType={}",
@@ -152,5 +255,8 @@ public class TransactionEventListener {
             metrics.incrementDetectionDegraded();
         }
         ruleResult.skippedRules().forEach(metrics::incrementSkippedRule);
+    }
+
+    private record TimedResult<T>(T result, Duration duration) {
     }
 }

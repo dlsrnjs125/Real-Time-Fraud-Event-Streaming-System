@@ -1,0 +1,224 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Stream Boundary EPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(fraud_stream_intake_receipt_persisted_total{job=\"app-api\"}[1m]))", "legendFormat": "receipt persisted"},
+        {"refId": "B", "expr": "sum(rate(fraud_stream_kafka_publish_success_total{job=\"app-api\"}[1m]))", "legendFormat": "publish success"},
+        {"refId": "C", "expr": "sum(rate(fraud_stream_kafka_publish_failure_total{job=\"app-api\"}[1m]))", "legendFormat": "publish failure"},
+        {"refId": "D", "expr": "sum(rate(fraud_stream_consumer_delivery_total{job=\"app-consumer\"}[1m]))", "legendFormat": "consumer delivery"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 2,
+      "title": "Total Consumer Group Lag",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"})", "legendFormat": "total lag"}],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 3,
+      "title": "Partition Lag",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum by (partition) (kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"})", "legendFormat": "partition {{partition}}"}],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "title": "Lag Growth and Drain Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "clamp_min(deriv((sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"}))[1m:15s]), 0)", "legendFormat": "growth records/s"},
+        {"refId": "B", "expr": "clamp_min(-deriv((sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"}))[1m:15s]), 0)", "legendFormat": "drain records/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 5,
+      "title": "Kafka Producer to Consumer Delay",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_kafka_producer_to_consumer_delay_seconds_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_kafka_producer_to_consumer_delay_seconds_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 6,
+      "title": "Consumer Service Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_consumer_service_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_consumer_service_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 7,
+      "title": "Redis State Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_redis_state_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_redis_state_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 8,
+      "title": "Rule Processing Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_rule_processing_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_rule_processing_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 9,
+      "title": "Result Sink Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_result_sink_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_result_sink_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 16,
+      "title": "Processing Log Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_processing_log_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_processing_log_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 17,
+      "title": "Duplicate Guard Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_result_precheck_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_result_precheck_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 10,
+      "title": "Event Ingress Age",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_event_ingress_age_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_event_ingress_age_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 11,
+      "title": "Kafka Partition Incoming Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum by (partition) (clamp_min(rate(kafka_topic_partition_current_offset{job=\"kafka-exporter\", topic=\"transaction-events\"}[1m]), 0))", "legendFormat": "partition {{partition}}"}],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 12,
+      "title": "Kafka Client Consumed Records Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(kafka_consumer_fetch_manager_records_consumed_rate{job=\"app-consumer\"})", "legendFormat": "records/s"}],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 13,
+      "title": "Consumer Assigned Partitions",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(kafka_consumer_coordinator_assigned_partitions{job=\"app-consumer\"})", "legendFormat": "assigned partitions"}],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 14,
+      "title": "Consumer Rebalance Total",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 40},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(kafka_consumer_coordinator_rebalance_total{job=\"app-consumer\"})", "legendFormat": "rebalance total"}],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 15,
+      "title": "Redis and Consumer Resources",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 40},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "process_cpu_usage{job=\"app-consumer\"}", "legendFormat": "consumer CPU ratio"},
+        {"refId": "B", "expr": "sum(jvm_memory_used_bytes{job=\"app-consumer\"})", "legendFormat": "consumer JVM bytes"},
+        {"refId": "C", "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "redis memory bytes"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["fraud", "v3", "stream", "phase0"],
+  "templating": {"list": []},
+  "time": {"from": "now-30m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "V3 Stream Processing Foundation",
+  "uid": "v3-stream-processing-foundation",
+  "version": 1,
+  "weekStart": ""
+}
