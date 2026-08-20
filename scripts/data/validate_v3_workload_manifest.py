@@ -5,47 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 
-SUPPORTED_ROLES = {
-    "VOLUME_CORRECTNESS",
-    "NORMAL_CAPACITY",
-    "ORGANIC_BURST",
-    "CATCH_UP_BURST",
-    "USER_SKEW",
-    "PARTITION_SKEW",
-    "LATE_OUT_OF_ORDER",
-    "HISTORICAL_REPLAY",
-}
-SUPPORTED_DRIVERS = {"HTTP_K6", "HTTP_SOURCE_EMULATOR", "KAFKA_DIRECT_PRODUCER"}
-SUPPORTED_EVENT_TIME_MODES = {"PRESERVE_SOURCE_TIME", "REBASE_TO_ARRIVAL", "CONTROLLED_LATENESS"}
-SUPPORTED_USER_DISTRIBUTIONS = {"UNIFORM", "PAYSIM_MEASURED", "SYNTHETIC_USER_SKEW", "PARTITION_AFFINITY"}
-REQUIRED_FIELDS = {
-    "workloadId",
-    "workloadVersion",
-    "workloadRole",
-    "datasetVersion",
-    "driverType",
-    "targetEps",
-    "duration",
-    "eventLimit",
-    "userCardinality",
-    "userDistribution",
-    "heavyUserRatio",
-    "targetUserConcentration",
-    "targetPartitionDistribution",
-    "partitionAffinityStrategy",
-    "sourceProfile",
-    "eventTimeMode",
-    "sourceTimeResolution",
-    "timeScaleFactor",
-    "latenessProfile",
-    "replayRate",
-    "randomSeed",
-}
+SCHEMA_PATH = Path(__file__).parents[2] / "load-test" / "workloads" / "v3" / "workload-manifest.schema.json"
 
 
 class ManifestError(ValueError):
@@ -69,32 +34,7 @@ def validate_distribution(distribution: dict[str, Any] | None, field: str) -> No
 
 
 def validate_manifest(manifest: dict[str, Any]) -> None:
-    missing = sorted(REQUIRED_FIELDS - manifest.keys())
-    unknown = sorted(manifest.keys() - REQUIRED_FIELDS)
-    if missing:
-        raise ManifestError(f"missing required fields: {', '.join(missing)}")
-    if unknown:
-        raise ManifestError(f"unknown fields: {', '.join(unknown)}")
-    if manifest["workloadRole"] not in SUPPORTED_ROLES:
-        raise ManifestError("unsupported workloadRole")
-    if manifest["driverType"] not in SUPPORTED_DRIVERS:
-        raise ManifestError("unsupported driverType")
-    if manifest["eventTimeMode"] not in SUPPORTED_EVENT_TIME_MODES:
-        raise ManifestError("unsupported eventTimeMode")
-    if manifest["userDistribution"] not in SUPPORTED_USER_DISTRIBUTIONS:
-        raise ManifestError("unsupported userDistribution")
-    if not isinstance(manifest["randomSeed"], int) or isinstance(manifest["randomSeed"], bool) or manifest["randomSeed"] < 0:
-        raise ManifestError("randomSeed must be a non-negative integer")
-    if not isinstance(manifest["targetEps"], (int, float)) or isinstance(manifest["targetEps"], bool) or manifest["targetEps"] <= 0:
-        raise ManifestError("targetEps must be positive")
-    if not isinstance(manifest["eventLimit"], int) or isinstance(manifest["eventLimit"], bool) or manifest["eventLimit"] <= 0:
-        raise ManifestError("eventLimit must be a positive integer")
-    if not isinstance(manifest["userCardinality"], int) or isinstance(manifest["userCardinality"], bool) or manifest["userCardinality"] <= 0:
-        raise ManifestError("userCardinality must be a positive integer")
-    if not re.fullmatch(r"[1-9][0-9]*(s|m|h)", str(manifest["duration"])):
-        raise ManifestError("duration must use a positive s, m, or h suffix")
-    if not isinstance(manifest["heavyUserRatio"], (int, float)) or not 0 <= manifest["heavyUserRatio"] <= 1:
-        raise ManifestError("heavyUserRatio must be between 0 and 1")
+    validate_schema(manifest)
     validate_distribution(manifest["targetPartitionDistribution"], "targetPartitionDistribution")
 
     mode = manifest["eventTimeMode"]
@@ -112,6 +52,19 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise ManifestError("PARTITION_SKEW requires target distribution and affinity strategy")
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
+
+
+def validate_schema(manifest: dict[str, Any]) -> None:
+    try:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        jsonschema.Draft202012Validator.check_schema(schema)
+        jsonschema.Draft202012Validator(schema).validate(manifest)
+    except (OSError, json.JSONDecodeError, jsonschema.SchemaError) as exc:
+        raise ManifestError(f"cannot load workload schema: {exc}") from exc
+    except jsonschema.ValidationError as exc:
+        path = ".".join(str(part) for part in exc.absolute_path)
+        location = path or "manifest"
+        raise ManifestError(f"schema validation failed at {location}: {exc.message}") from exc
 
 
 def load_and_validate(path: Path) -> dict[str, Any]:

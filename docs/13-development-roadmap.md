@@ -40,7 +40,7 @@
 | V2 Phase 15 | Done | Final evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails | Final Docs/Blog Closure에 통합 |
 | V3 Direction Reset | Done | High-Throughput Stateful Stream Processing 방향과 Phase 0 사전 계약 문서화 | V3 direction, dataset/workload/time contract, Phase 0 plan | review contracts before implementation |
 | V3 Phase 0 | Done | Dataset, Workload, and Stream Observability Foundation | PaySim profiler, versioned baseline manifest, time/metric contracts, V3 dashboard, local baseline evidence | V3 Phase 1 sustainable throughput and backlog recovery |
-| V3 Phase 1 | Not Started | Sustainable Throughput and Backlog Recovery | planned capacity-curve experiment | find sustainable EPS and recovery behavior |
+| V3 Phase 1 | Not Started | Sustainable Throughput and Backlog Recovery | planned capacity-curve experiment; preflight Consumer DB-stage meters added | find sustainable EPS and recovery behavior |
 | V3 Phase 2 | Not Started | Stateful Sliding-Window Scaling | planned state-size experiment | measure Redis cost by events/user and window size |
 | V3 Phase 3 | Not Started | Kafka Partition Skew and Consumer Parallelism | planned uniform/skew experiment | quantify hot-partition and scale-out limits |
 | V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |

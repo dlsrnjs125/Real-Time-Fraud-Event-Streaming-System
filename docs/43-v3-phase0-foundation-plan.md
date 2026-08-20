@@ -89,6 +89,8 @@ Rates should be derived from monotonic Counters with PromQL, rather than maintai
 | `fraud.rule.processing.latency` | Timer | Rule Engine evaluation |
 | `fraud.result.sink.latency` | Timer | required detection-result sink operation |
 | `fraud.consumer.service.latency` | Timer | Consumer start to detection/result completion |
+| `fraud.processing.log.latency` | Timer | processing-log duplicate check and persistence |
+| `fraud.result.precheck.latency` | Timer | fraud-result duplicate guard before Redis/Rule work |
 | `fraud.event.source.processing.delay` | Deferred | requires a trustworthy `sourceSentAt` owner; not registered in Phase 0 |
 | `fraud.event.transport.delay` | Deferred | requires a trustworthy `sourceSentAt` owner; not registered in Phase 0 |
 | `fraud.event.ingress.age` | Timer | `receivedAt - eventTime` |

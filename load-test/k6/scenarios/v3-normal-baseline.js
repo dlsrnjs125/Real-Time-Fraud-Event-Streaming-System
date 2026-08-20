@@ -4,7 +4,11 @@ import exec from 'k6/execution';
 import { apiBaseUrl, jsonHeaders } from '../common.js';
 
 const manifest = JSON.parse(open('../../workloads/v3/normal-baseline-v1.json'));
-const runId = __ENV.V3_RUN_ID || `${Date.now()}`;
+if (!__ENV.V3_RUN_ID) {
+  throw new Error('V3_RUN_ID is required');
+}
+const runId = __ENV.V3_RUN_ID;
+const commitSha = __ENV.V3_COMMIT_SHA || 'unknown';
 
 export const options = {
   scenarios: {
@@ -67,6 +71,7 @@ export function handleSummary(data) {
     workloadId: manifest.workloadId,
     workloadVersion: manifest.workloadVersion,
     runId,
+    commitSha,
     driverType: manifest.driverType,
     eventTimeMode: manifest.eventTimeMode,
     targetEps: manifest.targetEps,

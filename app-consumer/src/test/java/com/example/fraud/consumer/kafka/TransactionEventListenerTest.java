@@ -28,6 +28,7 @@ import com.example.fraud.consumer.rule.FraudRuleVersions;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -54,7 +55,8 @@ class TransactionEventListenerTest {
             deadLetterEventService,
             metrics,
             clock,
-            "fraud-event-consumer"
+            "fraud-event-consumer",
+            Duration.ofMillis(500)
     );
 
     @Test
@@ -90,6 +92,8 @@ class TransactionEventListenerTest {
         assertThatMetric(FraudConsumerMetrics.STREAM_CONSUMER_DELIVERY_TOTAL).isEqualTo(1.0);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.RULE_PROCESSING_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.RESULT_SINK_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.PROCESSING_LOG_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.RESULT_PRECHECK_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.CONSUMER_SERVICE_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.EVENT_INGRESS_AGE).count()).isEqualTo(1);
     }

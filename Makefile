@@ -290,6 +290,7 @@ k6-redis-down:
 	bash scripts/load_tests/run_redis_down_load.sh
 
 k6-v3-baseline:
-	k6 run load-test/k6/scenarios/v3-normal-baseline.js
+	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=20260819-phase0-baseline-150 make k6-v3-baseline" && exit 1)
+	V3_COMMIT_SHA=$$(git rev-parse --short HEAD) k6 run load-test/k6/scenarios/v3-normal-baseline.js
 
 final-check: build infra-config observability-check scripts-check verify-v2-phase13 verify-v3-phase0

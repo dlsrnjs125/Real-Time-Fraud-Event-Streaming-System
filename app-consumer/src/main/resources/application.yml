@@ -50,6 +50,8 @@ management:
         fraud.rule.processing.latency: true
         fraud.result.sink.latency: true
         fraud.consumer.service.latency: true
+        fraud.processing.log.latency: true
+        fraud.result.precheck.latency: true
         fraud.kafka.producer.to.consumer.delay: true
         fraud.event.ingress.age: true
       percentiles:

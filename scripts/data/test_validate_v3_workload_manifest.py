@@ -31,13 +31,19 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"
-        with self.assertRaisesRegex(validator.ManifestError, "unsupported driverType"):
+        with self.assertRaisesRegex(validator.ManifestError, "schema validation failed.*driverType"):
             validator.validate_manifest(invalid)
 
     def test_rejects_unsupported_event_time_mode(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["eventTimeMode"] = "COPY_SOURCE_TIME"
-        with self.assertRaisesRegex(validator.ManifestError, "unsupported eventTimeMode"):
+        with self.assertRaisesRegex(validator.ManifestError, "schema validation failed.*eventTimeMode"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_workload_id_that_only_schema_validates(self):
+        invalid = copy.deepcopy(self.manifest)
+        invalid["workloadId"] = "Invalid_Workload_Id"
+        with self.assertRaisesRegex(validator.ManifestError, "schema validation failed.*workloadId"):
             validator.validate_manifest(invalid)
 
     def test_rejects_normal_workload_that_preserves_historical_time(self):

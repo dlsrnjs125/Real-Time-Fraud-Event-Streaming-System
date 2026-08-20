@@ -117,10 +117,36 @@
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
     },
     {
+      "id": 16,
+      "title": "Processing Log Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_processing_log_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_processing_log_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 17,
+      "title": "Duplicate Guard Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_result_precheck_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_result_precheck_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
       "id": 10,
       "title": "Event Ingress Age",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_event_ingress_age_seconds_bucket[1m])))", "legendFormat": "p95"},
@@ -133,7 +159,7 @@
       "id": 11,
       "title": "Kafka Partition Incoming Rate",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "sum by (partition) (clamp_min(rate(kafka_topic_partition_current_offset{job=\"kafka-exporter\", topic=\"transaction-events\"}[1m]), 0))", "legendFormat": "partition {{partition}}"}],
       "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
@@ -143,7 +169,7 @@
       "id": 12,
       "title": "Kafka Client Consumed Records Rate",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "sum(kafka_consumer_fetch_manager_records_consumed_rate{job=\"app-consumer\"})", "legendFormat": "records/s"}],
       "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
@@ -153,7 +179,7 @@
       "id": 13,
       "title": "Consumer Assigned Partitions",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "sum(kafka_consumer_coordinator_assigned_partitions{job=\"app-consumer\"})", "legendFormat": "assigned partitions"}],
       "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
@@ -163,7 +189,7 @@
       "id": 14,
       "title": "Consumer Rebalance Total",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 40},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"refId": "A", "expr": "sum(kafka_consumer_coordinator_rebalance_total{job=\"app-consumer\"})", "legendFormat": "rebalance total"}],
       "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
@@ -173,7 +199,7 @@
       "id": 15,
       "title": "Redis and Consumer Resources",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 40},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "process_cpu_usage{job=\"app-consumer\"}", "legendFormat": "consumer CPU ratio"},

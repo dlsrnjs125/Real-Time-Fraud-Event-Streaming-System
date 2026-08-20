@@ -49,10 +49,10 @@ Raw k6 result files should be written under `load-test/k6/results/` and must not
 
 V3 manifests are stored under `load-test/workloads/v3` and validated with `make verify-v3-workload-manifests`. The committed Phase 0 baseline uses `driverType=HTTP_K6` and `eventTimeMode=REBASE_TO_ARRIVAL`; its PaySim-like transaction attributes do not imply PaySim hourly timestamps or observed five-minute density.
 
-Set a unique run identifier when retaining local evidence:
+Set a unique run identifier before running V3 evidence workloads:
 
 ```bash
 V3_RUN_ID=<run-id> make k6-v3-baseline
 ```
 
-The generated summary under `load-test/k6/results` records target and achieved EPS. User and partition distributions remain `null` until measured from an appropriate driver/report or Kafka evidence; the k6 HTTP driver does not infer Kafka partition placement.
+`V3_RUN_ID` is required. The generated summary under `load-test/k6/results` records `runId`, `workloadId`, `workloadVersion`, commit SHA, target EPS, and achieved EPS. User and partition distributions remain `null` until measured from an appropriate driver/report or Kafka evidence; the k6 HTTP driver does not infer Kafka partition placement.

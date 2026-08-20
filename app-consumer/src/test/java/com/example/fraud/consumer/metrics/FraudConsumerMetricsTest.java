@@ -78,10 +78,14 @@ class FraudConsumerMetricsTest {
 
     @Test
     void recordsStageTimersWithoutHighCardinalityTags() {
+        metrics.recordProcessingLogLatency(() -> "processing-log-result");
+        metrics.recordResultPrecheckLatency(() -> "precheck-result");
         metrics.recordRuleProcessingLatency(() -> "rule-result");
         metrics.recordResultSinkLatency(() -> "sink-result");
         metrics.recordConsumerServiceLatency(Duration.ofMillis(10));
 
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.PROCESSING_LOG_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.timer(FraudConsumerMetrics.RESULT_PRECHECK_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.RULE_PROCESSING_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.RESULT_SINK_LATENCY).count()).isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.CONSUMER_SERVICE_LATENCY).count()).isEqualTo(1);

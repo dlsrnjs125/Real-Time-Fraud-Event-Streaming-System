@@ -23,6 +23,8 @@ public class FraudConsumerMetrics {
     public static final String RULE_PROCESSING_LATENCY = "fraud.rule.processing.latency";
     public static final String RESULT_SINK_LATENCY = "fraud.result.sink.latency";
     public static final String CONSUMER_SERVICE_LATENCY = "fraud.consumer.service.latency";
+    public static final String PROCESSING_LOG_LATENCY = "fraud.processing.log.latency";
+    public static final String RESULT_PRECHECK_LATENCY = "fraud.result.precheck.latency";
     public static final String PRODUCER_TO_CONSUMER_DELAY = "fraud.kafka.producer.to.consumer.delay";
     public static final String EVENT_INGRESS_AGE = "fraud.event.ingress.age";
 
@@ -33,6 +35,8 @@ public class FraudConsumerMetrics {
     private final Timer ruleProcessingLatency;
     private final Timer resultSinkLatency;
     private final Timer consumerServiceLatency;
+    private final Timer processingLogLatency;
+    private final Timer resultPrecheckLatency;
     private final Timer producerToConsumerDelay;
     private final Timer eventIngressAge;
 
@@ -50,6 +54,8 @@ public class FraudConsumerMetrics {
         this.ruleProcessingLatency = timer(RULE_PROCESSING_LATENCY, "Fraud rule engine processing latency");
         this.resultSinkLatency = timer(RESULT_SINK_LATENCY, "Fraud detection result sink latency");
         this.consumerServiceLatency = timer(CONSUMER_SERVICE_LATENCY, "Kafka listener delivery service latency");
+        this.processingLogLatency = timer(PROCESSING_LOG_LATENCY, "Event processing log persistence latency");
+        this.resultPrecheckLatency = timer(RESULT_PRECHECK_LATENCY, "Fraud result duplicate pre-check latency");
         this.producerToConsumerDelay = timer(
                 PRODUCER_TO_CONSUMER_DELAY,
                 "Kafka producer CreateTime to Consumer processing start delay"
@@ -67,6 +73,14 @@ public class FraudConsumerMetrics {
 
     public <T> T recordResultSinkLatency(Supplier<T> supplier) {
         return resultSinkLatency.record(supplier);
+    }
+
+    public <T> T recordProcessingLogLatency(Supplier<T> supplier) {
+        return processingLogLatency.record(supplier);
+    }
+
+    public <T> T recordResultPrecheckLatency(Supplier<T> supplier) {
+        return resultPrecheckLatency.record(supplier);
     }
 
     public void incrementConsumerDelivery() {

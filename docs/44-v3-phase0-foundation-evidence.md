@@ -77,8 +77,12 @@ The corpus has little same-user repetition and no observed 5+ repetition within 
 | `fraud.rule.processing.latency` | rule evaluation attempts after duplicate pre-check, including thrown attempts |
 | `fraud.result.sink.latency` | result-sink save attempts, including duplicate-race or persistence exceptions |
 | `fraud.consumer.service.latency` | every typed listener attempt from listener start through success or failure |
+| `fraud.processing.log.latency` | processing-log duplicate check and persistence attempt |
+| `fraud.result.precheck.latency` | fraud-result duplicate guard before Redis/Rule work |
 
 Deserialization failures handled before the typed listener are not in the delivery/service population. Existing legacy Redis and detection Timers remain for compatibility. No meter uses event, trace, user, account, topic offset, or partition as an application tag.
+
+After Phase 0 evidence review, the Consumer stage model was extended to expose PostgreSQL preprocessing latency before V3 Phase 1. This does not change the accepted Phase 0 baseline numbers; it adds attribution needed for the next throughput/backlog runs.
 
 Histogram buckets are enabled and Prometheus `histogram_quantile` queries provide p50/p95/p99. Total and partition Lag come from kafka-exporter. Lag growth/drain uses a one-minute regression window sampled at the configured 15-second scrape interval; gauge decreases are drain, and counter reset semantics do not apply to the Lag gauge itself.
 
