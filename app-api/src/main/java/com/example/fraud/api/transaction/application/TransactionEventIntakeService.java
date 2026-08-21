@@ -51,6 +51,7 @@ public class TransactionEventIntakeService {
     @Transactional(noRollbackFor = KafkaPublishFailedException.class)
     public TransactionEventAcceptedResponse accept(TransactionEventRequest request, String traceId) {
         long intakeStartedAt = System.nanoTime();
+        metrics.recordApiIntakeTransactionLatencyAfterCompletion(intakeStartedAt);
         Duration receiptPersistenceDuration = Duration.ZERO;
         Duration kafkaPublishWaitDuration = Duration.ZERO;
         Duration statusUpdateDuration = Duration.ZERO;

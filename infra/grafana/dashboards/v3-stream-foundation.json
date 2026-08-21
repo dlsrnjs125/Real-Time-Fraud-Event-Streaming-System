@@ -207,13 +207,15 @@
     },
     {
       "id": 18,
-      "title": "API Intake Service Latency",
+      "title": "API Intake Service vs Transaction Latency",
       "type": "timeseries",
       "gridPos": {"h": 8, "w": 8, "x": 16, "y": 40},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
-        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "service p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "service p99"},
+        {"refId": "C", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_intake_transaction_latency_seconds_bucket[1m])))", "legendFormat": "transaction p95"},
+        {"refId": "D", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_api_intake_transaction_latency_seconds_bucket[1m])))", "legendFormat": "transaction p99"}
       ],
       "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
@@ -233,7 +235,7 @@
     },
     {
       "id": 20,
-      "title": "API Receipt DB Stage Latency",
+      "title": "API Receipt Persistence and Save-Call Latency",
       "type": "timeseries",
       "gridPos": {"h": 8, "w": 8, "x": 8, "y": 48},
       "datasource": {"type": "prometheus", "uid": "prometheus"},

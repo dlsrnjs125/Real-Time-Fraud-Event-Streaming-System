@@ -25,7 +25,7 @@ spring:
 
 fraud:
   consumer:
-    concurrency: 6
+    concurrency: ${FRAUD_CONSUMER_CONCURRENCY:1}
   sliding-window:
     window: 5m
     max-events: 5

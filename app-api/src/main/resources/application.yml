@@ -36,6 +36,7 @@ management:
       percentiles-histogram:
         http.server.requests: true
         fraud.api.intake.service.latency: true
+        fraud.api.intake.transaction.latency: true
         fraud.api.receipt.persistence.latency: true
         fraud.kafka.publish.wait.latency: true
         fraud.api.receipt.status.update.latency: true

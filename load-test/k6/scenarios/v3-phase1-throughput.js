@@ -21,30 +21,44 @@ const commitSha = __ENV.V3_COMMIT_SHA || 'unknown';
 const preAllocatedVUs = Number(__ENV.V3_PRE_ALLOCATED_VUS || 50);
 const maxVUs = Number(__ENV.V3_MAX_VUS || 300);
 
-function plateauStages(stages) {
-  const k6Stages = [];
-  let currentTarget = 0;
-  for (const stage of stages) {
-    if (stage.targetEps !== currentTarget) {
-      k6Stages.push({ target: stage.targetEps, duration: '1s' });
-    }
-    k6Stages.push({ target: stage.targetEps, duration: stage.duration });
-    currentTarget = stage.targetEps;
+function parseDurationSeconds(duration) {
+  const matched = /^(\d+)s$/.exec(duration);
+  if (!matched) {
+    throw new Error(`Only second-based stage durations are supported: ${duration}`);
   }
-  return k6Stages;
+  return Number(matched[1]);
+}
+
+function stageScenarios(stages) {
+  const scenarios = {};
+  let startSeconds = 0;
+  let iterationOffset = 0;
+  for (const stage of stages) {
+    const durationSeconds = parseDurationSeconds(stage.duration);
+    scenarios[`stage_${scenarios.length || Object.keys(scenarios).length}_${stage.name}`] = {
+      executor: 'constant-arrival-rate',
+      rate: stage.targetEps,
+      timeUnit: '1s',
+      duration: stage.duration,
+      startTime: `${startSeconds}s`,
+      preAllocatedVUs,
+      maxVUs,
+      exec: 'phase1Stage',
+      env: {
+        V3_STAGE_ITERATION_OFFSET: String(iterationOffset),
+      },
+    };
+    startSeconds += durationSeconds;
+    iterationOffset += stage.targetEps * durationSeconds;
+  }
+  if (iterationOffset !== manifest.eventLimit) {
+    throw new Error(`Stage contract emits ${iterationOffset} events but manifest eventLimit is ${manifest.eventLimit}`);
+  }
+  return scenarios;
 }
 
 export const options = {
-  scenarios: {
-    v3_phase1_throughput: {
-      executor: 'ramping-arrival-rate',
-      startRate: 0,
-      timeUnit: '1s',
-      preAllocatedVUs,
-      maxVUs,
-      stages: plateauStages(manifest.stages),
-    },
-  },
+  scenarios: stageScenarios(manifest.stages),
   thresholds: {
     http_req_failed: ['rate<0.05'],
   },
@@ -57,8 +71,8 @@ function deterministicValue(seed, vu, iteration) {
   return (value ^ (value >>> 16)) >>> 0;
 }
 
-export default function () {
-  const globalIteration = exec.scenario.iterationInTest;
+export function phase1Stage() {
+  const globalIteration = Number(__ENV.V3_STAGE_ITERATION_OFFSET || 0) + exec.scenario.iterationInTest;
   if (globalIteration >= manifest.eventLimit) {
     return;
   }
