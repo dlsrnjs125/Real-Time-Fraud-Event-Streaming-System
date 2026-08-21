@@ -35,17 +35,19 @@ function stageScenarios(stages) {
   let iterationOffset = 0;
   for (const stage of stages) {
     const durationSeconds = parseDurationSeconds(stage.duration);
-    scenarios[`stage_${scenarios.length || Object.keys(scenarios).length}_${stage.name}`] = {
+    scenarios[`stage_${Object.keys(scenarios).length}_${stage.name}`] = {
       executor: 'constant-arrival-rate',
       rate: stage.targetEps,
       timeUnit: '1s',
       duration: stage.duration,
       startTime: `${startSeconds}s`,
+      gracefulStop: '0s',
       preAllocatedVUs,
       maxVUs,
       exec: 'phase1Stage',
       env: {
         V3_STAGE_ITERATION_OFFSET: String(iterationOffset),
+        V3_STAGE_EVENT_LIMIT: String(stage.targetEps * durationSeconds),
       },
     };
     startSeconds += durationSeconds;
@@ -72,7 +74,11 @@ function deterministicValue(seed, vu, iteration) {
 }
 
 export function phase1Stage() {
-  const globalIteration = Number(__ENV.V3_STAGE_ITERATION_OFFSET || 0) + exec.scenario.iterationInTest;
+  const stageIteration = exec.scenario.iterationInTest;
+  if (stageIteration >= Number(__ENV.V3_STAGE_EVENT_LIMIT || 0)) {
+    return;
+  }
+  const globalIteration = Number(__ENV.V3_STAGE_ITERATION_OFFSET || 0) + stageIteration;
   if (globalIteration >= manifest.eventLimit) {
     return;
   }
