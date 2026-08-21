@@ -41,7 +41,7 @@ function stageScenarios(stages) {
       timeUnit: '1s',
       duration: stage.duration,
       startTime: `${startSeconds}s`,
-      gracefulStop: '0s',
+      gracefulStop: '5s',
       preAllocatedVUs,
       maxVUs,
       exec: 'phase1Stage',
