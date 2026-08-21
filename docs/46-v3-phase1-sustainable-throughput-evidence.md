@@ -3,14 +3,15 @@
 ## 1. Status
 
 - Status: Complete for local Docker Phase 1 evidence
-- Scope: HTTP k6 intake, Kafka publish, app-consumer processing, Consumer Lag, backlog recovery, first bottleneck attribution
-- Selected improvement: configure app-consumer listener concurrency to match the six `transaction-events` partitions in the local topology
+- Scope: HTTP k6 intake, Kafka publish, app-consumer processing, Consumer Lag, backlog recovery, and first bottleneck attribution
+- Selected improvement: configure app-consumer listener concurrency explicitly for the local six-partition topology
 - Completion boundary: this is local evidence, not production capacity or a direct-Kafka producer benchmark
 
 ## 2. Implementation Summary
 
 - Added API intake stage Timers:
   - `fraud.api.intake.service.latency`
+  - `fraud.api.intake.transaction.latency`
   - `fraud.api.receipt.persistence.latency`
   - `fraud.kafka.publish.wait.latency`
   - `fraud.api.receipt.status.update.latency`
@@ -22,7 +23,7 @@
 - Added `load-test/k6/scenarios/v3-phase1-throughput.js`.
 - Extended workload validation so staged workloads must keep `eventLimit` and maximum `targetEps` aligned with the stage contract.
 - Added V3 dashboard panels for API intake, Kafka publish wait, receipt DB stages, Hikari connections, and separated resource units.
-- Added configurable Consumer concurrency with `fraud.consumer.concurrency=6` for the local six-partition topic.
+- Added configurable Consumer concurrency with repository default `fraud.consumer.concurrency=1`; local Phase 1 after-run uses `FRAUD_CONSUMER_CONCURRENCY=6`.
 - API intake stage timers record durations measured with `System.nanoTime()` and discard negative durations before recording.
 
 ## 3. Experiment Fingerprint
@@ -30,7 +31,7 @@
 | Field | Value |
 |---|---|
 | Branch | `feat/v3-phase1-sustainable-throughput-recovery` |
-| Commit SHA in summaries | `748105f` / `748105f-dirty` before final commit |
+| Runtime verification SHA | `44639fc` |
 | Host / OS | local macOS developer machine |
 | Runtime | Docker Compose local Kafka, PostgreSQL, Redis, Prometheus, Grafana; Spring Boot apps on host |
 | Kafka partitions | `transaction-events` has 6 partitions |
@@ -41,9 +42,23 @@
 | Event-time mode | `REBASE_TO_ARRIVAL` |
 | Result files | local ignored `load-test/k6/results/*phase1*summary.json` |
 
-The first capacity summary contains `748105f` without a dirty suffix because the Makefile did not yet include dirty-state detection for uncommitted Phase 1 edits. The Makefile was fixed before the later knee and recovery summaries.
+`44639fc` is the runtime code SHA used for the final before/after recovery evidence. Later documentation commits record the measured results but do not change the runtime behavior under test.
 
-## 4. Capacity Discovery
+## 4. Workload Contract
+
+`backlog-recovery-v1.json` defines four plateau stages:
+
+| Stage | Target EPS | Duration | Expected events |
+|---|---:|---:|---:|
+| warmup | 50 | 60s | 3,000 |
+| sustainable | 100 | 60s | 6,000 |
+| overload | 300 | 120s | 36,000 |
+| recovery | 50 | 120s | 6,000 |
+| Total | - | 360s | 51,000 |
+
+The Phase 1 k6 runner maps each manifest stage to a separate `constant-arrival-rate` scenario with a stage-level hard emission limit. `emittedEventCount` in the generated summary is the authoritative HTTP emission count. k6 may print an extra completed iteration at the boundary when a post-limit iteration returns before issuing an HTTP request; those iterations are not counted as emitted events.
+
+## 5. Capacity Discovery
 
 Run ID: `phase1-discovery-20260821-002`
 
@@ -71,7 +86,7 @@ type=SLOW_INTAKE intakeServiceMs=506 receiptPersistenceMs=33 kafkaPublishWaitMs=
 
 Interpretation: the broad discovery run completed cleanly through the 200 EPS stage. The only notable slow intake was a warm-up style Kafka publish wait sample, not a sustained DB or API saturation signal.
 
-## 5. Knee Confirmation Before Fix
+## 6. Knee Confirmation Before Fix
 
 Run ID: `phase1-knee-20260821-001`
 
@@ -103,71 +118,96 @@ Lag by partition immediately after the run:
 
 Interpretation: API intake accepted the workload without HTTP failures, while Consumer processing fell behind under the 300 EPS stage. The lag spread across all partitions pointed to insufficient consumer parallelism rather than one hot partition.
 
-## 6. Backlog Recovery Before Fix
+## 7. Backlog Recovery Before Fix
 
-Run ID: `phase1-recovery-20260821-001`
+Run ID: `phase1-recovery-before-concurrency1-20260821-003`
 
 | Boundary | Value |
 |---|---:|
 | Configured event limit | 51,000 |
 | Emitted events | 51,000 |
-| Average achieved EPS across staged run | 140.11 |
+| Average achieved EPS across staged run | 141.67 |
 | Max target EPS | 300 |
 | HTTP failure rate | 0 |
-| Dropped iterations | 0 / null |
-| k6 HTTP p95 | 4.39 ms |
-| Final cumulative receipt / result / log count | 133,500 / 133,500 / 133,500 |
+| Dropped iterations | null |
+| k6 HTTP p95 | 6.35 ms |
+| Final receipt / result / log count | 51,000 / 51,000 / 51,000 |
 | Final Consumer Lag | 0 |
-| 20m observed peak Lag | 17,115 |
-| API intake p99 | 5.98 ms |
-| Kafka publish wait p99 | 2.36 ms |
-| Consumer service p99 | 13.43 ms |
+| API service p99 | 5.86 ms |
+| API transaction p99 | 10.30 ms |
+| Kafka publish wait p99 | 2.20 ms |
+| Consumer service p99 | 13.29 ms |
+| Hikari pending max | 0 |
 
-Interpretation: backlog eventually drained after overload ended, but the previous knee run already showed that one listener thread could not keep up with the highest stage while input was active.
+Lag recovery calculation uses total Consumer Lag from Prometheus at 5s query step, with recovery start defined as overload-stage end.
 
-## 7. Bottleneck Attribution
+| Recovery Field | Value |
+|---|---:|
+| Overload start offset | 120s |
+| Overload end / recovery start offset | 240s |
+| First positive lag offset | 140s |
+| Lag at recovery start | 15,720 |
+| Peak Lag | 17,857 at +245s |
+| First zero lag after recovery start | +410s |
+| Lag growth rate | 154.06 records/s |
+| Lag drain rate from recovery start | 92.47 records/s |
+| Recovery time | 170s |
+
+Interpretation: the 300 EPS overload stage produced a real backlog with one listener consumer. API service, API transaction, Kafka publish wait, and Hikari pending stayed healthy, so the evidence does not support app-api, Kafka ACK wait, or DB connection starvation as the primary bottleneck.
+
+## 8. Bottleneck Attribution
 
 | Question | Evidence | Answer |
 |---|---|---|
-| app-api, Kafka, app-consumer, or load generator? | k6 had 0 HTTP failures and no dropped iterations; API p99 stayed single-digit ms; Kafka publish wait p99 stayed about 2-3 ms; Lag grew under 300 EPS | app-consumer throughput |
-| If Consumer, which boundary? | Lag was spread across all six partitions while only one listener consumer processed them before the fix | listener concurrency, not partition skew |
+| app-api, Kafka, app-consumer, or load generator? | k6 had 0 HTTP failures; API transaction p99 was 10.30 ms; Kafka publish wait p99 was 2.20 ms; Hikari pending max was 0; Lag grew under 300 EPS | app-consumer throughput |
+| If Consumer, which boundary? | Lag was spread across all six partitions while only one listener consumer processed them before the fix | Kafka listener partition-consumption parallelism |
 | Is PostgreSQL connection starvation supported? | Hikari pending max was 0 for app-api and app-consumer | no |
 | Is Kafka publish wait the primary bottleneck? | publish wait p99 was low except one warm-up slow sample | no sustained evidence |
 | Is load generator saturation supported? | k6 maintained target stages and reported no dropped iterations | no |
 
-## 8. Root Cause
+## 9. Root Cause
 
 ```text
-Symptom: Consumer Lag grew during the 300 EPS knee stage while API intake stayed healthy.
-Metric Evidence: 60,000 emitted, HTTP failure rate 0, immediate Lag 14,027, API p99 low, Kafka publish wait p99 low, Hikari pending 0.
+Symptom: Consumer Lag grew during the 300 EPS stage while API intake stayed healthy.
+Metric Evidence: 51,000 emitted, HTTP failure rate 0, peak Lag 17,857, API transaction p99 10.30 ms, Kafka publish wait p99 2.20 ms, Hikari pending 0.
 Initial Hypothesis: app-consumer could not consume and persist at the input rate.
 Isolation Experiment: inspect consumer group assignment and partition lag.
-Root Cause: Spring Kafka listener concurrency defaulted to one, so one consumer thread owned all six transaction-events partitions.
-Fix Candidate: expose fraud.consumer.concurrency and set local default to 6.
+Root Cause: Kafka listener partition-consumption parallelism was mismatched to topology: one consumer thread owned all six transaction-events partitions.
+Fix Candidate: expose fraud.consumer.concurrency and set it explicitly to 6 for the local six-partition experiment.
 Trade-off: higher local DB/Redis concurrency and more consumer clients; still bounded by partition count.
-Selected Fix: set factory concurrency from fraud.consumer.concurrency, minimum 1, with local value 6.
-Same-Load Re-test: knee workload re-run with 60,000 events and max 300 EPS.
+Selected Fix: keep repository default concurrency at 1, and use FRAUD_CONSUMER_CONCURRENCY=6 for the local Phase 1 after-run.
+Same-Load Re-test: backlog-recovery workload re-run with the same 51,000 events and max 300 EPS.
 ```
 
-## 9. Same-Load Re-test After Fix
+## 10. Same-Load Recovery Re-test After Fix
 
-Run ID: `phase1-knee-after-concurrency6-20260821-001`
+Run ID: `phase1-recovery-after-concurrency6-20260821-001`
 
 | Metric | Before | After |
 |---|---:|---:|
-| Workload | `knee-confirmation-v1` | `knee-confirmation-v1` |
+| Workload | `backlog-recovery-v1` | `backlog-recovery-v1` |
+| Runtime verification SHA | `44639fc` | `44639fc` |
+| Consumer concurrency | 1 | 6 |
 | Max target EPS | 300 | 300 |
-| Emitted events | 60,000 | 60,000 |
+| Configured event limit | 51,000 | 51,000 |
+| Emitted events | 51,000 | 51,000 |
 | HTTP failure rate | 0 | 0 |
-| Dropped iterations | 0 / null | 0 / null |
-| k6 HTTP p95 | 3.81 ms | 5.30 ms |
-| Immediate Consumer Lag | 14,027 | 0 |
-| Prometheus max Lag over 10m | not captured for exact window | 6 |
-| Final receipt / result / log count | eventually aligned | 60,000 / 60,000 / 60,000 |
-| API intake p99 | about 6 ms in related recovery window | 5.92 ms |
-| Kafka publish wait p99 | 2.36 ms in related recovery window | 2.40 ms |
-| Consumer service p99 | 13.43 ms in related recovery window | 20.41 ms |
+| Dropped iterations | null | null |
+| k6 HTTP p95 | 6.35 ms | 7.58 ms |
+| Final Consumer Lag | 0 | 0 |
+| Peak Lag | 17,857 | 86 |
+| Lag at recovery start | 15,720 | 19 |
+| Lag growth rate | 154.06 records/s | 0.40 records/s |
+| Lag drain rate from recovery start | 92.47 records/s | 0.14 records/s |
+| Recovery time | 170s | 139s to first zero after recovery start |
+| Final receipt / result / log count | 51,000 / 51,000 / 51,000 | 51,000 / 51,000 / 51,000 |
+| API service p99 | 5.86 ms | 8.91 ms |
+| API transaction p99 | 10.30 ms | 15.85 ms |
+| Kafka publish wait p99 | 2.20 ms | 3.70 ms |
+| Consumer service p99 | 13.29 ms | 25.87 ms |
 | Hikari pending max | 0 | 0 |
+
+The after-run showed small scrape-sampled lag spikes rather than a sustained backlog. Because lag at recovery start was only 19 records and peak lag was 86 records, the 139s first-zero timestamp is not evidence of a large backlog drain; it reflects intermittent scrape visibility while the system kept up with the workload.
 
 Consumer assignment after the fix:
 
@@ -180,48 +220,49 @@ consumer-fraud-event-consumer-5 -> transaction-events-4
 consumer-fraud-event-consumer-6 -> transaction-events-5
 ```
 
-Interpretation: with six listener consumers on six partitions, the same 300 EPS knee workload completed with final Lag 0 and all 60,000 events persisted through receipt, fraud result, and processing log boundaries.
+Interpretation: with six listener consumers on six partitions, the same overload/recovery workload completed with final Lag 0 and all 51,000 events persisted through receipt, fraud result, and processing log boundaries. The bottleneck improvement is therefore Consumer partition-consumption parallelism, not API publish or database connection availability.
 
-## 10. Local Sustainable Range
+## 11. Local Sustainable Range
 
 For the current local HTTP-driven setup and the committed staged workloads:
 
 - 200 EPS completed cleanly before any tuning.
-- 300 EPS caused Lag growth with one listener consumer.
-- 300 EPS completed cleanly after setting consumer concurrency to 6.
+- 300 EPS caused sustained Lag growth with one listener consumer.
+- 300 EPS completed without sustained backlog after explicitly setting Consumer concurrency to 6 for the six-partition topic.
 
-The local sustainable range for this topology is therefore at least the tested 300 EPS under `knee-confirmation-v1`. This does not prove the next knee. A higher-rate workload must be introduced before claiming capacity above 300 EPS.
+The local sustainable range for this topology is therefore at least the tested 300 EPS under the Phase 1 HTTP workloads after the concurrency/topology fix. This does not prove the next knee. A higher-rate workload must be introduced before claiming capacity above 300 EPS.
 
-## 11. Verification
+## 12. Verification
 
 Implementation verification:
 
 ```bash
 ./gradlew :app-api:test
 ./gradlew :app-consumer:test
-python3 -m unittest scripts/data/test_validate_v3_workload_manifest.py
-make test-data-scripts-ci
-make verify-v3-workload-manifests
-make observability-check
-python3 -m json.tool infra/grafana/dashboards/v3-stream-foundation.json >/dev/null
+k6 inspect -e V3_RUN_ID=phase1-inspect -e V3_WORKLOAD_MANIFEST=backlog-recovery-v1.json load-test/k6/scenarios/v3-phase1-throughput.js >/tmp/v3-phase1-recovery.inspect
+python3 -m json.tool infra/grafana/dashboards/v3-stream-foundation.json >/tmp/v3-stream-foundation.json.check
 git diff --check
 ```
 
 Runtime verification:
 
 ```bash
-make final-check
-V3_RUN_ID=phase1-discovery-20260821-002 make k6-v3-phase1-capacity
-V3_RUN_ID=phase1-knee-20260821-001 make k6-v3-phase1-knee
-V3_RUN_ID=phase1-recovery-20260821-001 make k6-v3-phase1-recovery
-V3_RUN_ID=phase1-knee-after-concurrency6-20260821-001 make k6-v3-phase1-knee
+bash scripts/reset-local-env.sh
+V3_RUN_ID=phase1-recovery-before-concurrency1-20260821-003 make k6-v3-phase1-recovery
+bash scripts/reset-local-env.sh
+FRAUD_CONSUMER_CONCURRENCY=6 ./gradlew :app-consumer:bootRun
+V3_RUN_ID=phase1-recovery-after-concurrency6-20260821-001 make k6-v3-phase1-recovery
+docker exec fraud-postgres psql -U fraud -d fraud -c "select (select count(*) from transaction_event_receipts) receipts, (select count(*) from fraud_detection_results) results, (select count(*) from event_processing_logs) logs;"
+docker exec fraud-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group fraud-event-consumer
 ```
 
-## 12. Known Limitations
+Full repository verification is recorded in the PR checklist after documentation updates.
+
+## 13. Known Limitations
 
 - This evidence is local Docker evidence only.
 - Results use the HTTP k6 driver and must not be merged with future direct Kafka producer results.
-- The first capacity run before the plateau-stage fix was discarded and is not used as capacity evidence.
+- The first capacity run before the stage-contract fix was discarded and is not used as capacity evidence.
 - `CreateTime` producer-to-Consumer delay is not broker queue latency.
 - Source processing and transport delay remain unavailable without source emulator ownership.
 - Phase 1 does not solve controlled hot-key, state-size, late-event, or replay isolation behavior.

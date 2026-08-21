@@ -95,22 +95,24 @@ Date: 2026-08-21
 - Added staged Phase 1 workload manifests and a k6 runner for capacity, knee, and backlog recovery evidence.
 - Added JSON Schema and unittest coverage for staged workload manifest contracts.
 - Added V3 dashboard panels for API intake, Kafka publish wait, receipt DB stages, Hikari pending/active, and separated resource units.
-- Added configurable app-consumer listener concurrency and set the local default to 6 after runtime evidence showed one listener thread owned all six partitions.
+- Added transaction-inclusive API intake latency using `TransactionSynchronization.afterCompletion`.
+- Added configurable app-consumer listener concurrency and kept the repository default at 1; the local after-run sets `FRAUD_CONSUMER_CONCURRENCY=6` explicitly after runtime evidence showed one listener thread owned all six partitions.
 - Changed API intake stage Timer recording to use `System.nanoTime()` measured durations instead of supplier-based Timer recording.
+- Changed the Phase 1 k6 runner to per-stage `constant-arrival-rate` scenarios with stage-level emission clipping.
 
 ### Checks applied
 
 - Did not tune PostgreSQL, Redis, Kafka partitions, or Hikari before evidence identified the bottleneck.
 - Kept HTTP k6 results separate from future direct-Kafka producer benchmarks.
 - Treated the first malformed capacity run as discarded evidence after the k6 stage contract drift was found.
-- Confirmed same-load before/after using `knee-confirmation-v1`.
+- Confirmed same-load before/after using `backlog-recovery-v1`.
 - Preserved manual ack and persistence-before-ack processing behavior.
 - Kept Consumer concurrency bounded by local partition count and documented that skew/scale-out remains V3 Phase 3.
 - Guarded Timer recording against negative durations after runtime logs showed a possible negative Timer amount during a local clock adjustment.
 
 ### Evidence decision
 
-Phase 1 can be marked complete for local Docker evidence because capacity discovery, knee confirmation, backlog recovery, bottleneck attribution, targeted fix, and same-load re-test are recorded in `docs/46-v3-phase1-sustainable-throughput-evidence.md`.
+Phase 1 can be marked complete for local Docker evidence because capacity discovery, knee confirmation, backlog recovery, Lag growth/drain rates, bottleneck attribution, targeted fix, and same-load recovery re-test are recorded in `docs/46-v3-phase1-sustainable-throughput-evidence.md`.
 
 ### Remaining risks
 

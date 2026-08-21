@@ -241,7 +241,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_receipt_persistence_latency_seconds_bucket[1m])))", "legendFormat": "persist p95"},
-        {"refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_receipt_status_update_latency_seconds_bucket[1m])))", "legendFormat": "status p95"}
+        {"refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_receipt_status_update_latency_seconds_bucket[1m])))", "legendFormat": "status save-call p95"}
       ],
       "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}

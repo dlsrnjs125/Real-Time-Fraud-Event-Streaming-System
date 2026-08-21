@@ -81,7 +81,7 @@
 | Prometheus local rules loaded | `http://localhost:9090/rules` | `fraud-observability` group present |
 | Grafana dashboard loaded | `http://localhost:3000` | `Fraud Event Streaming Observability` under `Fraud Event Streaming` folder |
 | V3 stream dashboard loaded | Grafana search API or `http://localhost:3000` | `V3 Stream Processing Foundation` with boundary, Lag, stage, freshness, partition, and resource panels |
-| V3 Phase 1 API intake diagnostics | `curl http://localhost:8080/actuator/prometheus` | `fraud_api_intake_service_latency_seconds_*`, `fraud_kafka_publish_wait_latency_seconds_*` |
+| V3 Phase 1 API intake diagnostics | `curl http://localhost:8080/actuator/prometheus` | `fraud_api_intake_service_latency_seconds_*`, `fraud_api_intake_transaction_latency_seconds_*`, `fraud_kafka_publish_wait_latency_seconds_*` |
 | API status panel | `make k6-duplicate` then Grafana | 2xx/409 distribution visible in `API Requests by Status` |
 | Redis degraded/skipped panels | `make k6-redis-down` then Grafana | Redis degraded and skipped rule panels increase |
 

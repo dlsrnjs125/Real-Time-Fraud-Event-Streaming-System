@@ -71,7 +71,7 @@ All Phase 1 workloads use:
 - explicit `V3_RUN_ID`
 - summary files under ignored `load-test/k6/results/`
 
-The k6 runner converts each manifest stage to a short 1s ramp followed by a plateau for the declared stage duration. This keeps the manifest's `targetEps * duration` event-limit contract aligned with the generated workload.
+The k6 runner converts each manifest stage to a separate `constant-arrival-rate` plateau scenario for the declared stage duration. Stage-level emission clipping keeps the manifest's `targetEps * duration` event-limit contract aligned with the generated workload and makes the generated summary's `emittedEventCount` the authoritative HTTP emission count.
 
 ## 6. Metrics
 
@@ -85,6 +85,7 @@ Stream boundaries:
 API intake:
 
 - `fraud.api.intake.service.latency`
+- `fraud.api.intake.transaction.latency`
 - `fraud.api.receipt.persistence.latency`
 - `fraud.kafka.publish.wait.latency`
 - `fraud.api.receipt.status.update.latency`

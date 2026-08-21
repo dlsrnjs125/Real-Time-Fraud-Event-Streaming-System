@@ -2722,7 +2722,7 @@ The runner and manifest used different meanings for a stage. The manifest descri
 
 ### Change
 
-The Phase 1 k6 runner now converts each manifest stage into a 1s transition and a plateau for the declared duration. The validator keeps enforcing `eventLimit` from the plateau contract.
+The Phase 1 k6 runner now converts each manifest stage into a separate `constant-arrival-rate` plateau scenario for the declared duration. It also enforces a stage-level HTTP emission limit, so `eventLimit` and summary `emittedEventCount` share one contract.
 
 ### Verification
 
@@ -2744,16 +2744,16 @@ The before-fix knee run emitted 60,000 events with HTTP failure rate 0, but imme
 
 ### Root Cause
 
-`transaction-events` had six partitions, but the Spring Kafka listener concurrency defaulted to one. One consumer thread owned all six partitions.
+`transaction-events` had six partitions, but the Spring Kafka listener concurrency defaulted to one during the before-run. One consumer thread owned all six partitions.
 
 ### Change
 
-`fraud.consumer.concurrency` now controls listener concurrency, is guarded to a minimum of 1, and the local default is 6.
+`fraud.consumer.concurrency` now controls listener concurrency and is guarded to a minimum of 1. The repository default remains 1; the local Phase 1 after-run sets `FRAUD_CONSUMER_CONCURRENCY=6` explicitly to match the six partitions.
 
 ### Verification
 
-The same `knee-confirmation-v1` workload was re-run with 60,000 events and max 300 EPS. It completed with HTTP failure rate 0, final Consumer Lag 0, and `transaction_event_receipts`, `fraud_detection_results`, and `event_processing_logs` all at 60,000 rows.
+The same `backlog-recovery-v1` workload was re-run with 51,000 emitted HTTP events and max 300 EPS. Before the fix, peak Lag was 17,857 and recovery took 170s after overload ended. After setting `FRAUD_CONSUMER_CONCURRENCY=6`, peak Lag was 86, final Consumer Lag was 0, and `transaction_event_receipts`, `fraud_detection_results`, and `event_processing_logs` all reached 51,000 rows.
 
 ### Trade-off
 
-The local topology now uses more consumer clients and more concurrent DB/Redis work. The value is bounded by the six partitions and must be revisited in V3 Phase 3 partition-skew and scale-out experiments.
+The after-run topology uses more consumer clients and more concurrent DB/Redis work. The value is bounded by the six partitions and must be revisited in V3 Phase 3 partition-skew and scale-out experiments.

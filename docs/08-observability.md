@@ -61,10 +61,11 @@ Phase 7부터 app-consumer는 Redis Sliding Window와 degraded mode를 관측하
 | `fraud.stream.kafka.publish.success.total` | Counter | commit된 Kafka publish 성공 수 |
 | `fraud.stream.kafka.publish.failure.total` | Counter | durable failure 상태가 commit된 publish 실패 수 |
 | `fraud.stream.consumer.delivery.total` | Counter | redelivery를 포함한 typed listener invocation 수 |
-| `fraud.api.intake.service.latency` | Histogram Timer | app-api intake service 전체 처리 시간 |
+| `fraud.api.intake.service.latency` | Histogram Timer | app-api intake service method-body 처리 시간 |
+| `fraud.api.intake.transaction.latency` | Histogram Timer | intake service 진입부터 Spring transaction completion callback까지의 처리 시간 |
 | `fraud.api.receipt.persistence.latency` | Histogram Timer | receipt initial insert/flush 경계 |
 | `fraud.kafka.publish.wait.latency` | Histogram Timer | transaction 내부 synchronous Kafka publish wait 경계 |
-| `fraud.api.receipt.status.update.latency` | Histogram Timer | publish success/failure 상태 update 경계 |
+| `fraud.api.receipt.status.update.latency` | Histogram Timer | publish success/failure 상태 save-call 경계 |
 | `fraud.kafka.producer.to.consumer.delay` | Histogram Timer | Kafka CreateTime부터 Consumer 시작까지의 non-negative delay |
 | `fraud.event.ingress.age` | Histogram Timer | `receivedAt - eventTime` |
 | `fraud.redis.state.latency` | Histogram Timer | Redis state update/read 시도 시간 |
@@ -85,7 +86,9 @@ Metric tag에는 `eventId`, `traceId`, `userId`, `accountId`를 넣지 않습니
 
 V3 Phase 1 전 보완으로 Consumer service latency 내부의 PostgreSQL 전처리 blind spot을 분리했습니다. `fraud.processing.log.latency`는 processing log의 offset duplicate check와 flush를 포함하고, `fraud.result.precheck.latency`는 Redis/Rule 실행 전에 수행하는 eventId duplicate guard만 포함합니다. Consumer service p99가 증가하는데 Redis, Rule, Result Sink가 정상이면 이 두 Timer를 먼저 확인합니다.
 
-V3 Phase 1에서는 app-api intake의 known constraint도 분리합니다. `fraud.kafka.publish.wait.latency`가 증가하면서 `fraud.api.intake.service.latency`와 Hikari pending이 함께 증가하면, Kafka ACK 대기가 DB transaction과 connection 점유를 연장하는 causal chain 후보로 분류합니다. 이 Timer들은 구조 변경 evidence를 만들기 위한 측정 경계이며, Outbox나 commit-after-publish 전환을 미리 가정하지 않습니다.
+V3 Phase 1에서는 app-api intake의 known constraint도 분리합니다. `fraud.api.intake.service.latency`는 service method body 경계이고, `fraud.api.intake.transaction.latency`는 `TransactionSynchronization.afterCompletion`에서 기록하는 transaction-inclusive 경계입니다. `fraud.api.receipt.status.update.latency`는 JPA save call duration이며 실제 DB commit 또는 UPDATE round trip 전체를 의미하지 않습니다.
+
+`fraud.kafka.publish.wait.latency`가 증가하면서 `fraud.api.intake.transaction.latency`와 Hikari pending이 함께 증가하면, Kafka ACK 대기가 DB transaction과 connection 점유를 연장하는 causal chain 후보로 분류합니다. 이 Timer들은 구조 변경 evidence를 만들기 위한 측정 경계이며, Outbox나 commit-after-publish 전환을 미리 가정하지 않습니다.
 
 Consumer service duration이 `fraud.consumer.slow-event-threshold`를 초과하면 `type=SLOW_EVENT` WARN log를 남깁니다. 이 로그는 `consumerServiceMs`, `processingLogMs`, `duplicateGuardMs`, `redisMs`, `ruleMs`, `resultSinkMs`를 포함해 metric p99 상승과 특정 event-level 원인을 연결합니다. 모든 이벤트에 stage log를 남기지 않고 slow path에만 기록해 로그 I/O가 병목이 되는 것을 피합니다.
 

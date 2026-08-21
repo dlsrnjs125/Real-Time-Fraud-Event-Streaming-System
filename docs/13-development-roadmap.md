@@ -117,7 +117,7 @@ Detailed fingerprint, measurements, discarded runs, and limitations are in [V3 P
 
 ### V3 Phase 1 Result
 
-Phase 1 implemented API intake stage diagnostics, staged HTTP k6 workloads, workload contract validation, and Grafana panels for throughput attribution. Local runtime evidence found that one app-consumer listener thread could not keep up with the 300 EPS knee stage even though API p99, Kafka publish wait p99, and Hikari pending remained healthy. Setting `fraud.consumer.concurrency=6` matched the six local Kafka partitions, and the same 60,000-event knee workload completed with final Consumer Lag 0 and all receipt, fraud result, and processing-log counts aligned.
+Phase 1 implemented API intake stage diagnostics, staged HTTP k6 workloads, workload contract validation, and Grafana panels for throughput attribution. Local runtime evidence found that one app-consumer listener thread could not keep up with the 300 EPS overload stage even though API transaction p99, Kafka publish wait p99, and Hikari pending remained healthy. With one listener thread, the same recovery workload reached peak Lag 17,857 and recovered 170s after overload ended. Setting `FRAUD_CONSUMER_CONCURRENCY=6` matched the six local Kafka partitions for the experiment, and the same 51,000-event recovery workload completed with peak Lag 86, final Consumer Lag 0, and all receipt, fraud result, and processing-log counts aligned.
 
 Detailed run IDs, metrics, bottleneck attribution, before/after comparison, and limitations are in [V3 Phase 1 Sustainable Throughput and Backlog Recovery Evidence](46-v3-phase1-sustainable-throughput-evidence.md). Capacity above 300 EPS remains unmeasured.
 
