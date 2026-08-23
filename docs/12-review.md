@@ -1671,3 +1671,13 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 - failure after Redis update에서 같은 `eventId`가 ZSET member로 재전달되어 count가 증가하지 않는가
 - failure after result save before ack에서 redelivery가 Redis와 result sink를 재실행하지 않는가
 - runtime evidence에서 Redis ZCARD, amount sum, fraud result count, next-event decision, final Consumer Lag를 함께 기록하는가
+
+### 검증 기록
+
+```bash
+V3_RUN_ID=phase4-before-redis-20260824-001 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-after-redis-20260824-001 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-after-result-20260824-001 make k6-v3-phase4-stateful-redelivery
+```
+
+세 failure point 모두 target event redelivery, target result row 1건, next-event window count 2 / amount sum 200,000 / risk LOW, final Consumer Lag 0을 기록했습니다. 상세 evidence는 `docs/evidence/v3-phase4/`에 저장했습니다.

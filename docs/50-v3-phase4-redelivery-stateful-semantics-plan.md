@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-- Status: In progress
+- Status: Done
 - Scope: controlled redelivery failure injection, Redis state idempotency checks, result-sink duplicate guard verification, runtime evidence plan
 - Completion boundary: this phase is complete only after local evidence records all required failure points and verifies Redis window count, Redis amount sum, fraud result count, next-event decision, and final Consumer Lag after drain.
 
@@ -101,4 +101,4 @@ Phase 4 can be marked complete only when evidence answers:
 - The drill injector is a local reproducibility tool, not a production failure mechanism.
 - This phase does not change the Kafka partition key or retry/DLT policy.
 - Redis state remains a short-lived detection state store; PostgreSQL remains the durable result authority.
-- Runtime evidence is still required before this Phase can be marked Done.
+- Accepted runtime evidence is recorded under `docs/evidence/v3-phase4/`. The evidence is local Docker topology evidence and should not be generalized as production failure behavior without rerunning on the target topology.

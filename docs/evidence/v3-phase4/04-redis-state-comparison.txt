@@ -1,0 +1,42 @@
+V3 Phase 4 Redis State Comparison
+
+All accepted runs used:
+- workload: stateful-redelivery-v1
+- targetEps: 1
+- duration: 20s
+- eventLimit: 20
+- event amount: 100000 KRW
+- Redis DB: 14
+- Redis sliding window: 5m
+
+BEFORE_REDIS_UPDATE
+- Run ID: phase4-before-redis-20260824-001
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-before-redis-20260824-001:events
+- Final ZCARD: 20
+- First members:
+  - v3-phase4-phase4-before-redis-20260824-001-0
+  - v3-phase4-phase4-before-redis-20260824-001-1
+  - v3-phase4-phase4-before-redis-20260824-001-2
+
+AFTER_REDIS_UPDATE_BEFORE_RESULT
+- Run ID: phase4-after-redis-20260824-001
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-redis-20260824-001:events
+- Final ZCARD: 20
+- Final ZCOUNT -inf +inf: 20
+- First members:
+  - v3-phase4-phase4-after-redis-20260824-001-0
+  - v3-phase4-phase4-after-redis-20260824-001-1
+  - v3-phase4-phase4-after-redis-20260824-001-2
+
+AFTER_RESULT_SAVE_BEFORE_ACK
+- Run ID: phase4-after-result-20260824-001
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-result-20260824-001:events
+- Final ZCARD: 20
+- First members:
+  - v3-phase4-phase4-after-result-20260824-001-0
+  - v3-phase4-phase4-after-result-20260824-001-1
+  - v3-phase4-phase4-after-result-20260824-001-2
+
+Interpretation:
+- The after-Redis failure case proves the most direct Redis duplicate-count behavior: first delivery mutates Redis, redelivery writes the same eventId member, and final ZCARD remains 20 rather than 21.
+- The after-result failure case proves the duplicate result precheck prevents repeated Redis/rule/result sink execution after a saved result is visible.
