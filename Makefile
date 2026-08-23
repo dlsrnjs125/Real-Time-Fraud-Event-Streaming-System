@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke profile-paysim-v3 validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 verify-v3-workload-manifests verify-v3-phase0 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down k6-v3-baseline k6-v3-phase1-capacity k6-v3-phase1-knee k6-v3-phase1-recovery k6-v3-phase2-state-baseline k6-v3-phase2-state-pressure k6-v3-phase3-partition-balanced k6-v3-phase3-partition-skew final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke profile-paysim-v3 validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 verify-v3-workload-manifests verify-v3-phase0 verify-v3-phase3-partition-assignment v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down k6-v3-baseline k6-v3-phase1-capacity k6-v3-phase1-knee k6-v3-phase1-recovery k6-v3-phase2-state-baseline k6-v3-phase2-state-pressure k6-v3-phase3-partition-balanced k6-v3-phase3-partition-skew final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -54,6 +54,7 @@ help:
 	@echo "  make verify-v2-phase12 - Run CI-safe Phase 12 checks without full PaySim/local DB export"
 	@echo "  make verify-v2-phase13 - Run CI-safe V2 data/evaluation guardrails; Phase 13 Java tests run through Gradle build/final-check"
 	@echo "  make verify-v3-workload-manifests - Validate committed V3 workload manifests"
+	@echo "  make verify-v3-phase3-partition-assignment - Verify Phase 3 partition workloads do not create hot-user pressure"
 	@echo "  make verify-v3-phase0 - Run CI-safe V3 Phase 0 data/workload checks"
 	@echo "  make v2-phase7-evidence - Generate local/manual Phase 7 evidence from existing detection result export"
 	@echo "  make v2-phase8-evidence - Generate local/manual Phase 8 evidence from existing detection result export"
@@ -264,6 +265,10 @@ verify-v3-workload-manifests: data-env
 		load-test/workloads/v3/state-size-high-density-v1.json \
 		load-test/workloads/v3/partition-balanced-v1.json \
 		load-test/workloads/v3/partition-skew-hot-p2-v1.json
+	$(DATA_PYTHON) scripts/data/verify_v3_phase3_partition_assignment.py
+
+verify-v3-phase3-partition-assignment: data-env
+	$(DATA_PYTHON) scripts/data/verify_v3_phase3_partition_assignment.py
 
 verify-v3-phase0: test-data-scripts data-policy-check verify-v3-workload-manifests
 

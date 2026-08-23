@@ -14,7 +14,7 @@ This phase does not change the Kafka partition key. The normal transaction topic
 
 ## 3. Experiment Contract
 
-The experiment uses pre-generated synthetic `userId` values whose Kafka Murmur2 key hash maps to known local partitions. This avoids treating user concentration as partition-skew evidence.
+The experiment uses pre-generated synthetic `userId` values whose Kafka Murmur2 key hash maps to known local partitions. The k6 runner then assigns users by per-partition event occurrence, not by global cycle number. This keeps partition skew separate from hot-user and Redis state-density pressure.
 
 | Workload | Target distribution | EPS | Duration | Events | Purpose |
 |---|---:|---:|---:|---:|---|
@@ -43,6 +43,7 @@ Record these signals for each accepted run:
 
 - target partition distribution from manifest
 - generated expected partition distribution from k6 summary
+- generated unique users, per-partition unique users, events/user p50/p95/p99/max, and top-user share from k6 summary
 - achieved partition distribution from Kafka/exporter or processing logs
 - total Consumer Lag and per-partition Lag
 - partition incoming rate
@@ -83,4 +84,6 @@ Phase 3 can be marked complete only when the evidence answers:
 - The HTTP k6 driver measures API-intake path plus Kafka publish, not direct Kafka producer capacity.
 - Local Kafka uses six partitions, so results are local topology evidence.
 - Partition-affinity user generation depends on Kafka's Murmur2 key hashing and the documented six-partition local topic.
+- The generated user-distribution summary is a contract check that partition skew is not accidentally implemented as hot-user pressure.
+- `make verify-v3-phase3-partition-assignment` verifies the committed Phase 3 manifests generate all 600 users evenly and keep top-user share at the expected `1 / userCardinality` level.
 - Results must not be generalized as production capacity without rerunning on the target topology and resource limits.

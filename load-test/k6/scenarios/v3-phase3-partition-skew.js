@@ -34,6 +34,7 @@ const partitionCount = targetDistribution.length;
 const cycleLength = Number(__ENV.V3_PARTITION_CYCLE_LENGTH || 600);
 const partitionCycle = buildPartitionCycle(targetDistribution, cycleLength, manifest.randomSeed);
 const userPools = buildUserPools(targetDistribution, manifest.userCardinality);
+const eventPlan = buildEventPlan(manifest.eventLimit);
 
 export const options = {
   scenarios: {
@@ -192,14 +193,26 @@ function deterministicValue(seed, vu, iteration) {
   return (value ^ (value >>> 16)) >>> 0;
 }
 
-function selectedPartition(iteration) {
-  return partitionCycle[iteration % partitionCycle.length];
+function buildEventPlan(eventLimit) {
+  const partitionOccurrences = {};
+  for (const { partition } of targetDistribution) {
+    partitionOccurrences[partition] = 0;
+  }
+
+  const plan = [];
+  for (let iteration = 0; iteration < eventLimit; iteration += 1) {
+    const partition = partitionCycle[iteration % partitionCycle.length];
+    const pool = userPools[partition];
+    const userOccurrence = partitionOccurrences[partition];
+    const userId = pool[userOccurrence % pool.length];
+    partitionOccurrences[partition] += 1;
+    plan.push({ partition, userId });
+  }
+  return plan;
 }
 
-function selectedUserId(partition, iteration) {
-  const pool = userPools[partition];
-  const userIndex = Math.floor(iteration / partitionCycle.length) % pool.length;
-  return pool[userIndex];
+function selectedEvent(iteration) {
+  return eventPlan[iteration];
 }
 
 export default function () {
@@ -208,8 +221,9 @@ export default function () {
     return;
   }
 
-  const partition = selectedPartition(globalIteration);
-  const userId = selectedUserId(partition, globalIteration);
+  const selected = selectedEvent(globalIteration);
+  const partition = selected.partition;
+  const userId = selected.userId;
   const value = deterministicValue(manifest.randomSeed, __VU, __ITER);
   const payload = JSON.stringify({
     eventId: `v3-phase3-${runId}-${globalIteration}-${value}`,
@@ -240,7 +254,7 @@ function distributionForEvents(eventCount) {
     counts[partition] = 0;
   }
   for (let i = 0; i < eventCount; i += 1) {
-    counts[selectedPartition(i)] += 1;
+    counts[selectedEvent(i).partition] += 1;
   }
   const shares = {};
   for (const partition of Object.keys(counts)) {
@@ -249,9 +263,51 @@ function distributionForEvents(eventCount) {
   return { counts, shares };
 }
 
+function userDistributionForEvents(eventCount) {
+  const userCounts = {};
+  const partitionUsers = {};
+  for (const { partition } of targetDistribution) {
+    partitionUsers[partition] = {};
+  }
+
+  for (let i = 0; i < eventCount; i += 1) {
+    const selected = selectedEvent(i);
+    userCounts[selected.userId] = (userCounts[selected.userId] || 0) + 1;
+    partitionUsers[selected.partition][selected.userId] = true;
+  }
+
+  const eventCountsPerUser = Object.values(userCounts).sort((left, right) => left - right);
+  const perPartitionUniqueUsers = {};
+  for (const partition of Object.keys(partitionUsers)) {
+    perPartitionUniqueUsers[partition] = Object.keys(partitionUsers[partition]).length;
+  }
+
+  const maxEventsPerUser = eventCountsPerUser.length > 0 ? eventCountsPerUser[eventCountsPerUser.length - 1] : 0;
+  return {
+    generatedUniqueUsers: Object.keys(userCounts).length,
+    generatedEventsPerUser: {
+      p50: nearestRank(eventCountsPerUser, 0.50),
+      p95: nearestRank(eventCountsPerUser, 0.95),
+      p99: nearestRank(eventCountsPerUser, 0.99),
+      max: maxEventsPerUser,
+    },
+    generatedTopUserShare: eventCount > 0 ? maxEventsPerUser / eventCount : 0,
+    generatedPerPartitionUniqueUsers: perPartitionUniqueUsers,
+  };
+}
+
+function nearestRank(sortedValues, quantile) {
+  if (sortedValues.length === 0) {
+    return 0;
+  }
+  const rank = Math.ceil(quantile * sortedValues.length);
+  return sortedValues[Math.max(0, rank - 1)];
+}
+
 export function handleSummary(data) {
   const emittedEventCount = metricValue(data, 'http_reqs', 'count') || 0;
   const expectedDistribution = distributionForEvents(emittedEventCount);
+  const expectedUserDistribution = userDistributionForEvents(emittedEventCount);
   const userPoolSizes = {};
   for (const partition of Object.keys(userPools)) {
     userPoolSizes[partition] = userPools[partition].length;
@@ -280,6 +336,10 @@ export function handleSummary(data) {
     generatedExpectedPartitionCounts: expectedDistribution.counts,
     generatedExpectedPartitionShares: expectedDistribution.shares,
     generatedUserPoolSizes: userPoolSizes,
+    generatedUniqueUsers: expectedUserDistribution.generatedUniqueUsers,
+    generatedEventsPerUser: expectedUserDistribution.generatedEventsPerUser,
+    generatedTopUserShare: expectedUserDistribution.generatedTopUserShare,
+    generatedPerPartitionUniqueUsers: expectedUserDistribution.generatedPerPartitionUniqueUsers,
     partitionEvidenceNote: 'The k6 generator preselects userIds whose Kafka murmur2 key hash maps to target partitions. Confirm achieved partition distribution with Kafka exporter or processing logs after the run.',
   };
   return {
