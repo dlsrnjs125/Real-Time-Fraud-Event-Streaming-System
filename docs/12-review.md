@@ -1662,6 +1662,7 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 - `StatefulRedeliveryFailureInjector`를 추가해 local drill에서만 세 실패 지점을 재현할 수 있게 했습니다.
 - 기본 설정은 `fraud.consumer.redelivery-drill.enabled=false`이므로 일반 Consumer 실행에는 영향을 주지 않습니다.
 - `pause-before-throw`는 local drill 전용 옵션이며, BEFORE_REDIS_UPDATE evidence에서 failure-time Redis snapshot을 찍기 위해서만 사용합니다.
+- `pause-before-throw`가 포함된 Grafana latency는 성능 benchmark로 사용하지 않습니다. 해당 캡처는 redelivery, temporary lag, final drain 확인용입니다.
 - 실패 지점은 `BEFORE_REDIS_UPDATE`, `AFTER_REDIS_UPDATE_BEFORE_RESULT`, `AFTER_RESULT_SAVE_BEFORE_ACK`입니다.
 - `AFTER_RESULT_SAVE_BEFORE_ACK` 재전달은 fraud result duplicate precheck에서 Redis/rule/result sink를 건너뛰어야 합니다.
 - `STATEFUL_REDELIVERY` workload role과 deterministic k6 workload를 추가해 drill target `eventId`와 next-event `eventId`를 재현 가능하게 만들었습니다.

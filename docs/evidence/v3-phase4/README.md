@@ -32,4 +32,12 @@ E4 risk level = MEDIUM
 E4 decision = REVIEW
 ```
 
+Grafana screenshot interpretation:
+
+```text
+pause-before-throw was used only to capture the pre-throw Redis snapshot.
+Latency observed during this paused drill is not used as a performance benchmark.
+The Grafana evidence is used to show redelivery, temporary lag, and final drain behavior.
+```
+
 This evidence distinguishes stateful redelivery semantics from result-row duplicate prevention alone.
