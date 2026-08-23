@@ -108,6 +108,9 @@ def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
 def validate_stages(manifest: dict[str, Any]) -> None:
     stages = manifest.get("stages")
     if stages is None:
+        expected_events = manifest["targetEps"] * parse_duration_seconds(manifest["duration"])
+        if abs(manifest["eventLimit"] - expected_events) > 0.000001:
+            raise ManifestError("eventLimit must equal targetEps * duration seconds")
         return
     expected_events = 0
     max_stage_eps = 0

@@ -4,7 +4,7 @@
   "workloadRole": "STATEFUL_REDELIVERY",
   "datasetVersion": "synthetic-v3",
   "driverType": "HTTP_K6",
-  "targetEps": 5,
+  "targetEps": 1,
   "duration": "20s",
   "eventLimit": 20,
   "userCardinality": 1,
@@ -20,7 +20,7 @@
   "latenessProfile": null,
   "replayRate": null,
   "statefulWindowProfile": {
-    "runtimeWindow": "20s",
+    "runtimeWindow": "5m",
     "expectedEventsPerUserInWindow": 20,
     "expectedMaxEventsPerUserInWindow": 20,
     "eventAmount": 100000,

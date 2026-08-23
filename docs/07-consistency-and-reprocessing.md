@@ -75,6 +75,7 @@ V3 Phase 4에서는 Consumer redelivery를 세 stateful failure point에서 재�
 기본 정책:
 
 - drill injector는 `fraud.consumer.redelivery-drill.enabled=false`가 기본값입니다.
+- `fail-once` 추적은 app-consumer JVM process-local 상태이며 Consumer process가 재시작되면 초기화됩니다.
 - drill failure는 DLT로 보내지 않고 runtime exception으로 남겨 offset commit을 막습니다.
 - `AFTER_REDIS_UPDATE_BEFORE_RESULT` 재전달에서는 Redis ZSET member가 같은 `eventId`이므로 window count가 증가하지 않아야 합니다.
 - `AFTER_RESULT_SAVE_BEFORE_ACK` 재전달에서는 fraud result duplicate precheck가 Redis/rule/result sink를 건너뛰어야 합니다.

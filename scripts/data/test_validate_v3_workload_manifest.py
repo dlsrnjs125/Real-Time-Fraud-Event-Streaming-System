@@ -134,6 +134,12 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         with self.assertRaisesRegex(validator.ManifestError, "eventLimit must equal"):
             validator.validate_manifest(invalid)
 
+    def test_rejects_non_stage_event_limit_drift(self):
+        invalid = copy.deepcopy(self.manifest)
+        invalid["eventLimit"] = invalid["eventLimit"] + 1
+        with self.assertRaisesRegex(validator.ManifestError, "eventLimit must equal targetEps"):
+            validator.validate_manifest(invalid)
+
     def test_rejects_stage_target_eps_drift(self):
         invalid = json.loads((WORKLOAD_DIR / "capacity-discovery-v1.json").read_text(encoding="utf-8"))
         invalid["targetEps"] = 999
@@ -156,6 +162,7 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
     def test_rejects_stateful_window_duration_larger_than_runtime_window(self):
         invalid = json.loads((WORKLOAD_DIR / "state-size-baseline-v1.json").read_text(encoding="utf-8"))
         invalid["duration"] = "10m"
+        invalid["eventLimit"] = invalid["targetEps"] * 10 * 60
 
         with self.assertRaisesRegex(validator.ManifestError, "duration must fit inside runtimeWindow"):
             validator.validate_manifest(invalid)

@@ -50,10 +50,11 @@ Supported failure points:
 | `AFTER_RESULT_SAVE_BEFORE_ACK` | Crash after result save and before ack | Redelivery should hit the result duplicate precheck and skip Redis/rule/result sink. |
 
 The injector is disabled by default and should only be enabled for local drills.
+`fail-once` tracking is process-local and resets when `app-consumer` restarts. Do not combine this drill with a process-restart test unless the expected repeated injection is documented in the evidence.
 
 ## 5. Workload
 
-Use the deterministic Phase 4 workload:
+Use the deterministic Phase 4 workload. This is a semantics drill, not a throughput test, so it emits 20 events over 20 seconds at 1 EPS while the Redis runtime window remains the normal 5-minute sliding window.
 
 ```bash
 V3_RUN_ID=phase4-after-redis-001 make k6-v3-phase4-stateful-redelivery
