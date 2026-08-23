@@ -575,7 +575,8 @@ class TransactionEventListenerTest {
                         true,
                         eventId,
                         failurePoint,
-                        true
+                        true,
+                        Duration.ZERO
                 )),
                 metrics,
                 clock,

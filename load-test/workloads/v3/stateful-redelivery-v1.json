@@ -25,6 +25,12 @@
     "expectedMaxEventsPerUserInWindow": 20,
     "eventAmount": 100000,
     "expectedAmountSumPerUserInWindow": 2000000,
+    "redeliveryDrillTargetIndex": 3,
+    "redeliveryDrillNextIndex": 4,
+    "expectedNextEventTransactionCount": 5,
+    "expectedNextEventAmountSum": 500000,
+    "expectedNextEventRiskScore": 30,
+    "expectedNextEventMatchedRule": "RAPID_TRANSACTION_COUNT",
     "note": "Single-user deterministic event stream for stateful redelivery drill injection."
   },
   "randomSeed": 640519

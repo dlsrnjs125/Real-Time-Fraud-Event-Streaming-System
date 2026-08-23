@@ -36,9 +36,21 @@ public class StatefulRedeliveryFailureInjector {
                 message.userId(),
                 failurePoint
         );
+        pauseBeforeThrowIfConfigured();
         throw new StatefulRedeliveryDrillException(
                 "Injected stateful redelivery failure at " + failurePoint + " for eventId=" + message.eventId()
         );
+    }
+
+    private void pauseBeforeThrowIfConfigured() {
+        if (properties.pauseBeforeThrow().isZero() || properties.pauseBeforeThrow().isNegative()) {
+            return;
+        }
+        try {
+            Thread.sleep(properties.pauseBeforeThrow().toMillis());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private boolean matches(StatefulRedeliveryFailurePoint failurePoint, TransactionEventMessage message) {

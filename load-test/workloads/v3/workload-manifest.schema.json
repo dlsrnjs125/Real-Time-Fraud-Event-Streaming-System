@@ -69,6 +69,12 @@
         "expectedMaxEventsPerUserInWindow": {"type": "number", "minimum": 0},
         "eventAmount": {"type": "number", "minimum": 0},
         "expectedAmountSumPerUserInWindow": {"type": "number", "minimum": 0},
+        "redeliveryDrillTargetIndex": {"type": "integer", "minimum": 0},
+        "redeliveryDrillNextIndex": {"type": "integer", "minimum": 0},
+        "expectedNextEventTransactionCount": {"type": "integer", "minimum": 0},
+        "expectedNextEventAmountSum": {"type": "number", "minimum": 0},
+        "expectedNextEventRiskScore": {"type": "integer", "minimum": 0},
+        "expectedNextEventMatchedRule": {"type": "string"},
         "note": {"type": "string"}
       }
     },

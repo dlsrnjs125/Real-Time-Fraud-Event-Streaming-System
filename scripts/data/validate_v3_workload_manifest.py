@@ -104,6 +104,42 @@ def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
     if abs(profile["expectedAmountSumPerUserInWindow"] - expected_amount_sum) > 0.000001:
         raise ManifestError("expectedAmountSumPerUserInWindow must equal expectedEventsPerUserInWindow * eventAmount")
 
+    if manifest["workloadRole"] == "STATEFUL_REDELIVERY":
+        validate_stateful_redelivery_profile(manifest, profile)
+
+
+def validate_stateful_redelivery_profile(manifest: dict[str, Any], profile: dict[str, Any]) -> None:
+    required_fields = [
+        "redeliveryDrillTargetIndex",
+        "redeliveryDrillNextIndex",
+        "expectedNextEventTransactionCount",
+        "expectedNextEventAmountSum",
+        "expectedNextEventRiskScore",
+        "expectedNextEventMatchedRule",
+    ]
+    missing_fields = [field for field in required_fields if field not in profile]
+    if missing_fields:
+        raise ManifestError(f"STATEFUL_REDELIVERY requires {', '.join(missing_fields)}")
+
+    target_index = profile["redeliveryDrillTargetIndex"]
+    next_index = profile["redeliveryDrillNextIndex"]
+    if target_index < 3:
+        raise ManifestError("redeliveryDrillTargetIndex must be at least 3 for threshold-adjacent evidence")
+    if target_index >= manifest["eventLimit"]:
+        raise ManifestError("redeliveryDrillTargetIndex must be less than eventLimit")
+    if next_index >= manifest["eventLimit"]:
+        raise ManifestError("redeliveryDrillNextIndex must be less than eventLimit")
+    if next_index <= target_index:
+        raise ManifestError("redeliveryDrillNextIndex must be after redeliveryDrillTargetIndex")
+
+    expected_next_count = next_index + 1
+    if profile["expectedNextEventTransactionCount"] != expected_next_count:
+        raise ManifestError("expectedNextEventTransactionCount must equal redeliveryDrillNextIndex + 1")
+
+    expected_next_amount = expected_next_count * profile["eventAmount"]
+    if abs(profile["expectedNextEventAmountSum"] - expected_next_amount) > 0.000001:
+        raise ManifestError("expectedNextEventAmountSum must equal expectedNextEventTransactionCount * eventAmount")
+
 
 def validate_stages(manifest: dict[str, Any]) -> None:
     stages = manifest.get("stages")

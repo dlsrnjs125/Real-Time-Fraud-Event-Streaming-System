@@ -1,5 +1,6 @@
 package com.example.fraud.consumer.redelivery;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "fraud.consumer.redelivery-drill")
@@ -7,7 +8,8 @@ public record StatefulRedeliveryDrillProperties(
         boolean enabled,
         String eventId,
         StatefulRedeliveryFailurePoint failurePoint,
-        Boolean failOnce
+        Boolean failOnce,
+        Duration pauseBeforeThrow
 ) {
 
     public StatefulRedeliveryDrillProperties {
@@ -20,6 +22,9 @@ public record StatefulRedeliveryDrillProperties(
         if (failOnce == null) {
             failOnce = true;
         }
+        if (pauseBeforeThrow == null) {
+            pauseBeforeThrow = Duration.ZERO;
+        }
     }
 
     public static StatefulRedeliveryDrillProperties disabled() {
@@ -27,7 +32,8 @@ public record StatefulRedeliveryDrillProperties(
                 false,
                 "",
                 StatefulRedeliveryFailurePoint.NONE,
-                true
+                true,
+                Duration.ZERO
         );
     }
 }

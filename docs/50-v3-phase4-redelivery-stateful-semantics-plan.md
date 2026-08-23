@@ -57,10 +57,10 @@ The injector is disabled by default and should only be enabled for local drills.
 Use the deterministic Phase 4 workload. This is a semantics drill, not a throughput test, so it emits 20 events over 20 seconds at 1 EPS while the Redis runtime window remains the normal 5-minute sliding window.
 
 ```bash
-V3_RUN_ID=phase4-after-redis-001 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-after-redis-threshold-001 make k6-v3-phase4-stateful-redelivery
 ```
 
-The k6 summary records `drillTargetEventId`. Start `app-consumer` with that event id and one failure point at a time.
+The k6 summary records `drillTargetEventId` and `drillNextEventId`. The accepted evidence targets E3 and verifies E4 so the next-event decision is observed at the `RAPID_TRANSACTION_COUNT` threshold boundary.
 
 Example:
 
@@ -68,7 +68,7 @@ Example:
 FRAUD_CONSUMER_CONCURRENCY=1 \
 ./gradlew :app-consumer:bootRun --args='\
 --fraud.consumer.redelivery-drill.enabled=true \
---fraud.consumer.redelivery-drill.event-id=v3-phase4-phase4-after-redis-001-0 \
+--fraud.consumer.redelivery-drill.event-id=v3-phase4-phase4-after-redis-threshold-001-3 \
 --fraud.consumer.redelivery-drill.failure-point=AFTER_REDIS_UPDATE_BEFORE_RESULT \
 --fraud.consumer.redelivery-drill.fail-once=true'
 ```
@@ -83,7 +83,7 @@ Record each accepted drill under `docs/evidence/v3-phase4/`:
 - Redis ZSET `ZCARD` for the target user
 - Redis amount/hash evidence for the target event
 - `fraud_results` count for target `eventId`
-- next event's fraud result/risk score after redelivery
+- next event's fraud result/risk score after redelivery at the threshold boundary
 - final Consumer Lag after drain
 
 ## 7. Completion Criteria

@@ -1661,9 +1661,10 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 - Phase 4는 DB result 중복 방어만이 아니라 Redis sliding-window state와 후속 fraud decision의 의미가 재전달 후에도 설명 가능한지 검증하는 범위입니다.
 - `StatefulRedeliveryFailureInjector`를 추가해 local drill에서만 세 실패 지점을 재현할 수 있게 했습니다.
 - 기본 설정은 `fraud.consumer.redelivery-drill.enabled=false`이므로 일반 Consumer 실행에는 영향을 주지 않습니다.
+- `pause-before-throw`는 local drill 전용 옵션이며, BEFORE_REDIS_UPDATE evidence에서 failure-time Redis snapshot을 찍기 위해서만 사용합니다.
 - 실패 지점은 `BEFORE_REDIS_UPDATE`, `AFTER_REDIS_UPDATE_BEFORE_RESULT`, `AFTER_RESULT_SAVE_BEFORE_ACK`입니다.
 - `AFTER_RESULT_SAVE_BEFORE_ACK` 재전달은 fraud result duplicate precheck에서 Redis/rule/result sink를 건너뛰어야 합니다.
-- `STATEFUL_REDELIVERY` workload role과 deterministic k6 workload를 추가해 drill target `eventId`를 재현 가능하게 만들었습니다.
+- `STATEFUL_REDELIVERY` workload role과 deterministic k6 workload를 추가해 drill target `eventId`와 next-event `eventId`를 재현 가능하게 만들었습니다.
 
 ### 검증 포인트
 
@@ -1675,9 +1676,9 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 ### 검증 기록
 
 ```bash
-V3_RUN_ID=phase4-before-redis-20260824-001 make k6-v3-phase4-stateful-redelivery
-V3_RUN_ID=phase4-after-redis-20260824-001 make k6-v3-phase4-stateful-redelivery
-V3_RUN_ID=phase4-after-result-20260824-001 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-before-redis-threshold-20260824-002 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-after-redis-threshold-20260824-001 make k6-v3-phase4-stateful-redelivery
+V3_RUN_ID=phase4-after-result-threshold-20260824-001 make k6-v3-phase4-stateful-redelivery
 ```
 
-세 failure point 모두 target event redelivery, target result row 1건, next-event window count 2 / amount sum 200,000 / risk LOW, final Consumer Lag 0을 기록했습니다. 상세 evidence는 `docs/evidence/v3-phase4/`에 저장했습니다.
+세 failure point 모두 target event redelivery, target result row 1건, next-event window count 5 / amount sum 500,000 / matched rule `RAPID_TRANSACTION_COUNT` / risk score 30 / risk MEDIUM / decision REVIEW, final Consumer Lag 0을 기록했습니다. BEFORE_REDIS_UPDATE는 failure-time Redis snapshot에서 target E3 hash absent와 ZCARD 3도 기록했습니다. 상세 evidence는 `docs/evidence/v3-phase4/`에 저장했습니다.

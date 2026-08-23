@@ -31,6 +31,7 @@ fraud:
       event-id: ""
       failure-point: NONE
       fail-once: true
+      pause-before-throw: 0ms
   sliding-window:
     window: 5m
     max-events: 5

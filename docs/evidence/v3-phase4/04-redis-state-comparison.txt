@@ -1,6 +1,6 @@
 V3 Phase 4 Redis State Comparison
 
-All accepted runs used:
+All accepted threshold-adjacent runs used:
 - workload: stateful-redelivery-v1
 - targetEps: 1
 - duration: 20s
@@ -8,35 +8,34 @@ All accepted runs used:
 - event amount: 100000 KRW
 - Redis DB: 14
 - Redis sliding window: 5m
+- drill target: E3
+- drill next event: E4
 
 BEFORE_REDIS_UPDATE
-- Run ID: phase4-before-redis-20260824-001
-- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-before-redis-20260824-001:events
-- Final ZCARD: 20
-- First members:
-  - v3-phase4-phase4-before-redis-20260824-001-0
-  - v3-phase4-phase4-before-redis-20260824-001-1
-  - v3-phase4-phase4-before-redis-20260824-001-2
-
-AFTER_REDIS_UPDATE_BEFORE_RESULT
-- Run ID: phase4-after-redis-20260824-001
-- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-redis-20260824-001:events
+- Run ID: phase4-before-redis-threshold-20260824-002
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-before-redis-threshold-20260824-002:events
+- Failure-time ZCARD during pause: 3
+- Failure-time target event hash exists: 0
+- Failure-time members:
+  - v3-phase4-phase4-before-redis-threshold-20260824-002-0
+  - v3-phase4-phase4-before-redis-threshold-20260824-002-1
+  - v3-phase4-phase4-before-redis-threshold-20260824-002-2
 - Final ZCARD: 20
 - Final ZCOUNT -inf +inf: 20
-- First members:
-  - v3-phase4-phase4-after-redis-20260824-001-0
-  - v3-phase4-phase4-after-redis-20260824-001-1
-  - v3-phase4-phase4-after-redis-20260824-001-2
+
+AFTER_REDIS_UPDATE_BEFORE_RESULT
+- Run ID: phase4-after-redis-threshold-20260824-001
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-redis-threshold-20260824-001:events
+- Final ZCARD: 20
+- Final ZCOUNT -inf +inf: 20
 
 AFTER_RESULT_SAVE_BEFORE_ACK
-- Run ID: phase4-after-result-20260824-001
-- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-result-20260824-001:events
+- Run ID: phase4-after-result-threshold-20260824-001
+- User key: fraud:tx:user:v3-phase4-stateful-redelivery-user-phase4-after-result-threshold-20260824-001:events
 - Final ZCARD: 20
-- First members:
-  - v3-phase4-phase4-after-result-20260824-001-0
-  - v3-phase4-phase4-after-result-20260824-001-1
-  - v3-phase4-phase4-after-result-20260824-001-2
+- Final ZCOUNT -inf +inf: 20
 
 Interpretation:
+- The before-Redis failure snapshot directly shows that E3 had not mutated Redis at failure time: the user ZSET still contained only E0-E2 and the E3 hash did not exist.
 - The after-Redis failure case proves the most direct Redis duplicate-count behavior: first delivery mutates Redis, redelivery writes the same eventId member, and final ZCARD remains 20 rather than 21.
 - The after-result failure case proves the duplicate result precheck prevents repeated Redis/rule/result sink execution after a saved result is visible.

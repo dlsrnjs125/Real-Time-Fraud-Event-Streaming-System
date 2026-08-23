@@ -61,6 +61,13 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         manifest = json.loads((WORKLOAD_DIR / "stateful-redelivery-v1.json").read_text(encoding="utf-8"))
 
         validator.validate_manifest(manifest)
+        profile = manifest["statefulWindowProfile"]
+        self.assertEqual(3, profile["redeliveryDrillTargetIndex"])
+        self.assertEqual(4, profile["redeliveryDrillNextIndex"])
+        self.assertEqual(5, profile["expectedNextEventTransactionCount"])
+        self.assertEqual(500000, profile["expectedNextEventAmountSum"])
+        self.assertEqual(30, profile["expectedNextEventRiskScore"])
+        self.assertEqual("RAPID_TRANSACTION_COUNT", profile["expectedNextEventMatchedRule"])
 
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
@@ -172,6 +179,22 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         invalid["statefulWindowProfile"]["expectedEventsPerUserInWindow"] = 999
 
         with self.assertRaisesRegex(validator.ManifestError, "expectedEventsPerUserInWindow"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stateful_redelivery_target_at_first_event(self):
+        invalid = json.loads((WORKLOAD_DIR / "stateful-redelivery-v1.json").read_text(encoding="utf-8"))
+        invalid["statefulWindowProfile"]["redeliveryDrillTargetIndex"] = 0
+        invalid["statefulWindowProfile"]["redeliveryDrillNextIndex"] = 1
+        invalid["statefulWindowProfile"]["expectedNextEventTransactionCount"] = 2
+
+        with self.assertRaisesRegex(validator.ManifestError, "redeliveryDrillTargetIndex must be at least 3"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stateful_redelivery_next_event_amount_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "stateful-redelivery-v1.json").read_text(encoding="utf-8"))
+        invalid["statefulWindowProfile"]["expectedNextEventAmountSum"] = 200000
+
+        with self.assertRaisesRegex(validator.ManifestError, "expectedNextEventAmountSum"):
             validator.validate_manifest(invalid)
 
 

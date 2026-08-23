@@ -15,6 +15,8 @@ if (!__ENV.V3_RUN_ID) {
 const runId = __ENV.V3_RUN_ID;
 const commitSha = __ENV.V3_COMMIT_SHA || 'unknown';
 const eventAmount = manifest.statefulWindowProfile.eventAmount;
+const drillTargetIndex = manifest.statefulWindowProfile.redeliveryDrillTargetIndex;
+const drillNextIndex = manifest.statefulWindowProfile.redeliveryDrillNextIndex;
 
 export const options = {
   scenarios: {
@@ -70,7 +72,10 @@ export function handleSummary(data) {
     eventTimeMode: manifest.eventTimeMode,
     targetEps: manifest.targetEps,
     emittedEventCount,
-    drillTargetEventId: `v3-phase4-${runId}-0`,
+    drillTargetEventIndex: drillTargetIndex,
+    drillTargetEventId: `v3-phase4-${runId}-${drillTargetIndex}`,
+    drillNextEventIndex: drillNextIndex,
+    drillNextEventId: `v3-phase4-${runId}-${drillNextIndex}`,
     achievedEps: data.metrics.http_reqs ? data.metrics.http_reqs.values.rate : null,
     httpRequestFailedRate: data.metrics.http_req_failed ? data.metrics.http_req_failed.values.rate : null,
     checkSuccessRate: data.metrics.checks ? data.metrics.checks.values.rate : null,
@@ -78,6 +83,10 @@ export function handleSummary(data) {
     expectedUserCardinality: manifest.userCardinality,
     expectedEventsPerUserInWindow: manifest.statefulWindowProfile.expectedEventsPerUserInWindow,
     expectedAmountSumPerUserInWindow: manifest.statefulWindowProfile.expectedAmountSumPerUserInWindow,
+    expectedNextEventTransactionCount: manifest.statefulWindowProfile.expectedNextEventTransactionCount,
+    expectedNextEventAmountSum: manifest.statefulWindowProfile.expectedNextEventAmountSum,
+    expectedNextEventRiskScore: manifest.statefulWindowProfile.expectedNextEventRiskScore,
+    expectedNextEventMatchedRule: manifest.statefulWindowProfile.expectedNextEventMatchedRule,
     redeliveryEvidenceNote: 'Start app-consumer with fraud.consumer.redelivery-drill.enabled=true and event-id equal to drillTargetEventId for each failure-point run.',
   };
   return {
