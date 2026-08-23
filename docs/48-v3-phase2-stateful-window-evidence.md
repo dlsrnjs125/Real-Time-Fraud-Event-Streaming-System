@@ -60,7 +60,9 @@ The workload duration is shorter than the configured 5-minute Redis sliding wind
 
 The pressure run raised the final per-user Redis window max from 12 to 120 valid events while keeping EPS, duration, event amount, total event count, random seed, and Consumer concurrency fixed. Redis state p95 increased from 6.20 ms to 32.84 ms, and Consumer service p95 increased from 13.18 ms to 38.47 ms. Final Consumer Lag still returned to 0 and durable row counts remained aligned.
 
-Clean Redis memory did not increase with the high-density workload. Both workloads retained 12,000 event metadata Hash keys, while the baseline retained 1,000 user ZSET keys and the pressure run retained 100 user ZSET keys. Therefore the memory result is not evidence that per-user density alone increased Redis memory. The latency result aligns more directly with command count growth: `HGET` calls rose from 6.5 to 60.5 per event, and selected Redis command calls rose from 12.5 to 66.5 per event.
+Clean Redis memory did not increase with the high-density workload. Both workloads retained 12,000 event metadata Hash keys, while the baseline retained 1,000 user ZSET keys and the pressure run retained 100 user ZSET keys. Therefore the memory result is not evidence that per-user density alone increased Redis memory. The stronger Phase 2 finding is command scaling: as window members increased from 12 to 120, `HGET` calls rose from 6.5 to 60.5 per event, Redis state p95 rose from 6.20 ms to 32.84 ms, and Consumer service p95 rose from 13.18 ms to 38.47 ms. In this implementation, larger state made lookup operation count a stronger bottleneck candidate than memory.
+
+Selected Redis command calls include `HMSET`, `ZADD`, `ZREMRANGEBYSCORE`, `ZRANGEBYSCORE`, `HGET`, and `PEXPIRE` calls attributable to the sliding-window path. The count excludes inspection commands such as `INFO`, `CONFIG RESETSTAT`, `HELLO`, and `CLIENT SETINFO`.
 
 Prometheus histogram quantiles for `fraud.redis.window.event.count` and `fraud.redis.window.amount.sum` are useful directional distribution signals, but the Redis ZSET scan result is the authoritative configured state-size confirmation for this run.
 
@@ -75,7 +77,7 @@ Prometheus histogram quantiles for `fraud.redis.window.event.count` and `fraud.r
 | 4 | 1,932 | 16.10 | 1,560 | 13.00 | 0 | 0 |
 | 5 | 2,148 | 17.90 | 1,920 | 16.00 | 0 | 1 |
 
-The high-density workload created a moderate partition distribution shift because Kafka uses `userId` as the partition key and the workload reduced user cardinality from 1,000 to 100. The shift did not create sustained backlog in this run, but it means Consumer latency movement is not a perfectly isolated Redis state-size signal. V3 Phase 3 should use an explicit partition-balanced user set before testing hot-partition behavior.
+The high-density workload created a moderate partition distribution shift because Kafka uses `userId` as the partition key and the workload reduced user cardinality from 1,000 to 100. Partition 2 handled 25.00% of pressure traffic versus 18.90% in baseline. The shift did not create sustained backlog in this run, but it means Consumer latency movement is directional state-density evidence rather than a perfectly isolated Redis state-size signal. V3 Phase 3 should use an explicit partition-balanced user set before testing hot-partition behavior.
 
 ## 6. Runtime Commands
 

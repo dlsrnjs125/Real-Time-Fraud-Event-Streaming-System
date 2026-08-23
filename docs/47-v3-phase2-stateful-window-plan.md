@@ -95,4 +95,7 @@ The Makefile selects the corresponding workload manifest and k6 scenario.
 - Final receipt/result/processing-log counts align for each run.
 - Final Consumer Lag is 0 for each run.
 - Evidence records Redis window size, Redis latency, Consumer latency, Redis memory, and Lag on the same time range.
+- Evidence records clean Redis memory start/final delta for each workload.
+- Evidence records Redis commandstats per-event comparison for state-sensitive commands.
+- Evidence records partition-level consumed distribution and peak partition Lag so state-density results are not over-attributed when user cardinality changes Kafka key distribution.
 - Any optimization is deferred until the state-size bottleneck is actually measured.
