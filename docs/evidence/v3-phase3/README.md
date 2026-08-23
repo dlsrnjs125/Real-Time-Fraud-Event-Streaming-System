@@ -1,0 +1,29 @@
+# V3 Phase 3 Runtime Evidence
+
+Phase 3 validates Kafka partition-affinity behavior under balanced traffic and a controlled hot-partition workload.
+
+Accepted runtime runs:
+
+| Run | Workload | Consumer concurrency | Events | Target EPS | Achieved EPS | Dropped iterations | HTTP failures |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `phase3-balanced-c1-20260823-002` | balanced | 1 | 36,000 | 300 | 299.93 | 0 | 0 |
+| `phase3-balanced-c6-20260823-001` | balanced | 6 | 36,000 | 300 | 300.13 | 0 | 0 |
+| `phase3-hot-p2-c6-20260823-001` | hot P2 | 6 | 36,000 | 300 | 299.94 | 0 | 0 |
+
+Discarded runtime runs:
+
+| Run | Reason |
+| --- | --- |
+| `phase3-balanced-c1-20260823-001` | k6 emitted 35,860/36,000 events due to dropped iterations. |
+| `phase3-balanced-c2-20260823-001` | k6 emitted 35,627/36,000 events due to dropped iterations. |
+| `phase3-balanced-c2-20260823-002` | aborted during VU initialization. |
+| `phase3-balanced-c2-20260823-003` | k6 emitted 35,878/36,000 events due to dropped iterations. |
+
+The accepted evidence focuses on the questions that require runtime proof:
+
+- balanced partition-affinity generation produces equal achieved partition distribution;
+- hot P2 generation produces the intended 60% partition pressure without hot-user pressure;
+- increasing consumer concurrency to match partition count suppresses balanced backlog;
+- a hot partition creates partition-local lag even when other partitions are idle;
+- consumer concurrency above partition count creates idle consumers;
+- final database counts remain consistent after drain.
