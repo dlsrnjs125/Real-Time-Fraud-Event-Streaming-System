@@ -66,6 +66,19 @@ Selected Redis command calls include `HMSET`, `ZADD`, `ZREMRANGEBYSCORE`, `ZRANG
 
 Prometheus histogram quantiles for `fraud.redis.window.event.count` and `fraud.redis.window.amount.sum` are useful directional distribution signals, but the Redis ZSET scan result is the authoritative configured state-size confirmation for this run.
 
+## 4.1 Evidence Artifacts
+
+The accepted Phase 2 run artifacts are stored under `docs/evidence/v3-phase2/`.
+
+| Artifact | Purpose |
+|---|---|
+| `01-baseline-window-latency.png` | Baseline Grafana evidence for Consumer service latency, Redis state latency, and Redis window event count. |
+| `02-pressure-window-latency.png` | High-density Grafana evidence for the same panels and time-width pattern as the baseline capture. |
+| `03-redis-commandstats-before-after.txt` | Redis commandstats delta and per-event command scaling, including selected sliding-window commands. |
+| `04-redis-state-shape.txt` | Redis ZSET and Hash key shape used to confirm per-user state density. |
+| `05-partition-distribution.txt` | Partition distribution and peak partition Lag used to bound the partition-skew limitation. |
+| `06-final-consistency.txt` | PostgreSQL row-count and final Consumer Lag consistency checks. |
+
 ## 5. Partition Distribution
 
 | Partition | Baseline processed | Baseline % | High Density processed | High Density % | Peak Lag Baseline | Peak Lag High Density |

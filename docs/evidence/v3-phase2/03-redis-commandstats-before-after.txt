@@ -1,0 +1,52 @@
+# V3 Phase 2 Redis Command Scaling Evidence
+
+Captured from dedicated Redis containers after accepted clean runs.
+
+Baseline run:
+- Run ID: phase2-state-baseline-clean-20260823-003
+- Workload: state-size-baseline-v1
+- Events: 12,000
+- Users: 1,000
+- Max window members/user: 12
+
+Redis INFO commandstats excerpt:
+
+cmdstat_hget:calls=78000,usec=177363,usec_per_call=2.27,rejected_calls=0,failed_calls=0
+cmdstat_hmset:calls=12000,usec=140880,usec_per_call=11.74,rejected_calls=0,failed_calls=0
+cmdstat_pexpire:calls=24000,usec=59404,usec_per_call=2.48,rejected_calls=0,failed_calls=0
+cmdstat_zremrangebyscore:calls=12000,usec=26576,usec_per_call=2.21,rejected_calls=0,failed_calls=0
+cmdstat_zrangebyscore:calls=12000,usec=89809,usec_per_call=7.48,rejected_calls=0,failed_calls=0
+cmdstat_zadd:calls=12000,usec=146365,usec_per_call=12.20,rejected_calls=0,failed_calls=0
+
+Derived values:
+- HGET/event: 78,000 / 12,000 = 6.5
+- Selected Redis commands/event: 150,000 / 12,000 = 12.5
+
+Pressure run:
+- Run ID: phase2-state-pressure-clean-20260823-001
+- Workload: state-size-high-density-v1
+- Events: 12,000
+- Users: 100
+- Max window members/user: 120
+
+Redis INFO commandstats excerpt:
+
+cmdstat_hget:calls=726000,usec=1090217,usec_per_call=1.50,rejected_calls=0,failed_calls=0
+cmdstat_hmset:calls=12000,usec=106853,usec_per_call=8.90,rejected_calls=0,failed_calls=0
+cmdstat_pexpire:calls=24000,usec=57736,usec_per_call=2.41,rejected_calls=0,failed_calls=0
+cmdstat_zremrangebyscore:calls=12000,usec=25829,usec_per_call=2.15,rejected_calls=0,failed_calls=0
+cmdstat_zrangebyscore:calls=12000,usec=277320,usec_per_call=23.11,rejected_calls=0,failed_calls=0
+cmdstat_zadd:calls=12000,usec=97721,usec_per_call=8.14,rejected_calls=0,failed_calls=0
+
+Derived values:
+- HGET/event: 726,000 / 12,000 = 60.5
+- Selected Redis commands/event: 798,000 / 12,000 = 66.5
+
+Selected Redis command calls include HMSET, ZADD, ZREMRANGEBYSCORE, ZRANGEBYSCORE, HGET, and PEXPIRE calls attributable to the sliding-window path.
+
+Interpretation:
+- Window members/user increased from 12 to 120.
+- HGET/event increased from 6.5 to 60.5.
+- Redis state p95 increased from 6.20 ms to 32.84 ms.
+- Consumer service p95 increased from 13.18 ms to 38.47 ms.
+- The strongest Phase 2 signal is command scaling, not Redis memory growth.
