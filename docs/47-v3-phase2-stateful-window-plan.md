@@ -63,8 +63,10 @@ Required signals:
 - `fraud.consumer.service.latency`
 - `fraud.rule.processing.latency`
 - `fraud.result.sink.latency`
-- Redis memory
+- Redis memory start/final delta from a clean Redis instance
+- Redis commandstats delta per event for state-sensitive commands
 - total and partition Consumer Lag
+- partition-level consumed record distribution
 - final PostgreSQL receipt/result/processing-log equality
 
 Interpretation rule:
@@ -72,6 +74,10 @@ Interpretation rule:
 ```text
 Do not attribute latency to Redis state size unless the state-size metrics rose and the same time range shows Redis or Consumer-stage latency movement.
 ```
+
+Redis memory must not be compared across separate logical databases on the same long-lived Redis instance. Each memory comparison run starts from a clean Redis instance or an equivalent `FLUSHALL`, records start/final memory, and uses the delta as the comparable signal.
+
+Because Kafka uses `userId` as the partition key, reducing `userCardinality` can also change partition distribution. Phase 2 records partition-level input distribution and partition lag so Redis state-size effects are not confused with a hot-partition experiment. Deliberate partition-skew mitigation remains out of scope for this phase.
 
 ## 5. Commands
 

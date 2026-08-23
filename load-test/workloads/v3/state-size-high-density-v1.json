@@ -27,5 +27,5 @@
     "expectedAmountSumPerUserInWindow": 30000000,
     "note": "Same EPS, duration, and event count as the baseline, but 10x fewer users to create higher Redis state per user."
   },
-  "randomSeed": 521519
+  "randomSeed": 520519
 }

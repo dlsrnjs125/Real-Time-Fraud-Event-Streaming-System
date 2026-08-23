@@ -1612,8 +1612,10 @@ make final-check
 - Phase 2는 Redis sliding-window state-size 실험으로 제한했고, Redis data-structure 최적화나 partition skew 실험은 다음 단계로 넘겼습니다.
 - `STATEFUL_WINDOW_SCALING` workload role과 `statefulWindowProfile`을 추가해 user cardinality, expected window count, expected amount sum을 manifest에서 검증하도록 했습니다.
 - Redis window event count와 amount sum metric은 분포 evidence용으로 추가했고, `userId`, `eventId`, `traceId`, Kafka offset tag는 붙이지 않았습니다.
-- Baseline과 high-density run은 EPS, duration, total event count, event amount, Consumer concurrency를 고정하고 user cardinality만 바꿨습니다.
-- Histogram quantile은 coarse bucket interpolation으로 observed max를 초과할 수 있어, configured state-size 확인에는 max gauge를 기준으로 문서화했습니다.
+- Baseline과 high-density run은 EPS, duration, total event count, event amount, random seed, Consumer concurrency를 고정하고 user cardinality만 바꿨습니다.
+- Clean Redis evidence는 logical DB가 아니라 dedicated Redis containers로 재측정했습니다. Memory delta는 high-density에서 증가하지 않았고, latency 증가는 `HGET`/selected command calls per event 증가와 더 직접적으로 연결됩니다.
+- Partition distribution도 함께 기록했습니다. High-density run은 P2가 25%까지 올라간 moderate skew가 있었지만 peak partition Lag는 1 이하였고 final Lag는 0이었습니다.
+- Histogram quantile은 coarse bucket interpolation으로 observed max를 초과할 수 있어, configured state-size 확인에는 Redis ZSET cardinality scan을 기준으로 문서화했습니다.
 
 ### 검증 기록
 
@@ -1622,12 +1624,12 @@ make verify-v3-workload-manifests
 python3 -m unittest scripts.data.test_validate_v3_workload_manifest
 k6 inspect -e V3_RUN_ID=phase2-inspect-baseline -e V3_WORKLOAD_MANIFEST=state-size-baseline-v1.json load-test/k6/scenarios/v3-phase2-stateful-window.js
 ./gradlew :app-api:test :app-consumer:test
-V3_RUN_ID=phase2-state-baseline-20260823-003 make k6-v3-phase2-state-baseline
-V3_RUN_ID=phase2-state-pressure-20260823-001 make k6-v3-phase2-state-pressure
+env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-baseline-clean-20260823-003 make k6-v3-phase2-state-baseline
+env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pressure-clean-20260823-001 make k6-v3-phase2-state-pressure
 ```
 
 ### 남은 한계
 
 - HTTP k6 driver evidence이므로 direct Kafka producer evidence와 섞어 해석하지 않습니다.
-- User cardinality 압박만 검증했고 Kafka partition affinity skew는 V3 Phase 3에서 별도로 검증합니다.
+- User cardinality 압박만 검증했고 Kafka partition affinity skew는 V3 Phase 3에서 별도로 검증합니다. Phase 2 pressure workload의 moderate partition distribution movement는 state-size 해석의 제한으로 남깁니다.
 - Redis command batching, Lua script, data-structure 변경은 아직 구현하지 않았습니다.

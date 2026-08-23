@@ -126,9 +126,9 @@ Detailed run IDs, metrics, bottleneck attribution, before/after comparison, and 
 
 ### V3 Phase 2 Result
 
-Phase 2 implemented state-size workloads and Redis window-size metrics for the existing ZSET/hash sliding-window design. The same 100 EPS, 120-second, 12,000-event workload was run with 1,000 users and then 100 users. The high-density run increased final per-user Redis window max from 12 to 120 events and amount max from 3,000,000 KRW to 30,000,000 KRW. Redis state p95 increased from 11.25 ms to 55.59 ms, Consumer service p95 increased from 22.76 ms to 60.68 ms, final Consumer Lag returned to 0, and receipt/result/processing-log counts aligned at 12,000 for both runs.
+Phase 2 implemented state-size workloads and Redis window-size metrics for the existing ZSET/hash sliding-window design. The same 100 EPS, 120-second, 12,000-event workload was run with 1,000 users and then 100 users on dedicated clean Redis containers. The high-density run increased final per-user Redis window max from 12 to 120 events and amount max from 3,000,000 KRW to 30,000,000 KRW. Redis `HGET` calls increased from 6.5 to 60.5 per event, Redis state p95 increased from 6.20 ms to 32.84 ms, Consumer service p95 increased from 13.18 ms to 38.47 ms, final Consumer Lag returned to 0, and receipt/result/processing-log counts aligned at 12,000 for both runs.
 
-Detailed workload contract, run IDs, metrics, and limitations are in [V3 Phase 2 Stateful Sliding-Window Scaling Evidence](48-v3-phase2-stateful-window-evidence.md). Redis data-structure optimization remains deferred until a later optimization phase.
+Detailed workload contract, run IDs, clean Redis memory deltas, partition distribution, Redis commandstats, metrics, and limitations are in [V3 Phase 2 Stateful Sliding-Window Scaling Evidence](48-v3-phase2-stateful-window-evidence.md). Redis data-structure optimization remains deferred until a later optimization phase.
 
 ### V3 Planned Phase Summary
 
