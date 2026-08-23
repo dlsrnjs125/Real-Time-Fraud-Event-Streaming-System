@@ -1,0 +1,47 @@
+V3 Phase 4 Final Consistency
+
+Accepted threshold-adjacent runs:
+- phase4-before-redis-threshold-20260824-002
+- phase4-after-redis-threshold-20260824-001
+- phase4-after-result-threshold-20260824-001
+
+Per-run DB counts:
+
+BEFORE_REDIS_UPDATE
+- receipts: 20
+- fraud_results: 20
+- processing_logs: 20
+- final lag on active partition 4: 0
+
+AFTER_REDIS_UPDATE_BEFORE_RESULT
+- receipts: 20
+- fraud_results: 20
+- processing_logs: 20
+- final lag on active partition 3: 0
+
+AFTER_RESULT_SAVE_BEFORE_ACK
+- receipts: 20
+- fraud_results: 20
+- processing_logs: 20
+- final lag on active partition 5: 0
+
+Target event result-row uniqueness:
+
+| Target event | Result rows |
+| --- | ---: |
+| v3-phase4-phase4-before-redis-threshold-20260824-002-3 | 1 |
+| v3-phase4-phase4-after-redis-threshold-20260824-001-3 | 1 |
+| v3-phase4-phase4-after-result-threshold-20260824-001-3 | 1 |
+
+Summary table:
+
+| Failure Point | Delivery Count | Redis Count Duplicate | Result Rows | Next-event State | Final Lag |
+| --- | ---: | --- | ---: | --- | ---: |
+| Before Redis | 2 | No target mutation before failure | 1 | Stable at threshold | 0 |
+| After Redis | 2 | No duplicate ZSET member | 1 | Stable at threshold | 0 |
+| After Result | 2 | No reprocessing on redelivery | 1 | Stable at threshold | 0 |
+
+Notes:
+- Delivery count is evidenced by one injected failure log plus one subsequent success/duplicate-fast-path log for the same target event.
+- The after-result case uses application-level duplicate result precheck rather than broker exactly-once processing.
+- The final consumer group output showed lag 0 on active partitions 3, 4, and 5.

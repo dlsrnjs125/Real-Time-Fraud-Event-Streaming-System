@@ -103,6 +103,7 @@
 | V3 Phase 2 state-size evidence artifacts | Grafana captures, Redis commandstats, state shape, partition distribution, final consistency | `docs/evidence/v3-phase2/` |
 | V3 Phase 3 balanced partition workload | `V3_RUN_ID=<run-id> make k6-v3-phase3-partition-balanced` | `docs/49-v3-phase3-partition-skew-plan.md` |
 | V3 Phase 3 hot partition workload | `V3_RUN_ID=<run-id> make k6-v3-phase3-partition-skew` | `docs/49-v3-phase3-partition-skew-plan.md` |
+| V3 Phase 4 stateful redelivery workload | `V3_RUN_ID=<run-id> make k6-v3-phase4-stateful-redelivery` | `docs/50-v3-phase4-redelivery-stateful-semantics-plan.md` |
 
 ## Documentation
 

@@ -12,6 +12,7 @@ from typing import Any
 import jsonschema
 
 SCHEMA_PATH = Path(__file__).parents[2] / "load-test" / "workloads" / "v3" / "workload-manifest.schema.json"
+STATEFUL_WINDOW_ROLES = {"STATEFUL_WINDOW_SCALING", "STATEFUL_REDELIVERY"}
 
 
 class ManifestError(ValueError):
@@ -55,10 +56,10 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_partition_skew(manifest)
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
-    if role == "STATEFUL_WINDOW_SCALING":
+    if role in STATEFUL_WINDOW_ROLES:
         validate_stateful_window_profile(manifest)
     elif manifest["statefulWindowProfile"] is not None:
-        raise ManifestError("statefulWindowProfile is only allowed for STATEFUL_WINDOW_SCALING")
+        raise ManifestError("statefulWindowProfile is only allowed for stateful workload roles")
 
 
 def validate_partition_skew(manifest: dict[str, Any]) -> None:
@@ -85,12 +86,12 @@ def validate_partition_skew(manifest: dict[str, Any]) -> None:
 def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
     profile = manifest["statefulWindowProfile"]
     if profile is None:
-        raise ManifestError("STATEFUL_WINDOW_SCALING requires statefulWindowProfile")
+        raise ManifestError("stateful workload roles require statefulWindowProfile")
 
     duration_seconds = parse_duration_seconds(manifest["duration"])
     runtime_window_seconds = parse_duration_seconds(profile["runtimeWindow"])
     if duration_seconds > runtime_window_seconds:
-        raise ManifestError("STATEFUL_WINDOW_SCALING duration must fit inside runtimeWindow")
+        raise ManifestError("stateful workload duration must fit inside runtimeWindow")
 
     expected_average = manifest["eventLimit"] / manifest["userCardinality"]
     expected_max = (manifest["eventLimit"] + manifest["userCardinality"] - 1) // manifest["userCardinality"]
@@ -103,10 +104,49 @@ def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
     if abs(profile["expectedAmountSumPerUserInWindow"] - expected_amount_sum) > 0.000001:
         raise ManifestError("expectedAmountSumPerUserInWindow must equal expectedEventsPerUserInWindow * eventAmount")
 
+    if manifest["workloadRole"] == "STATEFUL_REDELIVERY":
+        validate_stateful_redelivery_profile(manifest, profile)
+
+
+def validate_stateful_redelivery_profile(manifest: dict[str, Any], profile: dict[str, Any]) -> None:
+    required_fields = [
+        "redeliveryDrillTargetIndex",
+        "redeliveryDrillNextIndex",
+        "expectedNextEventTransactionCount",
+        "expectedNextEventAmountSum",
+        "expectedNextEventRiskScore",
+        "expectedNextEventMatchedRule",
+    ]
+    missing_fields = [field for field in required_fields if field not in profile]
+    if missing_fields:
+        raise ManifestError(f"STATEFUL_REDELIVERY requires {', '.join(missing_fields)}")
+
+    target_index = profile["redeliveryDrillTargetIndex"]
+    next_index = profile["redeliveryDrillNextIndex"]
+    if target_index < 3:
+        raise ManifestError("redeliveryDrillTargetIndex must be at least 3 for threshold-adjacent evidence")
+    if target_index >= manifest["eventLimit"]:
+        raise ManifestError("redeliveryDrillTargetIndex must be less than eventLimit")
+    if next_index >= manifest["eventLimit"]:
+        raise ManifestError("redeliveryDrillNextIndex must be less than eventLimit")
+    if next_index <= target_index:
+        raise ManifestError("redeliveryDrillNextIndex must be after redeliveryDrillTargetIndex")
+
+    expected_next_count = next_index + 1
+    if profile["expectedNextEventTransactionCount"] != expected_next_count:
+        raise ManifestError("expectedNextEventTransactionCount must equal redeliveryDrillNextIndex + 1")
+
+    expected_next_amount = expected_next_count * profile["eventAmount"]
+    if abs(profile["expectedNextEventAmountSum"] - expected_next_amount) > 0.000001:
+        raise ManifestError("expectedNextEventAmountSum must equal expectedNextEventTransactionCount * eventAmount")
+
 
 def validate_stages(manifest: dict[str, Any]) -> None:
     stages = manifest.get("stages")
     if stages is None:
+        expected_events = manifest["targetEps"] * parse_duration_seconds(manifest["duration"])
+        if abs(manifest["eventLimit"] - expected_events) > 0.000001:
+            raise ManifestError("eventLimit must equal targetEps * duration seconds")
         return
     expected_events = 0
     max_stage_eps = 0

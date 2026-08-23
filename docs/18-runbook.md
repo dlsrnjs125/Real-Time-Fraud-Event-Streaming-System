@@ -45,6 +45,14 @@ make consumer
 
 `make api`와 `make consumer`는 각각 별도 터미널에서 실행합니다.
 
+If host port `5432` is already occupied, use the same Docker Compose file with a PostgreSQL host-port override instead of starting a separate PostgreSQL container:
+
+```bash
+POSTGRES_HOST_PORT=15432 docker compose -f infra/docker-compose.yml up -d
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/fraud ./gradlew :app-api:bootRun
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/fraud ./gradlew :app-consumer:bootRun
+```
+
 ### Smoke
 
 ```bash

@@ -31,7 +31,7 @@
   "properties": {
     "workloadId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
     "workloadVersion": {"type": "string", "pattern": "^v[0-9]+$"},
-    "workloadRole": {"enum": ["VOLUME_CORRECTNESS", "NORMAL_CAPACITY", "ORGANIC_BURST", "CATCH_UP_BURST", "USER_SKEW", "PARTITION_SKEW", "STATEFUL_WINDOW_SCALING", "LATE_OUT_OF_ORDER", "HISTORICAL_REPLAY"]},
+    "workloadRole": {"enum": ["VOLUME_CORRECTNESS", "NORMAL_CAPACITY", "ORGANIC_BURST", "CATCH_UP_BURST", "USER_SKEW", "PARTITION_SKEW", "STATEFUL_WINDOW_SCALING", "STATEFUL_REDELIVERY", "LATE_OUT_OF_ORDER", "HISTORICAL_REPLAY"]},
     "datasetVersion": {"type": "string", "minLength": 1},
     "driverType": {"enum": ["HTTP_K6", "HTTP_SOURCE_EMULATOR", "KAFKA_DIRECT_PRODUCER"]},
     "targetEps": {"type": "number", "exclusiveMinimum": 0},
@@ -69,6 +69,12 @@
         "expectedMaxEventsPerUserInWindow": {"type": "number", "minimum": 0},
         "eventAmount": {"type": "number", "minimum": 0},
         "expectedAmountSumPerUserInWindow": {"type": "number", "minimum": 0},
+        "redeliveryDrillTargetIndex": {"type": "integer", "minimum": 0},
+        "redeliveryDrillNextIndex": {"type": "integer", "minimum": 0},
+        "expectedNextEventTransactionCount": {"type": "integer", "minimum": 0},
+        "expectedNextEventAmountSum": {"type": "number", "minimum": 0},
+        "expectedNextEventRiskScore": {"type": "integer", "minimum": 0},
+        "expectedNextEventMatchedRule": {"type": "string"},
         "note": {"type": "string"}
       }
     },

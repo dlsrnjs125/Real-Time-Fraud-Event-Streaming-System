@@ -67,6 +67,14 @@ docker compose -f infra/docker-compose.yml up -d
 ./gradlew :app-consumer:bootRun
 ```
 
+If local port `5432` is already occupied, keep the same Compose topology and override only the PostgreSQL host port:
+
+```bash
+POSTGRES_HOST_PORT=15432 docker compose -f infra/docker-compose.yml up -d
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/fraud ./gradlew :app-api:bootRun
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/fraud ./gradlew :app-consumer:bootRun
+```
+
 Health check:
 
 ```bash

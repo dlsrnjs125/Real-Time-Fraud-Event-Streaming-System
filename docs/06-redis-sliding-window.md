@@ -79,6 +79,8 @@ Window count/amount metrics는 state-size experiment용 분포 신호입니다. 
 
 같은 `eventId`가 재처리될 때 fraud result가 이미 있으면 Redis window를 갱신하지 않는 fast path로 ack합니다. 아직 fraud result가 없는 재소비에서는 ZSET member도 같은 `eventId`이므로 Redis count 중복 증가를 완화합니다. 단, Redis 상태는 보조 상태일 뿐이므로 최종 중복 방어 기준으로 사용하지 않습니다.
 
+V3 Phase 4 redelivery drill은 이 동작을 명시적으로 검증합니다. Redis update 이후 fraud result 저장 전에 실패하면 같은 Kafka record가 다시 전달될 수 있습니다. 이때 ZSET member는 `eventId`라서 동일 이벤트가 같은 사용자 window에 두 번 count되지 않아야 합니다. Fraud result 저장 이후 ack 전에 실패하면 다음 전달은 result duplicate precheck에서 Redis를 다시 갱신하지 않아야 합니다.
+
 ## 7. Clock Skew 기준
 
 `eventTime`이 `receivedAt`보다 과도하게 미래인 경우 Redis window 계산이 왜곡될 수 있습니다.

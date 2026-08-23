@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +21,10 @@ import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryDrillException;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryDrillProperties;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryFailureInjector;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryFailurePoint;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
@@ -53,6 +58,7 @@ class TransactionEventListenerTest {
             fraudRuleEngine,
             fraudDetectionResultService,
             deadLetterEventService,
+            disabledRedeliveryFailureInjector(),
             metrics,
             clock,
             "fraud-event-consumer",
@@ -365,6 +371,125 @@ class TransactionEventListenerTest {
     }
 
     @Test
+    void injectedFailureBeforeRedisUpdateDoesNotAcknowledgeOrMutateState() {
+        TransactionEventMessage message = message("evt-listener-before-redis-fail");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                22L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        TransactionEventListener drillListener = listenerWithDrill(
+                message.eventId(),
+                StatefulRedeliveryFailurePoint.BEFORE_REDIS_UPDATE
+        );
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                22L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
+
+        assertThatThrownBy(() -> drillListener.onMessage(record, acknowledgment))
+                .isInstanceOf(StatefulRedeliveryDrillException.class);
+
+        verify(acknowledgment, never()).acknowledge();
+        verify(recentTransactionWindowStore, never()).recordAndGetWindow(message);
+        verify(fraudRuleEngine, never()).evaluate(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(fraudDetectionResultService, never()).saveResult(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void redeliveryAfterRedisUpdateReusesSameEventIdAndSavesResultOnce() {
+        TransactionEventMessage message = message("evt-listener-after-redis-fail-once");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                23L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        TransactionEventListener drillListener = listenerWithDrill(
+                message.eventId(),
+                StatefulRedeliveryFailurePoint.AFTER_REDIS_UPDATE_BEFORE_RESULT
+        );
+        RecentTransactionWindowResult windowResult = normalWindowResult();
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                23L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.saved());
+
+        assertThatThrownBy(() -> drillListener.onMessage(record, acknowledgment))
+                .isInstanceOf(StatefulRedeliveryDrillException.class);
+        drillListener.onMessage(record, acknowledgment);
+
+        verify(recentTransactionWindowStore, times(2)).recordAndGetWindow(message);
+        verify(fraudRuleEngine).evaluate(message, windowResult);
+        verify(fraudDetectionResultService).saveResult(message, ruleResult);
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
+    void redeliveryAfterResultSaveSkipsRedisAndResultSinkOnSecondDelivery() {
+        TransactionEventMessage message = message("evt-listener-after-result-fail-once");
+        ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                24L,
+                "user-1001",
+                message
+        );
+        Acknowledgment acknowledgment = mock(Acknowledgment.class);
+        TransactionEventListener drillListener = listenerWithDrill(
+                message.eventId(),
+                StatefulRedeliveryFailurePoint.AFTER_RESULT_SAVE_BEFORE_ACK
+        );
+        RecentTransactionWindowResult windowResult = normalWindowResult();
+        FraudRuleEngineResult ruleResult = lowRiskResult();
+        when(processingLogService.recordProcessedEvent(
+                message,
+                KafkaTopicNames.TRANSACTION_EVENTS,
+                0,
+                24L,
+                "fraud-event-consumer"
+        )).thenReturn(ProcessingLogResult.processed());
+        when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false, true);
+        when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);
+        when(fraudRuleEngine.evaluate(message, windowResult)).thenReturn(ruleResult);
+        when(fraudDetectionResultService.saveResult(message, ruleResult))
+                .thenReturn(FraudDetectionResultSaveResult.saved());
+
+        assertThatThrownBy(() -> drillListener.onMessage(record, acknowledgment))
+                .isInstanceOf(StatefulRedeliveryDrillException.class);
+        drillListener.onMessage(record, acknowledgment);
+
+        verify(recentTransactionWindowStore).recordAndGetWindow(message);
+        verify(fraudRuleEngine).evaluate(message, windowResult);
+        verify(fraudDetectionResultService).saveResult(message, ruleResult);
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
     void doesNotAcknowledgeWhenProcessingLogSaveFails() {
         TransactionEventMessage message = message("evt-listener-fail");
         ConsumerRecord<String, TransactionEventMessage> record = new ConsumerRecord<>(
@@ -434,5 +559,33 @@ class TransactionEventListenerTest {
 
     private org.assertj.core.api.AbstractDoubleAssert<?> assertThatMetric(String metricName) {
         return org.assertj.core.api.Assertions.assertThat(meterRegistry.counter(metricName).count());
+    }
+
+    private TransactionEventListener listenerWithDrill(
+            String eventId,
+            StatefulRedeliveryFailurePoint failurePoint
+    ) {
+        return new TransactionEventListener(
+                processingLogService,
+                recentTransactionWindowStore,
+                fraudRuleEngine,
+                fraudDetectionResultService,
+                deadLetterEventService,
+                new StatefulRedeliveryFailureInjector(new StatefulRedeliveryDrillProperties(
+                        true,
+                        eventId,
+                        failurePoint,
+                        true,
+                        Duration.ZERO
+                )),
+                metrics,
+                clock,
+                "fraud-event-consumer",
+                Duration.ofMillis(500)
+        );
+    }
+
+    private StatefulRedeliveryFailureInjector disabledRedeliveryFailureInjector() {
+        return new StatefulRedeliveryFailureInjector(StatefulRedeliveryDrillProperties.disabled());
     }
 }

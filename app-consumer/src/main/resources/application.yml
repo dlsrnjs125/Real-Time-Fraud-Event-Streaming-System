@@ -26,6 +26,12 @@ spring:
 fraud:
   consumer:
     concurrency: ${FRAUD_CONSUMER_CONCURRENCY:1}
+    redelivery-drill:
+      enabled: false
+      event-id: ""
+      failure-point: NONE
+      fail-once: true
+      pause-before-throw: 0ms
   sliding-window:
     window: 5m
     max-events: 5
