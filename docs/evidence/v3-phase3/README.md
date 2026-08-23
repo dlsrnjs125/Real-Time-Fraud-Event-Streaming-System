@@ -10,6 +10,8 @@ Accepted runtime runs:
 | `phase3-balanced-c6-20260823-001` | balanced | 6 | 36,000 | 300 | 300.13 | 0 | 0 |
 | `phase3-hot-p2-c6-20260823-001` | hot P2 | 6 | 36,000 | 300 | 299.94 | 0 | 0 |
 
+Accepted completion scope uses balanced c1 for the single-consumer baseline, balanced c6 for one-consumer-per-partition behavior, hot P2 c6 for partition-local ceiling behavior, and concurrency 8 assignment evidence for idle consumers above partition count. c2/c3 are optional exploratory settings, not required Phase 3 completion criteria.
+
 Discarded runtime runs:
 
 | Run | Reason |

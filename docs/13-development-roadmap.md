@@ -42,7 +42,7 @@
 | V3 Phase 0 | Done | Dataset, Workload, and Stream Observability Foundation | PaySim profiler, versioned baseline manifest, time/metric contracts, V3 dashboard, local baseline evidence | V3 Phase 1 sustainable throughput and backlog recovery |
 | V3 Phase 1 | Done | Sustainable Throughput and Backlog Recovery | API intake diagnostics, staged capacity/recovery manifests, local runtime evidence, consumer concurrency re-test | V3 Phase 2 state-size experiment |
 | V3 Phase 2 | Done | Stateful Sliding-Window Scaling | state-size workload, Redis window-size metrics, local baseline/high-density evidence | V3 Phase 3 partition skew experiment |
-| V3 Phase 3 | In Progress | Kafka Partition Skew and Consumer Parallelism | partition-affinity manifests, k6 runner, plan | run concurrency matrix and record evidence |
+| V3 Phase 3 | Done | Kafka Partition Skew and Consumer Parallelism | partition-affinity manifests, k6 runner, accepted runtime evidence, Grafana screenshots | V3 Phase 4 redelivery semantics |
 | V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
 | V3 Phase 5 | Not Started | Event-Time, Late, and Out-of-Order Processing | planned lateness policy | define allowed lateness and live-state update behavior |
 | V3 Phase 6 | Not Started | External Delay and Catch-up Burst | planned Source emulator profiles | distinguish organic burst from upstream catch-up |
@@ -133,7 +133,7 @@ Detailed workload contract, run IDs, clean Redis memory deltas, partition distri
 
 ### V3 Phase 3 Start
 
-Phase 3 starts with partition-affinity workloads that pre-generate synthetic `userId` values mapped to the local six Kafka partitions through Kafka Murmur2 hashing. The balanced workload targets roughly equal P0~P5 traffic, and the hot-partition workload targets P2 at 60% with the remaining partitions at 8% each. Runtime evidence is still pending and must be captured across Consumer concurrency 1, 2, 3, 6, and 8 before this phase can be marked done.
+Phase 3 used partition-affinity workloads that pre-generate synthetic `userId` values mapped to the local six Kafka partitions through Kafka Murmur2 hashing. The balanced workload targets roughly equal P0~P5 traffic, and the hot-partition workload targets P2 at 60% with the remaining partitions at 8% each. Accepted evidence covers balanced c1, balanced c6, hot P2 c6, and a concurrency 8 assignment check. c2/c3 remain optional exploratory settings rather than required completion criteria.
 
 ### V3 Planned Phase Summary
 

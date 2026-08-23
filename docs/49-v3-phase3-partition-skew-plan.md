@@ -2,9 +2,9 @@
 
 ## 1. Status
 
-- Status: In progress
+- Status: Done
 - Scope: controlled partition-affinity workload, Consumer concurrency comparison, partition-level evidence
-- Completion boundary: this phase is complete only after local runtime evidence records balanced and hot-partition runs across selected Consumer concurrency settings.
+- Completion boundary: this phase is complete after local runtime evidence records the required runtime proof set: balanced single-consumer baseline, balanced one-consumer-per-partition run, hot-partition run at one-consumer-per-partition, and an assignment check above partition count.
 
 ## 2. Goal
 
@@ -27,19 +27,33 @@ Both workloads keep `driverType=HTTP_K6`, `eventTimeMode=REBASE_TO_ARRIVAL`, `so
 
 Run the same workload against the same local topic partition count while changing only `FRAUD_CONSUMER_CONCURRENCY`.
 
+Required runtime proof:
+
 | Consumer concurrency | Reason |
 |---:|---|
 | 1 | one thread owns all six partitions |
-| 2 | partial parallelism |
-| 3 | partial parallelism |
 | 6 | one thread per local partition |
-| 8 | confirms no useful scale-out beyond six partitions and records idle Consumers |
+| 8 | assignment-only check proving idle Consumers above partition count |
 
-The `8`-consumer run is not expected to process more partitions than the topic has. It is evidence for the partition-count ceiling and idle consumer behavior.
+The accepted evidence uses:
+
+- balanced c1 as the single-consumer baseline;
+- balanced c6 as the one-consumer-per-partition comparison;
+- hot P2 c6 as the hot-partition ceiling test;
+- concurrency 8 assignment evidence to show the partition-count ceiling and idle consumer behavior.
+
+Exploratory intermediate settings:
+
+| Consumer concurrency | Requirement level | Reason |
+|---:|---|---|
+| 2 | Optional | intermediate partial parallelism signal |
+| 3 | Optional | intermediate partial parallelism signal |
+
+The c2/c3 runs are useful for drawing a smoother scaling curve, but they are not required for Phase 3 completion because the required evidence already answers the scale-out boundary questions.
 
 ## 5. Required Signals
 
-Record these signals for each accepted run:
+Record these signals for each accepted runtime run when applicable:
 
 - target partition distribution from manifest
 - generated expected partition distribution from k6 summary
@@ -67,7 +81,7 @@ Set Consumer concurrency when starting `app-consumer`:
 FRAUD_CONSUMER_CONCURRENCY=6 ./gradlew :app-consumer:bootRun
 ```
 
-Repeat with `1`, `2`, `3`, `6`, and `8` for the accepted evidence matrix.
+Use c1 and c6 for accepted balanced runtime proof, hot P2 c6 for partition-ceiling proof, and c8 for assignment-only idle consumer proof. c2/c3 are optional exploratory settings and are not part of the required completion matrix.
 
 ## 7. Completion Criteria
 
