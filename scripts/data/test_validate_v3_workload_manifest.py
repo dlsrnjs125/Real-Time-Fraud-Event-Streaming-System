@@ -57,6 +57,11 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
                 manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
                 validator.validate_manifest(manifest)
 
+    def test_committed_phase4_stateful_redelivery_manifest_is_valid(self):
+        manifest = json.loads((WORKLOAD_DIR / "stateful-redelivery-v1.json").read_text(encoding="utf-8"))
+
+        validator.validate_manifest(manifest)
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"

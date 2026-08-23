@@ -1653,3 +1653,21 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 - concurrency 8에서 partition 수를 초과한 Consumer가 idle 상태로 남는가
 - hot partition에서 partition Lag이 증가할 때 API/Kafka publish/Redis/sink 지표와 분리해 설명할 수 있는가
 - final receipt/result/processing-log count가 각 run의 emitted event count와 일치하는가
+
+## V3 Phase 4 Redelivery Stateful Semantics Review
+
+### 검토 결론
+
+- Phase 4는 DB result 중복 방어만이 아니라 Redis sliding-window state와 후속 fraud decision의 의미가 재전달 후에도 설명 가능한지 검증하는 범위입니다.
+- `StatefulRedeliveryFailureInjector`를 추가해 local drill에서만 세 실패 지점을 재현할 수 있게 했습니다.
+- 기본 설정은 `fraud.consumer.redelivery-drill.enabled=false`이므로 일반 Consumer 실행에는 영향을 주지 않습니다.
+- 실패 지점은 `BEFORE_REDIS_UPDATE`, `AFTER_REDIS_UPDATE_BEFORE_RESULT`, `AFTER_RESULT_SAVE_BEFORE_ACK`입니다.
+- `AFTER_RESULT_SAVE_BEFORE_ACK` 재전달은 fraud result duplicate precheck에서 Redis/rule/result sink를 건너뛰어야 합니다.
+- `STATEFUL_REDELIVERY` workload role과 deterministic k6 workload를 추가해 drill target `eventId`를 재현 가능하게 만들었습니다.
+
+### 검증 포인트
+
+- failure before Redis update에서 Redis state가 변하지 않는가
+- failure after Redis update에서 같은 `eventId`가 ZSET member로 재전달되어 count가 증가하지 않는가
+- failure after result save before ack에서 redelivery가 Redis와 result sink를 재실행하지 않는가
+- runtime evidence에서 Redis ZCARD, amount sum, fraud result count, next-event decision, final Consumer Lag를 함께 기록하는가

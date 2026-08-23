@@ -9,6 +9,8 @@ import com.example.fraud.consumer.fraud.FraudDetectionResultService;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import com.example.fraud.consumer.processing.EventProcessingLogService;
 import com.example.fraud.consumer.processing.ProcessingLogResult;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryFailureInjector;
+import com.example.fraud.consumer.redelivery.StatefulRedeliveryFailurePoint;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
 import com.example.fraud.consumer.redis.RecentTransactionWindowStore;
 import com.example.fraud.consumer.rule.FraudRuleEngine;
@@ -35,6 +37,7 @@ public class TransactionEventListener {
     private final FraudRuleEngine fraudRuleEngine;
     private final FraudDetectionResultService fraudDetectionResultService;
     private final DeadLetterEventService deadLetterEventService;
+    private final StatefulRedeliveryFailureInjector redeliveryFailureInjector;
     private final FraudConsumerMetrics metrics;
     private final Clock clock;
     private final String consumerGroupId;
@@ -46,6 +49,7 @@ public class TransactionEventListener {
             FraudRuleEngine fraudRuleEngine,
             FraudDetectionResultService fraudDetectionResultService,
             DeadLetterEventService deadLetterEventService,
+            StatefulRedeliveryFailureInjector redeliveryFailureInjector,
             FraudConsumerMetrics metrics,
             Clock clock,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId,
@@ -56,6 +60,7 @@ public class TransactionEventListener {
         this.fraudRuleEngine = fraudRuleEngine;
         this.fraudDetectionResultService = fraudDetectionResultService;
         this.deadLetterEventService = deadLetterEventService;
+        this.redeliveryFailureInjector = redeliveryFailureInjector;
         this.metrics = metrics;
         this.clock = clock;
         this.consumerGroupId = consumerGroupId;
@@ -123,10 +128,15 @@ public class TransactionEventListener {
             return;
         }
 
+        redeliveryFailureInjector.failIfConfigured(StatefulRedeliveryFailurePoint.BEFORE_REDIS_UPDATE, message);
         TimedResult<RecentTransactionWindowResult> redisWindow = time(
                 () -> recentTransactionWindowStore.recordAndGetWindow(message)
         );
         RecentTransactionWindowResult windowResult = redisWindow.result();
+        redeliveryFailureInjector.failIfConfigured(
+                StatefulRedeliveryFailurePoint.AFTER_REDIS_UPDATE_BEFORE_RESULT,
+                message
+        );
         FraudRuleEngineResult ruleResult;
         TimedResult<FraudRuleEngineResult> ruleProcessing;
         try {
@@ -146,6 +156,10 @@ public class TransactionEventListener {
         if (!saveResult.duplicateSkipped()) {
             metrics.recordDetectionProcessingLatency(Duration.between(processingStartedAt, clock.instant()));
         }
+        redeliveryFailureInjector.failIfConfigured(
+                StatefulRedeliveryFailurePoint.AFTER_RESULT_SAVE_BEFORE_ACK,
+                message
+        );
 
         acknowledgment.acknowledge();
         logSlowEventIfNeeded(

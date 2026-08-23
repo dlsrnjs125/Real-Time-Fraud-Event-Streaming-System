@@ -64,6 +64,23 @@ Consumer가 죽어도 Kafka topic에 이벤트는 남아 있습니다. 처리 �
 
 Phase 4에서는 같은 offset이 재소비되었고 이미 processing log가 있으면 duplicate log를 새로 만들지 않고 ack 가능합니다. 이 정책은 DB 저장 성공 후 ack 직전에 Consumer가 죽는 경우를 대비한 trade-off입니다. FraudResult가 아직 없으므로 eventId 기준 비즈니스 idempotency는 적용하지 않습니다.
 
+## 4.1 V3 Phase 4 Stateful Redelivery Drill
+
+V3 Phase 4에서는 Consumer redelivery를 세 stateful failure point에서 재현합니다.
+
+- `BEFORE_REDIS_UPDATE`: Redis state 변경 전 실패
+- `AFTER_REDIS_UPDATE_BEFORE_RESULT`: Redis state 변경 후 fraud result 저장 전 실패
+- `AFTER_RESULT_SAVE_BEFORE_ACK`: fraud result 저장 후 ack 전 실패
+
+기본 정책:
+
+- drill injector는 `fraud.consumer.redelivery-drill.enabled=false`가 기본값입니다.
+- drill failure는 DLT로 보내지 않고 runtime exception으로 남겨 offset commit을 막습니다.
+- `AFTER_REDIS_UPDATE_BEFORE_RESULT` 재전달에서는 Redis ZSET member가 같은 `eventId`이므로 window count가 증가하지 않아야 합니다.
+- `AFTER_RESULT_SAVE_BEFORE_ACK` 재전달에서는 fraud result duplicate precheck가 Redis/rule/result sink를 건너뛰어야 합니다.
+
+이 섹션은 local runtime drill 재현성을 위한 정책이며, 운영 장애 주입 기능을 의미하지 않습니다.
+
 ## 5. Phase 9 DLT 저장 기준
 
 DLT 이벤트는 자동으로 무한 재처리하지 않습니다. 운영자 API를 통해 실패 원인을 확인하고, 재처리 가능한 이벤트만 명시적으로 재처리합니다.

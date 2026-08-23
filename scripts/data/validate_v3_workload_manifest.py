@@ -12,6 +12,7 @@ from typing import Any
 import jsonschema
 
 SCHEMA_PATH = Path(__file__).parents[2] / "load-test" / "workloads" / "v3" / "workload-manifest.schema.json"
+STATEFUL_WINDOW_ROLES = {"STATEFUL_WINDOW_SCALING", "STATEFUL_REDELIVERY"}
 
 
 class ManifestError(ValueError):
@@ -55,10 +56,10 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_partition_skew(manifest)
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
-    if role == "STATEFUL_WINDOW_SCALING":
+    if role in STATEFUL_WINDOW_ROLES:
         validate_stateful_window_profile(manifest)
     elif manifest["statefulWindowProfile"] is not None:
-        raise ManifestError("statefulWindowProfile is only allowed for STATEFUL_WINDOW_SCALING")
+        raise ManifestError("statefulWindowProfile is only allowed for stateful workload roles")
 
 
 def validate_partition_skew(manifest: dict[str, Any]) -> None:
@@ -85,12 +86,12 @@ def validate_partition_skew(manifest: dict[str, Any]) -> None:
 def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
     profile = manifest["statefulWindowProfile"]
     if profile is None:
-        raise ManifestError("STATEFUL_WINDOW_SCALING requires statefulWindowProfile")
+        raise ManifestError("stateful workload roles require statefulWindowProfile")
 
     duration_seconds = parse_duration_seconds(manifest["duration"])
     runtime_window_seconds = parse_duration_seconds(profile["runtimeWindow"])
     if duration_seconds > runtime_window_seconds:
-        raise ManifestError("STATEFUL_WINDOW_SCALING duration must fit inside runtimeWindow")
+        raise ManifestError("stateful workload duration must fit inside runtimeWindow")
 
     expected_average = manifest["eventLimit"] / manifest["userCardinality"]
     expected_max = (manifest["eventLimit"] + manifest["userCardinality"] - 1) // manifest["userCardinality"]

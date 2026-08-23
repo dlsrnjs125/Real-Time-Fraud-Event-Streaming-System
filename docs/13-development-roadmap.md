@@ -43,7 +43,7 @@
 | V3 Phase 1 | Done | Sustainable Throughput and Backlog Recovery | API intake diagnostics, staged capacity/recovery manifests, local runtime evidence, consumer concurrency re-test | V3 Phase 2 state-size experiment |
 | V3 Phase 2 | Done | Stateful Sliding-Window Scaling | state-size workload, Redis window-size metrics, local baseline/high-density evidence | V3 Phase 3 partition skew experiment |
 | V3 Phase 3 | Done | Kafka Partition Skew and Consumer Parallelism | partition-affinity manifests, k6 runner, accepted runtime evidence, Grafana screenshots | V3 Phase 4 redelivery semantics |
-| V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
+| V3 Phase 4 | In Progress | Redelivery and Stateful Processing Semantics | redelivery drill injector, deterministic workload, plan | run failure-point drills and record runtime evidence |
 | V3 Phase 5 | Not Started | Event-Time, Late, and Out-of-Order Processing | planned lateness policy | define allowed lateness and live-state update behavior |
 | V3 Phase 6 | Not Started | External Delay and Catch-up Burst | planned Source emulator profiles | distinguish organic burst from upstream catch-up |
 | V3 Phase 7 | Not Started | Historical Replay Isolation | planned live/replay isolation | isolate topic/group/state/metrics and replay rate |

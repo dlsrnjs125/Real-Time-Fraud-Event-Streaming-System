@@ -41,6 +41,7 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | V3 Phase 2 State Pressure | `make k6-v3-phase2-state-pressure` | Same EPS/event count with higher per-user Redis window density |
 | V3 Phase 3 Partition Balanced | `make k6-v3-phase3-partition-balanced` | Partition-affinity workload targeting balanced local partition shares |
 | V3 Phase 3 Partition Skew | `make k6-v3-phase3-partition-skew` | Partition-affinity workload targeting a hot P2 partition |
+| V3 Phase 4 Stateful Redelivery | `make k6-v3-phase4-stateful-redelivery` | Deterministic single-user stream for redelivery failure-point drills |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -69,3 +70,5 @@ Phase 1 workloads additionally require `V3_WORKLOAD_MANIFEST`, which the Makefil
 Phase 2 state-size workloads keep EPS, duration, event amount, and total event count fixed while changing `userCardinality`. Compare `fraud.redis.window.event.count`, `fraud.redis.window.amount.sum`, `fraud.redis.state.latency`, Consumer service latency, Redis memory, and Consumer Lag over the same Grafana time range.
 
 Phase 3 partition workloads use `PARTITION_AFFINITY` manifests. The k6 runner pre-generates synthetic `userId` values whose Kafka Murmur2 key hash maps to the configured local partitions, then emits events according to `targetPartitionDistribution`. User assignment uses a per-partition occurrence counter so partition skew is not accidentally implemented as hot-user pressure. Confirm achieved distribution with Kafka exporter metrics or processing logs after the run.
+
+Phase 4 stateful redelivery workload emits a deterministic single-user event stream. The k6 summary records `drillTargetEventId`; start `app-consumer` with `fraud.consumer.redelivery-drill.enabled=true`, that `event-id`, and one of `BEFORE_REDIS_UPDATE`, `AFTER_REDIS_UPDATE_BEFORE_RESULT`, or `AFTER_RESULT_SAVE_BEFORE_ACK` to reproduce stateful redelivery failure points.
