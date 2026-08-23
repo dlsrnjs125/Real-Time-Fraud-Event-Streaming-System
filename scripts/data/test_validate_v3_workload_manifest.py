@@ -39,6 +39,15 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
                 manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
                 validator.validate_manifest(manifest)
 
+    def test_committed_phase2_stateful_manifests_are_valid(self):
+        for filename in [
+            "state-size-baseline-v1.json",
+            "state-size-high-density-v1.json",
+        ]:
+            with self.subTest(filename=filename):
+                manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
+                validator.validate_manifest(manifest)
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"
@@ -91,6 +100,33 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         invalid = json.loads((WORKLOAD_DIR / "capacity-discovery-v1.json").read_text(encoding="utf-8"))
         invalid["targetEps"] = 999
         with self.assertRaisesRegex(validator.ManifestError, "targetEps must equal"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stateful_window_profile_on_non_stateful_workload(self):
+        invalid = copy.deepcopy(self.manifest)
+        invalid["statefulWindowProfile"] = {
+            "runtimeWindow": "5m",
+            "expectedEventsPerUserInWindow": 3,
+            "expectedMaxEventsPerUserInWindow": 3,
+            "eventAmount": 250000,
+            "expectedAmountSumPerUserInWindow": 750000,
+        }
+
+        with self.assertRaisesRegex(validator.ManifestError, "only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stateful_window_duration_larger_than_runtime_window(self):
+        invalid = json.loads((WORKLOAD_DIR / "state-size-baseline-v1.json").read_text(encoding="utf-8"))
+        invalid["duration"] = "10m"
+
+        with self.assertRaisesRegex(validator.ManifestError, "duration must fit inside runtimeWindow"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_stateful_window_density_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "state-size-baseline-v1.json").read_text(encoding="utf-8"))
+        invalid["statefulWindowProfile"]["expectedEventsPerUserInWindow"] = 999
+
+        with self.assertRaisesRegex(validator.ManifestError, "expectedEventsPerUserInWindow"):
             validator.validate_manifest(invalid)
 
 

@@ -25,12 +25,13 @@
     "timeScaleFactor",
     "latenessProfile",
     "replayRate",
+    "statefulWindowProfile",
     "randomSeed"
   ],
   "properties": {
     "workloadId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
     "workloadVersion": {"type": "string", "pattern": "^v[0-9]+$"},
-    "workloadRole": {"enum": ["VOLUME_CORRECTNESS", "NORMAL_CAPACITY", "ORGANIC_BURST", "CATCH_UP_BURST", "USER_SKEW", "PARTITION_SKEW", "LATE_OUT_OF_ORDER", "HISTORICAL_REPLAY"]},
+    "workloadRole": {"enum": ["VOLUME_CORRECTNESS", "NORMAL_CAPACITY", "ORGANIC_BURST", "CATCH_UP_BURST", "USER_SKEW", "PARTITION_SKEW", "STATEFUL_WINDOW_SCALING", "LATE_OUT_OF_ORDER", "HISTORICAL_REPLAY"]},
     "datasetVersion": {"type": "string", "minLength": 1},
     "driverType": {"enum": ["HTTP_K6", "HTTP_SOURCE_EMULATOR", "KAFKA_DIRECT_PRODUCER"]},
     "targetEps": {"type": "number", "exclusiveMinimum": 0},
@@ -48,6 +49,25 @@
     "timeScaleFactor": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "latenessProfile": {"type": ["object", "null"]},
     "replayRate": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "statefulWindowProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "runtimeWindow",
+        "expectedEventsPerUserInWindow",
+        "expectedMaxEventsPerUserInWindow",
+        "eventAmount",
+        "expectedAmountSumPerUserInWindow"
+      ],
+      "properties": {
+        "runtimeWindow": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"},
+        "expectedEventsPerUserInWindow": {"type": "number", "minimum": 0},
+        "expectedMaxEventsPerUserInWindow": {"type": "number", "minimum": 0},
+        "eventAmount": {"type": "number", "minimum": 0},
+        "expectedAmountSumPerUserInWindow": {"type": "number", "minimum": 0},
+        "note": {"type": "string"}
+      }
+    },
     "randomSeed": {"type": "integer", "minimum": 0},
     "stages": {
       "type": ["array", "null"],

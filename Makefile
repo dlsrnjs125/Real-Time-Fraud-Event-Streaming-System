@@ -1,4 +1,4 @@
-.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke profile-paysim-v3 validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 verify-v3-workload-manifests verify-v3-phase0 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down k6-v3-baseline k6-v3-phase1-capacity k6-v3-phase1-knee k6-v3-phase1-recovery final-check
+.PHONY: help build test test-common test-api test-consumer redis-integration-test failure-drill-redis failure-drill-consumer failure-drill-dlt dlt-drill failure-drill ci-check clean api consumer infra-up infra-down infra-ps infra-logs infra-config observability-check observability-rules-check scripts-check data-env data-python-check data-policy-check download-paysim prepare-paysim prepare-paysim-smoke profile-paysim-v3 validate-paysim validate-paysim-strict generate-paysim-sample generate-paysim-sample-strict replay-paysim-sample replay-paysim-sample-dry-run replay-paysim-processed-smoke evaluate-paysim-sample evaluate-paysim-sample-no-replay-report evaluate-paysim-replay evaluate-paysim-native-replay evaluate-paysim-threshold-policy-report evaluate-paysim-threshold-regression verify-paysim-evaluation-report-contract verify-paysim-native-replay-contract verify-paysim-rule-threshold-regression verify-paysim-rule-version-contract verify-paysim-result-rule-version-contract verify-v2-phase7 verify-v2-phase8 verify-v2-phase9 verify-v2-phase11 verify-v2-phase12 verify-v2-phase13 verify-v3-workload-manifests verify-v3-phase0 v2-phase7-evidence v2-phase8-evidence v2-phase9-evidence test-data-scripts test-data-scripts-ci topics smoke k6-smoke k6-normal k6-peak k6-duplicate k6-duplicate-check k6-redis-down k6-v3-baseline k6-v3-phase1-capacity k6-v3-phase1-knee k6-v3-phase1-recovery k6-v3-phase2-state-baseline k6-v3-phase2-state-pressure final-check
 
 DATA_VENV_DIR ?= .venv-data
 DATA_PYTHON := $(DATA_VENV_DIR)/bin/python
@@ -72,6 +72,8 @@ help:
 	@echo "  make k6-v3-phase1-capacity - Run V3 Phase 1 capacity discovery workload"
 	@echo "  make k6-v3-phase1-knee - Run V3 Phase 1 knee confirmation workload"
 	@echo "  make k6-v3-phase1-recovery - Run V3 Phase 1 backlog recovery workload"
+	@echo "  make k6-v3-phase2-state-baseline - Run V3 Phase 2 low Redis state-size workload"
+	@echo "  make k6-v3-phase2-state-pressure - Run V3 Phase 2 high Redis state-size workload"
 	@echo "  make final-check    - Run Phase validation checks"
 
 build:
@@ -255,7 +257,9 @@ verify-v3-workload-manifests: data-env
 		load-test/workloads/v3/normal-baseline-v1.json \
 		load-test/workloads/v3/capacity-discovery-v1.json \
 		load-test/workloads/v3/knee-confirmation-v1.json \
-		load-test/workloads/v3/backlog-recovery-v1.json
+		load-test/workloads/v3/backlog-recovery-v1.json \
+		load-test/workloads/v3/state-size-baseline-v1.json \
+		load-test/workloads/v3/state-size-high-density-v1.json
 
 verify-v3-phase0: test-data-scripts data-policy-check verify-v3-workload-manifests
 
@@ -311,5 +315,13 @@ k6-v3-phase1-knee:
 k6-v3-phase1-recovery:
 	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase1-recovery-before-001 make k6-v3-phase1-recovery" && exit 1)
 	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=backlog-recovery-v1.json run load-test/k6/scenarios/v3-phase1-throughput.js
+
+k6-v3-phase2-state-baseline:
+	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase2-state-baseline-001 make k6-v3-phase2-state-baseline" && exit 1)
+	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=state-size-baseline-v1.json run load-test/k6/scenarios/v3-phase2-stateful-window.js
+
+k6-v3-phase2-state-pressure:
+	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase2-state-pressure-001 make k6-v3-phase2-state-pressure" && exit 1)
+	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=state-size-high-density-v1.json run load-test/k6/scenarios/v3-phase2-stateful-window.js
 
 final-check: build infra-config observability-check scripts-check verify-v2-phase13 verify-v3-phase0

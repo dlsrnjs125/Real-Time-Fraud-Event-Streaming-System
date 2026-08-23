@@ -61,10 +61,14 @@ Redis timeout은 Consumer thread가 Redis 장애에 오래 묶이지 않도록 `
 
 - `fraud.redis.window.record.latency`: Redis window record/get 처리 시간
 - `fraud.redis.window.degraded.total`: Redis 장애 중 degraded window result 횟수
+- `fraud.redis.window.event.count`: Redis window 안에 남은 유효 이벤트 수 분포
+- `fraud.redis.window.amount.sum`: Redis window 안에 남은 유효 거래 금액 합계 분포
 - `fraud.detection.degraded.total`: `degraded=true` fraud result 저장 횟수
 - `fraud.rule.skipped.total{rule=...}`: Redis 기반 rule skipped count
 
 Redis command latency는 `RecentTransactionWindowStore.recordAndGetWindow` 호출 전체를 기준으로 측정합니다. 이 위치는 Hash 저장, ZSET 갱신, cleanup, TTL, window 조회를 모두 포함하므로 Consumer가 Redis 때문에 얼마나 묶이는지 확인하기에 적합합니다.
+
+Window count/amount metrics는 state-size experiment용 분포 신호입니다. `userId`, `eventId`, `traceId`, Kafka offset 같은 high-cardinality tag는 붙이지 않습니다.
 
 ## 6. TTL and Cleanup
 

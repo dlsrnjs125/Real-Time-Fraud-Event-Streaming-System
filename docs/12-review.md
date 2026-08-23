@@ -1604,3 +1604,30 @@ make final-check
 - Consumer service p99 상승 시 Processing Log, Duplicate Guard, Redis, Rule, Result Sink 중 어느 경계가 지배적인지 확인합니다.
 - API latency 상승 시 Kafka publish wait과 Hikari active/pending을 함께 확인해 원인과 전파 결과를 분리합니다.
 - 새 workload manifest는 JSON Schema 구조 검증과 Python semantic 검증을 모두 통과해야 합니다.
+
+## V3 Phase 2 Stateful Window Review
+
+### 검토 결론
+
+- Phase 2는 Redis sliding-window state-size 실험으로 제한했고, Redis data-structure 최적화나 partition skew 실험은 다음 단계로 넘겼습니다.
+- `STATEFUL_WINDOW_SCALING` workload role과 `statefulWindowProfile`을 추가해 user cardinality, expected window count, expected amount sum을 manifest에서 검증하도록 했습니다.
+- Redis window event count와 amount sum metric은 분포 evidence용으로 추가했고, `userId`, `eventId`, `traceId`, Kafka offset tag는 붙이지 않았습니다.
+- Baseline과 high-density run은 EPS, duration, total event count, event amount, Consumer concurrency를 고정하고 user cardinality만 바꿨습니다.
+- Histogram quantile은 coarse bucket interpolation으로 observed max를 초과할 수 있어, configured state-size 확인에는 max gauge를 기준으로 문서화했습니다.
+
+### 검증 기록
+
+```bash
+make verify-v3-workload-manifests
+python3 -m unittest scripts.data.test_validate_v3_workload_manifest
+k6 inspect -e V3_RUN_ID=phase2-inspect-baseline -e V3_WORKLOAD_MANIFEST=state-size-baseline-v1.json load-test/k6/scenarios/v3-phase2-stateful-window.js
+./gradlew :app-api:test :app-consumer:test
+V3_RUN_ID=phase2-state-baseline-20260823-003 make k6-v3-phase2-state-baseline
+V3_RUN_ID=phase2-state-pressure-20260823-001 make k6-v3-phase2-state-pressure
+```
+
+### 남은 한계
+
+- HTTP k6 driver evidence이므로 direct Kafka producer evidence와 섞어 해석하지 않습니다.
+- User cardinality 압박만 검증했고 Kafka partition affinity skew는 V3 Phase 3에서 별도로 검증합니다.
+- Redis command batching, Lua script, data-structure 변경은 아직 구현하지 않았습니다.

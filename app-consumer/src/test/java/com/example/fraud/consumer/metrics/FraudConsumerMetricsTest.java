@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.fraud.common.event.FraudRuleCode;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -50,6 +51,25 @@ class FraudConsumerMetricsTest {
                 .isEqualTo(1);
         assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_STATE_LATENCY).count())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void recordsRedisWindowStateDistributionsWithoutHighCardinalityTags() {
+        metrics.recordRedisWindowState(120, BigDecimal.valueOf(12_000_000));
+        metrics.recordRedisWindowState(-1, BigDecimal.valueOf(-1));
+
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_EVENT_COUNT).count())
+                .isEqualTo(1);
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_EVENT_COUNT).totalAmount())
+                .isEqualTo(120);
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_AMOUNT_SUM).count())
+                .isEqualTo(1);
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_AMOUNT_SUM).totalAmount())
+                .isEqualTo(12_000_000);
+        assertThat(meterRegistry.getMeters())
+                .filteredOn(meter -> meter.getId().getName().startsWith("fraud.redis.window"))
+                .allSatisfy(meter -> assertThat(meter.getId().getTags())
+                        .noneMatch(tag -> tag.getKey().matches("eventId|traceId|userId|accountId|offset")));
     }
 
     @Test

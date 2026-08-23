@@ -19,5 +19,6 @@
   "timeScaleFactor": null,
   "latenessProfile": null,
   "replayRate": null,
+  "statefulWindowProfile": null,
   "randomSeed": 310519
 }

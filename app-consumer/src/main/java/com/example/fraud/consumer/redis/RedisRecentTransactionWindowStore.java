@@ -80,6 +80,7 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
 
         Set<String> eventIds = zSet.rangeByScore(userEventsKey, windowStartMillis, eventTimeMillis);
         if (eventIds == null || eventIds.isEmpty()) {
+            metrics.recordRedisWindowState(0, BigDecimal.ZERO);
             return RecentTransactionWindowResult.normal(0, BigDecimal.ZERO);
         }
 
@@ -91,6 +92,7 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
                 .toList();
         BigDecimal amountSum = validAmounts.stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        metrics.recordRedisWindowState(validAmounts.size(), amountSum);
 
         return RecentTransactionWindowResult.normal(validAmounts.size(), amountSum);
     }
