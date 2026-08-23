@@ -1,0 +1,25 @@
+Run context:
+- Consumer concurrency: 8
+- Topic partitions: 6
+- Consumer group: fraud-event-consumer
+- Command:
+  docker exec fraud-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+    --bootstrap-server localhost:9092 \
+    --describe --group fraud-event-consumer --members --verbose
+
+Output:
+
+GROUP                CONSUMER-ID                                                          HOST            CLIENT-ID                       #PARTITIONS     ASSIGNMENT
+fraud-event-consumer consumer-fraud-event-consumer-3-dd1d4c0d-b74f-476b-a3db-50f1ee499b38 /192.168.65.1   consumer-fraud-event-consumer-3 1               transaction-events(2)
+fraud-event-consumer consumer-fraud-event-consumer-1-dc10051b-2869-4ac1-a6dc-1819a31e82d1 /192.168.65.1   consumer-fraud-event-consumer-1 1               transaction-events(0)
+fraud-event-consumer consumer-fraud-event-consumer-8-0f1f5286-6df0-4de9-ae34-3e43fcf6bde7 /192.168.65.1   consumer-fraud-event-consumer-8 0               -
+fraud-event-consumer consumer-fraud-event-consumer-5-3fde03ef-72ee-4302-a402-58d77b530a0d /192.168.65.1   consumer-fraud-event-consumer-5 1               transaction-events(4)
+fraud-event-consumer consumer-fraud-event-consumer-2-7691ca13-8e5f-4f80-bb33-c595ae62d655 /192.168.65.1   consumer-fraud-event-consumer-2 1               transaction-events(1)
+fraud-event-consumer consumer-fraud-event-consumer-7-503551d4-69aa-41ec-84cb-8ee8cdb969d8 /192.168.65.1   consumer-fraud-event-consumer-7 0               -
+fraud-event-consumer consumer-fraud-event-consumer-4-4690345a-4c24-4298-a175-798354b78b2c /192.168.65.1   consumer-fraud-event-consumer-4 1               transaction-events(3)
+fraud-event-consumer consumer-fraud-event-consumer-6-9fa65974-7379-4170-883b-61087e43fc60 /192.168.65.1   consumer-fraud-event-consumer-6 1               transaction-events(5)
+
+Conclusion:
+- 6 consumers were assigned to 6 partitions.
+- 2 consumers were idle with #PARTITIONS=0.
+- Increasing consumer concurrency beyond topic partition count does not create additional Kafka processing parallelism.

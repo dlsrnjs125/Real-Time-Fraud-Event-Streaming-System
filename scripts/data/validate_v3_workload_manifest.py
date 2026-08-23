@@ -52,12 +52,34 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise ManifestError("PARTITION_SKEW requires PARTITION_AFFINITY")
         if manifest["targetPartitionDistribution"] is None or not manifest["partitionAffinityStrategy"]:
             raise ManifestError("PARTITION_SKEW requires target distribution and affinity strategy")
+        validate_partition_skew(manifest)
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
     if role == "STATEFUL_WINDOW_SCALING":
         validate_stateful_window_profile(manifest)
     elif manifest["statefulWindowProfile"] is not None:
         raise ManifestError("statefulWindowProfile is only allowed for STATEFUL_WINDOW_SCALING")
+
+
+def validate_partition_skew(manifest: dict[str, Any]) -> None:
+    if manifest["eventTimeMode"] != "REBASE_TO_ARRIVAL":
+        raise ManifestError("PARTITION_SKEW requires REBASE_TO_ARRIVAL")
+    if manifest["sourceProfile"] != "NORMAL":
+        raise ManifestError("PARTITION_SKEW requires NORMAL sourceProfile")
+    if manifest["targetUserConcentration"] is not None:
+        raise ManifestError("PARTITION_SKEW must not use targetUserConcentration")
+    if manifest["heavyUserRatio"] != 0:
+        raise ManifestError("PARTITION_SKEW must keep heavyUserRatio at 0")
+    if manifest["partitionAffinityStrategy"] != "KAFKA_MURMUR2_LOCAL_6_PARTITIONS":
+        raise ManifestError("unsupported partitionAffinityStrategy for PARTITION_SKEW")
+
+    distribution = manifest["targetPartitionDistribution"]
+    partitions = sorted(int(partition) for partition in distribution.keys())
+    expected_partitions = list(range(len(partitions)))
+    if partitions != expected_partitions:
+        raise ManifestError("targetPartitionDistribution must use contiguous partitions from 0")
+    if len(partitions) != 6:
+        raise ManifestError("KAFKA_MURMUR2_LOCAL_6_PARTITIONS requires exactly 6 partitions")
 
 
 def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:

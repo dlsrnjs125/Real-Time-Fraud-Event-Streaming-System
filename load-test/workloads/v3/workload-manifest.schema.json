@@ -41,7 +41,11 @@
     "userDistribution": {"enum": ["UNIFORM", "PAYSIM_MEASURED", "SYNTHETIC_USER_SKEW", "PARTITION_AFFINITY"]},
     "heavyUserRatio": {"type": "number", "minimum": 0, "maximum": 1},
     "targetUserConcentration": {"type": ["object", "null"]},
-    "targetPartitionDistribution": {"type": ["object", "null"]},
+    "targetPartitionDistribution": {
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[0-9]+$"},
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}
+    },
     "partitionAffinityStrategy": {"type": ["string", "null"]},
     "sourceProfile": {"enum": ["NORMAL", "SLOW_SOURCE", "BATCH_CATCHUP", "HISTORICAL"]},
     "eventTimeMode": {"enum": ["PRESERVE_SOURCE_TIME", "REBASE_TO_ARRIVAL", "CONTROLLED_LATENESS"]},

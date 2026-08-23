@@ -1633,3 +1633,23 @@ env -u DEBUG V3_PRE_ALLOCATED_VUS=300 V3_MAX_VUS=600 V3_RUN_ID=phase2-state-pres
 - HTTP k6 driver evidence이므로 direct Kafka producer evidence와 섞어 해석하지 않습니다.
 - User cardinality 압박만 검증했고 Kafka partition affinity skew는 V3 Phase 3에서 별도로 검증합니다. Phase 2 pressure workload의 moderate partition distribution movement는 state-size 해석의 제한으로 남깁니다.
 - Redis command batching, Lua script, data-structure 변경은 아직 구현하지 않았습니다.
+
+## V3 Phase 3 Partition Skew Review
+
+### 검토 결론
+
+- Phase 3는 user concentration이 아니라 Kafka partition concentration을 검증하는 범위로 시작했습니다.
+- `PARTITION_SKEW` workload는 `PARTITION_AFFINITY`와 `KAFKA_MURMUR2_LOCAL_6_PARTITIONS` strategy를 요구합니다.
+- k6 runner는 Kafka Murmur2 key hashing을 재현해 partition별 synthetic `userId` pool을 만들고, manifest의 `targetPartitionDistribution`에 따라 이벤트를 전송합니다.
+- user 선택은 global cycle 번호가 아니라 partition별 event occurrence counter를 기준으로 round-robin합니다. 이로써 hot partition 실험이 hot user 또는 Redis state-density 실험으로 섞이지 않도록 했습니다.
+- Balanced workload와 hot-P2 workload는 EPS, duration, event count, user cardinality, random seed를 고정하고 partition distribution만 바꿉니다.
+- Runtime evidence는 balanced c1, balanced c6, hot P2 c6, concurrency 8 assignment check를 required proof set으로 수집했습니다. c2/c3은 smoother scaling curve를 위한 optional exploratory setting이며 Phase 3 완료 조건은 아닙니다.
+
+### 검증 포인트
+
+- k6 summary의 generated expected partition distribution과 Kafka/exporter 또는 processing log의 achieved distribution이 허용 오차 안에 있는가
+- k6 summary의 generated unique users, per-partition unique users, events/user p50/p95/p99/max, top-user share가 user-skew를 만들지 않는가
+- `make verify-v3-phase3-partition-assignment`가 committed Phase 3 manifest에서 all 600 users, 균등 events/user, expected top-user share를 검증하는가
+- concurrency 8에서 partition 수를 초과한 Consumer가 idle 상태로 남는가
+- hot partition에서 partition Lag이 증가할 때 API/Kafka publish/Redis/sink 지표와 분리해 설명할 수 있는가
+- final receipt/result/processing-log count가 각 run의 emitted event count와 일치하는가

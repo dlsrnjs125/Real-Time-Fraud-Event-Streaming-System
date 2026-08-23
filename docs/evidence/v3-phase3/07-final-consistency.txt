@@ -1,0 +1,57 @@
+Accepted run: phase3-balanced-c1-20260823-002
+
+DB counts:
+logs     36000
+results  36000
+receipts 36000
+
+Final lag:
+All transaction-events partitions reached LAG=0 after drain.
+
+Achieved partition distribution:
+P0 6000
+P1 6000
+P2 6000
+P3 6000
+P4 6000
+P5 6000
+
+---
+
+Accepted run: phase3-balanced-c6-20260823-001
+
+DB counts:
+logs     36000
+results  36000
+receipts 36000
+
+Final lag:
+All transaction-events partitions reached LAG=0 after drain.
+
+Achieved partition distribution:
+P0 6000
+P1 6000
+P2 6000
+P3 6000
+P4 6000
+P5 6000
+
+---
+
+Accepted run: phase3-hot-p2-c6-20260823-001
+
+DB counts:
+logs     36000
+results  36000
+receipts 36000
+
+Final lag:
+All transaction-events partitions reached LAG=0 after drain.
+
+Achieved partition distribution:
+P0 2880
+P1 2880
+P2 21600
+P3 2880
+P4 2880
+P5 2880

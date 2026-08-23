@@ -1,0 +1,31 @@
+{
+  "workloadId": "v3-phase3-partition-skew-hot-p2",
+  "workloadVersion": "v1",
+  "workloadRole": "PARTITION_SKEW",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 300,
+  "duration": "120s",
+  "eventLimit": 36000,
+  "userCardinality": 600,
+  "userDistribution": "PARTITION_AFFINITY",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": {
+    "0": 0.08,
+    "1": 0.08,
+    "2": 0.60,
+    "3": 0.08,
+    "4": 0.08,
+    "5": 0.08
+  },
+  "partitionAffinityStrategy": "KAFKA_MURMUR2_LOCAL_6_PARTITIONS",
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "statefulWindowProfile": null,
+  "randomSeed": 630519
+}
