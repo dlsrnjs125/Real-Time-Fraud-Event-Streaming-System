@@ -1,0 +1,31 @@
+{
+  "workloadId": "v3-phase2-state-size-baseline",
+  "workloadVersion": "v1",
+  "workloadRole": "STATEFUL_WINDOW_SCALING",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 100,
+  "duration": "120s",
+  "eventLimit": 12000,
+  "userCardinality": 1000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "statefulWindowProfile": {
+    "runtimeWindow": "5m",
+    "expectedEventsPerUserInWindow": 12,
+    "expectedMaxEventsPerUserInWindow": 12,
+    "eventAmount": 250000,
+    "expectedAmountSumPerUserInWindow": 3000000,
+    "note": "Uniform low-density Redis sliding-window baseline. The 120s run fits inside the 5m runtime window."
+  },
+  "randomSeed": 520519
+}

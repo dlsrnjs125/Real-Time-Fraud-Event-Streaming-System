@@ -1,0 +1,48 @@
+# V3 Phase 2 Final Consistency Evidence
+
+Baseline run:
+- Run ID: phase2-state-baseline-clean-20260823-003
+- PostgreSQL database: fraud_phase2_baseline_clean3
+
+PostgreSQL row counts:
+
+receipts | fraud_results | processing_logs
+---------+---------------+----------------
+12000    | 12000         | 12000
+
+Kafka final Consumer Lag:
+
+partition | current_offset | log_end_offset | lag
+----------+----------------+----------------+----
+0         | 37303          | 37303          | 0
+1         | 37744          | 37744          | 0
+2         | 37747          | 37747          | 0
+3         | 36039          | 36039          | 0
+4         | 36818          | 36818          | 0
+5         | 39330          | 39330          | 0
+
+Pressure run:
+- Run ID: phase2-state-pressure-clean-20260823-001
+- PostgreSQL database: fraud_phase2_pressure_clean
+
+PostgreSQL row counts:
+
+receipts | fraud_results | processing_logs
+---------+---------------+----------------
+12000    | 12000         | 12000
+
+Kafka final Consumer Lag:
+
+partition | current_offset | log_end_offset | lag
+----------+----------------+----------------+----
+0         | 39463          | 39463          | 0
+1         | 39424          | 39424          | 0
+2         | 40747          | 40747          | 0
+3         | 37719          | 37719          | 0
+4         | 38378          | 38378          | 0
+5         | 41250          | 41250          | 0
+
+Interpretation:
+- Both accepted Phase 2 workloads produced matching durable counts.
+- Final Consumer Lag returned to 0 for both runs.
+- Stateful-window pressure did not break persisted processing consistency.

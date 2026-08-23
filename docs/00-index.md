@@ -54,6 +54,8 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)
 - [V3 Phase 1 Sustainable Throughput Plan](45-v3-phase1-sustainable-throughput-plan.md)
 - [V3 Phase 1 Sustainable Throughput Evidence](46-v3-phase1-sustainable-throughput-evidence.md)
+- [V3 Phase 2 Stateful Sliding-Window Plan](47-v3-phase2-stateful-window-plan.md)
+- [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
 
 ## Rule Version Traceability
 

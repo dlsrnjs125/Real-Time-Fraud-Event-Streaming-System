@@ -41,7 +41,7 @@
 | V3 Direction Reset | Done | High-Throughput Stateful Stream Processing 방향과 Phase 0 사전 계약 문서화 | V3 direction, dataset/workload/time contract, Phase 0 plan | review contracts before implementation |
 | V3 Phase 0 | Done | Dataset, Workload, and Stream Observability Foundation | PaySim profiler, versioned baseline manifest, time/metric contracts, V3 dashboard, local baseline evidence | V3 Phase 1 sustainable throughput and backlog recovery |
 | V3 Phase 1 | Done | Sustainable Throughput and Backlog Recovery | API intake diagnostics, staged capacity/recovery manifests, local runtime evidence, consumer concurrency re-test | V3 Phase 2 state-size experiment |
-| V3 Phase 2 | Not Started | Stateful Sliding-Window Scaling | planned state-size experiment | measure Redis cost by events/user and window size |
+| V3 Phase 2 | Done | Stateful Sliding-Window Scaling | state-size workload, Redis window-size metrics, local baseline/high-density evidence | V3 Phase 3 partition skew experiment |
 | V3 Phase 3 | Not Started | Kafka Partition Skew and Consumer Parallelism | planned uniform/skew experiment | quantify hot-partition and scale-out limits |
 | V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
 | V3 Phase 5 | Not Started | Event-Time, Late, and Out-of-Order Processing | planned lateness policy | define allowed lateness and live-state update behavior |
@@ -77,6 +77,9 @@ V3 preparation documents:
 - [V3 High-Throughput Stream Processing Direction](41-v3-high-throughput-stream-processing-direction.md)
 - [V3 Dataset, Workload, and Time Contract](42-v3-dataset-workload-time-contract.md)
 - [V3 Phase 0 Foundation Plan](43-v3-phase0-foundation-plan.md)
+- [V3 Phase 1 Sustainable Throughput Evidence](46-v3-phase1-sustainable-throughput-evidence.md)
+- [V3 Phase 2 Stateful Sliding-Window Plan](47-v3-phase2-stateful-window-plan.md)
+- [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
 
 ### V3 Common Rule
 
@@ -120,6 +123,12 @@ Detailed fingerprint, measurements, discarded runs, and limitations are in [V3 P
 Phase 1 implemented API intake stage diagnostics, staged HTTP k6 workloads, workload contract validation, and Grafana panels for throughput attribution. Local runtime evidence found that one app-consumer listener thread could not keep up with the 300 EPS overload stage even though API transaction p99, Kafka publish wait p99, and Hikari pending remained healthy. With one listener thread, the same recovery workload reached peak Lag 17,857 and recovered 170s after overload ended. Setting `FRAUD_CONSUMER_CONCURRENCY=6` matched the six local Kafka partitions for the experiment, and the same 51,000-event recovery workload completed with peak Lag 86, final Consumer Lag 0, and all receipt, fraud result, and processing-log counts aligned.
 
 Detailed run IDs, metrics, bottleneck attribution, before/after comparison, and limitations are in [V3 Phase 1 Sustainable Throughput and Backlog Recovery Evidence](46-v3-phase1-sustainable-throughput-evidence.md). Capacity above 300 EPS remains unmeasured.
+
+### V3 Phase 2 Result
+
+Phase 2 implemented state-size workloads and Redis window-size metrics for the existing ZSET/hash sliding-window design. The same 100 EPS, 120-second, 12,000-event workload was run with 1,000 users and then 100 users on dedicated clean Redis containers. The high-density run increased final per-user Redis window max from 12 to 120 events and amount max from 3,000,000 KRW to 30,000,000 KRW. Redis `HGET` calls increased from 6.5 to 60.5 per event, Redis state p95 increased from 6.20 ms to 32.84 ms, Consumer service p95 increased from 13.18 ms to 38.47 ms, final Consumer Lag returned to 0, and receipt/result/processing-log counts aligned at 12,000 for both runs.
+
+Detailed workload contract, run IDs, clean Redis memory deltas, partition distribution, Redis commandstats, metrics, and limitations are in [V3 Phase 2 Stateful Sliding-Window Scaling Evidence](48-v3-phase2-stateful-window-evidence.md). Redis data-structure optimization remains deferred until a later optimization phase.
 
 ### V3 Planned Phase Summary
 

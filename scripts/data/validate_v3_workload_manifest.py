@@ -54,6 +54,32 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise ManifestError("PARTITION_SKEW requires target distribution and affinity strategy")
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
+    if role == "STATEFUL_WINDOW_SCALING":
+        validate_stateful_window_profile(manifest)
+    elif manifest["statefulWindowProfile"] is not None:
+        raise ManifestError("statefulWindowProfile is only allowed for STATEFUL_WINDOW_SCALING")
+
+
+def validate_stateful_window_profile(manifest: dict[str, Any]) -> None:
+    profile = manifest["statefulWindowProfile"]
+    if profile is None:
+        raise ManifestError("STATEFUL_WINDOW_SCALING requires statefulWindowProfile")
+
+    duration_seconds = parse_duration_seconds(manifest["duration"])
+    runtime_window_seconds = parse_duration_seconds(profile["runtimeWindow"])
+    if duration_seconds > runtime_window_seconds:
+        raise ManifestError("STATEFUL_WINDOW_SCALING duration must fit inside runtimeWindow")
+
+    expected_average = manifest["eventLimit"] / manifest["userCardinality"]
+    expected_max = (manifest["eventLimit"] + manifest["userCardinality"] - 1) // manifest["userCardinality"]
+    if abs(profile["expectedEventsPerUserInWindow"] - expected_average) > 0.000001:
+        raise ManifestError("expectedEventsPerUserInWindow must equal eventLimit / userCardinality")
+    if profile["expectedMaxEventsPerUserInWindow"] != expected_max:
+        raise ManifestError("expectedMaxEventsPerUserInWindow must equal ceil(eventLimit / userCardinality)")
+
+    expected_amount_sum = expected_average * profile["eventAmount"]
+    if abs(profile["expectedAmountSumPerUserInWindow"] - expected_amount_sum) > 0.000001:
+        raise ManifestError("expectedAmountSumPerUserInWindow must equal expectedEventsPerUserInWindow * eventAmount")
 
 
 def validate_stages(manifest: dict[str, Any]) -> None:

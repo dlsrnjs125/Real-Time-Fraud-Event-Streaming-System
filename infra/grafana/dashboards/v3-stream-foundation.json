@@ -279,6 +279,34 @@
       "targets": [{"refId": "A", "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "redis memory bytes"}],
       "fieldConfig": {"defaults": {"unit": "bytes", "min": 0}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 24,
+      "title": "Redis Window Event Count",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 56},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_redis_window_event_count_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_redis_window_event_count_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p99"},
+        {"refId": "C", "expr": "max_over_time(fraud_redis_window_event_count_max{job=\"app-consumer\"}[1m])", "legendFormat": "max"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 25,
+      "title": "Redis Window Amount Sum",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 64},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_redis_window_amount_sum_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_redis_window_amount_sum_bucket{job=\"app-consumer\"}[1m])))", "legendFormat": "p99"},
+        {"refId": "C", "expr": "max_over_time(fraud_redis_window_amount_sum_max{job=\"app-consumer\"}[1m])", "legendFormat": "max"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "currencyKRW", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
     }
   ],
   "refresh": "10s",

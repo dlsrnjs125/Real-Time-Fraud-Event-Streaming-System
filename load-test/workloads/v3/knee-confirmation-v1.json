@@ -19,6 +19,7 @@
   "timeScaleFactor": null,
   "latenessProfile": null,
   "replayRate": null,
+  "statefulWindowProfile": null,
   "randomSeed": 420519,
   "stages": [
     {"name": "near-stable-100eps", "targetEps": 100, "duration": "60s"},

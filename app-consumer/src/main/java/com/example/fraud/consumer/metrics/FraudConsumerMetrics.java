@@ -2,7 +2,9 @@ package com.example.fraud.consumer.metrics;
 
 import com.example.fraud.common.event.FraudRuleCode;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Timer;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -27,6 +29,8 @@ public class FraudConsumerMetrics {
     public static final String RESULT_PRECHECK_LATENCY = "fraud.result.precheck.latency";
     public static final String PRODUCER_TO_CONSUMER_DELAY = "fraud.kafka.producer.to.consumer.delay";
     public static final String EVENT_INGRESS_AGE = "fraud.event.ingress.age";
+    public static final String REDIS_WINDOW_EVENT_COUNT = "fraud.redis.window.event.count";
+    public static final String REDIS_WINDOW_AMOUNT_SUM = "fraud.redis.window.amount.sum";
 
     private final MeterRegistry meterRegistry;
     private final Timer redisWindowRecordLatency;
@@ -39,6 +43,8 @@ public class FraudConsumerMetrics {
     private final Timer resultPrecheckLatency;
     private final Timer producerToConsumerDelay;
     private final Timer eventIngressAge;
+    private final DistributionSummary redisWindowEventCount;
+    private final DistributionSummary redisWindowAmountSum;
 
     public FraudConsumerMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
@@ -61,6 +67,14 @@ public class FraudConsumerMetrics {
                 "Kafka producer CreateTime to Consumer processing start delay"
         );
         this.eventIngressAge = timer(EVENT_INGRESS_AGE, "Event occurrence to API receipt age");
+        this.redisWindowEventCount = DistributionSummary.builder(REDIS_WINDOW_EVENT_COUNT)
+                .description("Valid transaction count inside the Redis sliding window")
+                .publishPercentileHistogram()
+                .register(meterRegistry);
+        this.redisWindowAmountSum = DistributionSummary.builder(REDIS_WINDOW_AMOUNT_SUM)
+                .description("Valid transaction amount sum inside the Redis sliding window")
+                .publishPercentileHistogram()
+                .register(meterRegistry);
     }
 
     public <T> T recordRedisWindowLatency(Supplier<T> supplier) {
@@ -106,6 +120,15 @@ public class FraudConsumerMetrics {
             return;
         }
         recordNonNegative(eventIngressAge, Duration.between(eventTime.toInstant(), receivedAt.toInstant()));
+    }
+
+    public void recordRedisWindowState(int transactionCount, BigDecimal amountSum) {
+        if (transactionCount >= 0) {
+            redisWindowEventCount.record(transactionCount);
+        }
+        if (amountSum != null && amountSum.signum() >= 0) {
+            redisWindowAmountSum.record(amountSum.doubleValue());
+        }
     }
 
     public void incrementRedisDegraded() {

@@ -1,0 +1,36 @@
+# V3 Phase 2 Redis State Shape Evidence
+
+Captured from dedicated Redis containers after accepted clean runs.
+
+Baseline run:
+- Run ID: phase2-state-baseline-clean-20260823-003
+- Redis container: fraud-redis-phase2-baseline3-20260823
+- Workload: state-size-baseline-v1
+
+Redis user ZSET scan:
+
+user ZSET key count: 1000
+max ZCARD: 12
+
+Redis event metadata Hash scan:
+
+event Hash key count: 12000
+
+Pressure run:
+- Run ID: phase2-state-pressure-clean-20260823-001
+- Redis container: fraud-redis-phase2-pressure-20260823
+- Workload: state-size-high-density-v1
+
+Redis user ZSET scan:
+
+user ZSET key count: 100
+max ZCARD: 120
+
+Redis event metadata Hash scan:
+
+event Hash key count: 12000
+
+Interpretation:
+- Both workloads retained the same total number of event metadata Hash keys.
+- The pressure workload reduced user cardinality from 1,000 to 100 and increased max per-user ZSET cardinality from 12 to 120.
+- This confirms the experiment increased per-user runtime-window density while keeping total event count fixed.

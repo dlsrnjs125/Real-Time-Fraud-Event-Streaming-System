@@ -146,4 +146,4 @@ V2 범위에는 다음 내용이 포함됩니다.
 
 V3는 Throughput, Stateful Processing, Event Freshness를 핵심 축으로 둡니다. PaySim Dataset 자체의 크기와 runtime workload 속도를 분리하고, Normal/Organic Burst/Catch-up Burst/Skew/Late/Replay를 서로 다른 실험으로 관리합니다.
 
-V3 Phase 0의 dataset profile, versioned workload manifest, stream-stage metrics, timestamp decision, Grafana dashboard, low-rate baseline evidence를 완료했습니다. 상세 구현과 측정 한계는 [V3 Phase 0 Foundation Evidence](docs/44-v3-phase0-foundation-evidence.md)를 기준으로 하며, 다음 단계는 동일한 계약을 사용해 sustainable EPS와 backlog recovery를 측정하는 V3 Phase 1입니다.
+V3 Phase 0의 dataset profile, versioned workload manifest, stream-stage metrics, timestamp decision, Grafana dashboard, low-rate baseline evidence를 완료했습니다. V3 Phase 1에서는 sustainable throughput과 backlog recovery를 측정했고, V3 Phase 2에서는 Redis sliding-window state-size가 Redis/Consumer latency에 미치는 영향을 동일 workload 조건에서 측정했습니다. 상세 구현과 측정 한계는 [V3 Phase 0 Foundation Evidence](docs/44-v3-phase0-foundation-evidence.md), [V3 Phase 1 Sustainable Throughput Evidence](docs/46-v3-phase1-sustainable-throughput-evidence.md), [V3 Phase 2 Stateful Sliding-Window Evidence](docs/48-v3-phase2-stateful-window-evidence.md)를 기준으로 합니다.

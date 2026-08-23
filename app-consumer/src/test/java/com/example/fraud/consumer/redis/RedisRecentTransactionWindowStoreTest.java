@@ -60,6 +60,10 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(result.transactionCount()).isEqualTo(2);
         assertThat(result.amountSum()).isEqualByComparingTo("2100000");
         assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_RECORD_LATENCY).count()).isEqualTo(1);
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_EVENT_COUNT).totalAmount())
+                .isEqualTo(2);
+        assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_AMOUNT_SUM).totalAmount())
+                .isEqualTo(2_100_000);
         verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
         verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
         verify(zSet).removeRangeByScore("fraud:tx:user:user-1001:events", 0, millis("2026-06-19T09:55:00Z") - 1);

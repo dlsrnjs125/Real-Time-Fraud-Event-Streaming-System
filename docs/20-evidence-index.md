@@ -98,6 +98,9 @@
 | V3 Phase 1 capacity discovery | `V3_RUN_ID=<run-id> make k6-v3-phase1-capacity` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 | V3 Phase 1 knee confirmation | `V3_RUN_ID=<run-id> make k6-v3-phase1-knee` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 | V3 Phase 1 backlog recovery | `V3_RUN_ID=<run-id> make k6-v3-phase1-recovery` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
+| V3 Phase 2 state-size baseline | `V3_RUN_ID=<run-id> make k6-v3-phase2-state-baseline` | `docs/48-v3-phase2-stateful-window-evidence.md` |
+| V3 Phase 2 state-size pressure | `V3_RUN_ID=<run-id> make k6-v3-phase2-state-pressure` | `docs/48-v3-phase2-stateful-window-evidence.md` |
+| V3 Phase 2 state-size evidence artifacts | Grafana captures, Redis commandstats, state shape, partition distribution, final consistency | `docs/evidence/v3-phase2/` |
 
 ## Documentation
 

@@ -133,6 +133,8 @@ Kafka Consumer Lag panel은 애플리케이션 내부 처리 시간이 아니라
 
 V3 Phase 0 dashboard는 `infra/grafana/dashboards/v3-stream-foundation.json`에 별도로 provision합니다. Stream boundary EPS, total/partition Lag, 15초 scrape 기반 Lag growth/drain, stage p95/p99, ingress age, partition incoming rate, Consumer assignment/rebalance, Redis/Consumer resource를 연결합니다. Broker는 `CreateTime`으로 검증되었으므로 dashboard는 producer-to-Consumer delay를 표시하며 queue latency라는 이름을 사용하지 않습니다. `sourceSentAt` 기반 source/transport delay는 구현하지 않아 No Data가 정상입니다. 상세 population과 실제 series 검증은 [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)를 따릅니다.
 
+V3 Phase 2 adds Redis sliding-window state-size signals. `fraud.redis.window.event.count` records valid members inside the runtime window after metadata filtering, and `fraud.redis.window.amount.sum` records the corresponding amount sum. These metrics have no `userId`, `eventId`, `traceId`, or offset tags; they are distribution evidence for state-size experiments, not per-user debugging metrics.
+
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 
 ## 4-2. 후속 Observability 후보

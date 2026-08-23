@@ -1,0 +1,31 @@
+{
+  "workloadId": "v3-phase2-state-size-high-density",
+  "workloadVersion": "v1",
+  "workloadRole": "STATEFUL_WINDOW_SCALING",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 100,
+  "duration": "120s",
+  "eventLimit": 12000,
+  "userCardinality": 100,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "statefulWindowProfile": {
+    "runtimeWindow": "5m",
+    "expectedEventsPerUserInWindow": 120,
+    "expectedMaxEventsPerUserInWindow": 120,
+    "eventAmount": 250000,
+    "expectedAmountSumPerUserInWindow": 30000000,
+    "note": "Same EPS, duration, and event count as the baseline, but 10x fewer users to create higher Redis state per user."
+  },
+  "randomSeed": 520519
+}

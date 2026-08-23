@@ -19,6 +19,7 @@
   "timeScaleFactor": null,
   "latenessProfile": null,
   "replayRate": null,
+  "statefulWindowProfile": null,
   "randomSeed": 410519,
   "stages": [
     {"name": "warmup-25eps", "targetEps": 25, "duration": "60s"},
