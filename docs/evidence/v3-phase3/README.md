@@ -27,3 +27,16 @@ The accepted evidence focuses on the questions that require runtime proof:
 - a hot partition creates partition-local lag even when other partitions are idle;
 - consumer concurrency above partition count creates idle consumers;
 - final database counts remain consistent after drain.
+
+Screenshot evidence:
+
+| File | Evidence |
+| --- | --- |
+| `01-balanced-partition-distribution.png` | Balanced workload expected-vs-achieved partition distribution. |
+| `02-hot-p2-partition-distribution.png` | Hot P2 workload expected-vs-achieved partition distribution. |
+| `03-balanced-concurrency-scaling.png` | Balanced workload concurrency scaling summary. |
+| `04-hot-p2-partition-lag.png` | Grafana partition-local lag under hot P2 pressure. |
+| `04b-hot-p2-partition-incoming-rate.png` | Grafana partition incoming rate and assigned partition view. |
+| `05-concurrency8-idle-consumers.png` | Consumer group evidence for idle consumers when concurrency exceeds partition count. |
+| `06-balanced-vs-hot-summary.png` | Balanced vs hot workload comparison at concurrency 6. |
+| `07-final-consistency.png` | Final DB count and consumer lag consistency evidence. |
