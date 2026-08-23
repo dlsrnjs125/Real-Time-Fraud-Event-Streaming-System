@@ -39,6 +39,8 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | V3 Phase 1 Backlog Recovery | `make k6-v3-phase1-recovery` | Overload and drain workload for recovery measurement |
 | V3 Phase 2 State Baseline | `make k6-v3-phase2-state-baseline` | Low per-user Redis window density |
 | V3 Phase 2 State Pressure | `make k6-v3-phase2-state-pressure` | Same EPS/event count with higher per-user Redis window density |
+| V3 Phase 3 Partition Balanced | `make k6-v3-phase3-partition-balanced` | Partition-affinity workload targeting balanced local partition shares |
+| V3 Phase 3 Partition Skew | `make k6-v3-phase3-partition-skew` | Partition-affinity workload targeting a hot P2 partition |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -65,3 +67,5 @@ V3_RUN_ID=<run-id> make k6-v3-baseline
 Phase 1 workloads additionally require `V3_WORKLOAD_MANIFEST`, which the Makefile targets set automatically. The runner converts each manifest stage into a separate `constant-arrival-rate` plateau scenario and enforces a stage-level HTTP emission limit so `eventLimit` remains the sum of each stage's `targetEps * duration`. Raw summaries remain local ignored evidence.
 
 Phase 2 state-size workloads keep EPS, duration, event amount, and total event count fixed while changing `userCardinality`. Compare `fraud.redis.window.event.count`, `fraud.redis.window.amount.sum`, `fraud.redis.state.latency`, Consumer service latency, Redis memory, and Consumer Lag over the same Grafana time range.
+
+Phase 3 partition workloads use `PARTITION_AFFINITY` manifests. The k6 runner pre-generates synthetic `userId` values whose Kafka Murmur2 key hash maps to the configured local partitions, then emits events according to `targetPartitionDistribution`. Confirm achieved distribution with Kafka exporter metrics or processing logs after the run.

@@ -48,6 +48,15 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
                 manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
                 validator.validate_manifest(manifest)
 
+    def test_committed_phase3_partition_manifests_are_valid(self):
+        for filename in [
+            "partition-balanced-v1.json",
+            "partition-skew-hot-p2-v1.json",
+        ]:
+            with self.subTest(filename=filename):
+                manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
+                validator.validate_manifest(manifest)
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"
@@ -76,6 +85,30 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         invalid = copy.deepcopy(self.manifest)
         invalid["workloadRole"] = "PARTITION_SKEW"
         with self.assertRaisesRegex(validator.ManifestError, "requires PARTITION_AFFINITY"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_partition_skew_with_user_concentration(self):
+        invalid = json.loads((WORKLOAD_DIR / "partition-skew-hot-p2-v1.json").read_text(encoding="utf-8"))
+        invalid["targetUserConcentration"] = {"topUserShare": 0.5}
+
+        with self.assertRaisesRegex(validator.ManifestError, "must not use targetUserConcentration"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_partition_skew_with_wrong_affinity_strategy(self):
+        invalid = json.loads((WORKLOAD_DIR / "partition-skew-hot-p2-v1.json").read_text(encoding="utf-8"))
+        invalid["partitionAffinityStrategy"] = "UNHASHED_ROUND_ROBIN"
+
+        with self.assertRaisesRegex(validator.ManifestError, "unsupported partitionAffinityStrategy"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_partition_distribution_with_non_contiguous_partitions(self):
+        invalid = json.loads((WORKLOAD_DIR / "partition-skew-hot-p2-v1.json").read_text(encoding="utf-8"))
+        invalid["targetPartitionDistribution"] = {
+            "0": 0.5,
+            "2": 0.5,
+        }
+
+        with self.assertRaisesRegex(validator.ManifestError, "contiguous partitions"):
             validator.validate_manifest(invalid)
 
     def test_rejects_non_integer_seed(self):

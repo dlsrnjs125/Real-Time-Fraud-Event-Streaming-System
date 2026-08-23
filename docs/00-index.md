@@ -56,6 +56,7 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 Phase 1 Sustainable Throughput Evidence](46-v3-phase1-sustainable-throughput-evidence.md)
 - [V3 Phase 2 Stateful Sliding-Window Plan](47-v3-phase2-stateful-window-plan.md)
 - [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
+- [V3 Phase 3 Partition Skew Plan](49-v3-phase3-partition-skew-plan.md)
 
 ## Rule Version Traceability
 

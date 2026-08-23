@@ -42,7 +42,7 @@
 | V3 Phase 0 | Done | Dataset, Workload, and Stream Observability Foundation | PaySim profiler, versioned baseline manifest, time/metric contracts, V3 dashboard, local baseline evidence | V3 Phase 1 sustainable throughput and backlog recovery |
 | V3 Phase 1 | Done | Sustainable Throughput and Backlog Recovery | API intake diagnostics, staged capacity/recovery manifests, local runtime evidence, consumer concurrency re-test | V3 Phase 2 state-size experiment |
 | V3 Phase 2 | Done | Stateful Sliding-Window Scaling | state-size workload, Redis window-size metrics, local baseline/high-density evidence | V3 Phase 3 partition skew experiment |
-| V3 Phase 3 | Not Started | Kafka Partition Skew and Consumer Parallelism | planned uniform/skew experiment | quantify hot-partition and scale-out limits |
+| V3 Phase 3 | In Progress | Kafka Partition Skew and Consumer Parallelism | partition-affinity manifests, k6 runner, plan | run concurrency matrix and record evidence |
 | V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
 | V3 Phase 5 | Not Started | Event-Time, Late, and Out-of-Order Processing | planned lateness policy | define allowed lateness and live-state update behavior |
 | V3 Phase 6 | Not Started | External Delay and Catch-up Burst | planned Source emulator profiles | distinguish organic burst from upstream catch-up |
@@ -80,6 +80,7 @@ V3 preparation documents:
 - [V3 Phase 1 Sustainable Throughput Evidence](46-v3-phase1-sustainable-throughput-evidence.md)
 - [V3 Phase 2 Stateful Sliding-Window Plan](47-v3-phase2-stateful-window-plan.md)
 - [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
+- [V3 Phase 3 Partition Skew Plan](49-v3-phase3-partition-skew-plan.md)
 
 ### V3 Common Rule
 
@@ -129,6 +130,10 @@ Detailed run IDs, metrics, bottleneck attribution, before/after comparison, and 
 Phase 2 implemented state-size workloads and Redis window-size metrics for the existing ZSET/hash sliding-window design. The same 100 EPS, 120-second, 12,000-event workload was run with 1,000 users and then 100 users on dedicated clean Redis containers. The high-density run increased final per-user Redis window max from 12 to 120 events and amount max from 3,000,000 KRW to 30,000,000 KRW. Redis `HGET` calls increased from 6.5 to 60.5 per event, Redis state p95 increased from 6.20 ms to 32.84 ms, Consumer service p95 increased from 13.18 ms to 38.47 ms, final Consumer Lag returned to 0, and receipt/result/processing-log counts aligned at 12,000 for both runs.
 
 Detailed workload contract, run IDs, clean Redis memory deltas, partition distribution, Redis commandstats, metrics, and limitations are in [V3 Phase 2 Stateful Sliding-Window Scaling Evidence](48-v3-phase2-stateful-window-evidence.md). Redis data-structure optimization remains deferred until a later optimization phase.
+
+### V3 Phase 3 Start
+
+Phase 3 starts with partition-affinity workloads that pre-generate synthetic `userId` values mapped to the local six Kafka partitions through Kafka Murmur2 hashing. The balanced workload targets roughly equal P0~P5 traffic, and the hot-partition workload targets P2 at 60% with the remaining partitions at 8% each. Runtime evidence is still pending and must be captured across Consumer concurrency 1, 2, 3, 6, and 8 before this phase can be marked done.
 
 ### V3 Planned Phase Summary
 
