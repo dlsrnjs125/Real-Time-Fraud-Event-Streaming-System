@@ -197,17 +197,88 @@
     },
     {
       "id": 15,
-      "title": "Redis and Consumer Resources",
+      "title": "Consumer CPU",
       "type": "timeseries",
       "gridPos": {"h": 8, "w": 8, "x": 8, "y": 40},
       "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "process_cpu_usage{job=\"app-consumer\"}", "legendFormat": "consumer CPU ratio"}],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 18,
+      "title": "API Intake Service vs Transaction Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 40},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
-        {"refId": "A", "expr": "process_cpu_usage{job=\"app-consumer\"}", "legendFormat": "consumer CPU ratio"},
-        {"refId": "B", "expr": "sum(jvm_memory_used_bytes{job=\"app-consumer\"})", "legendFormat": "consumer JVM bytes"},
-        {"refId": "C", "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "redis memory bytes"}
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "service p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_api_intake_service_latency_seconds_bucket[1m])))", "legendFormat": "service p99"},
+        {"refId": "C", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_intake_transaction_latency_seconds_bucket[1m])))", "legendFormat": "transaction p95"},
+        {"refId": "D", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_api_intake_transaction_latency_seconds_bucket[1m])))", "legendFormat": "transaction p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 19,
+      "title": "Kafka Publish Wait Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 48},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_kafka_publish_wait_latency_seconds_bucket[1m])))", "legendFormat": "p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(fraud_kafka_publish_wait_latency_seconds_bucket[1m])))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 20,
+      "title": "API Receipt Persistence and Save-Call Latency",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 48},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_receipt_persistence_latency_seconds_bucket[1m])))", "legendFormat": "persist p95"},
+        {"refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_api_receipt_status_update_latency_seconds_bucket[1m])))", "legendFormat": "status save-call p95"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 21,
+      "title": "Hikari Connections",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 48},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (job) (hikaricp_connections_active)", "legendFormat": "{{job}} active"},
+        {"refId": "B", "expr": "sum by (job) (hikaricp_connections_pending)", "legendFormat": "{{job}} pending"},
+        {"refId": "C", "expr": "sum by (job) (hikaricp_connections_max)", "legendFormat": "{{job}} max"}
       ],
       "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 22,
+      "title": "Consumer JVM Memory",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 56},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(jvm_memory_used_bytes{job=\"app-consumer\"})", "legendFormat": "consumer JVM bytes"}],
+      "fieldConfig": {"defaults": {"unit": "bytes", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+    },
+    {
+      "id": 23,
+      "title": "Redis Memory",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 56},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "redis memory bytes"}],
+      "fieldConfig": {"defaults": {"unit": "bytes", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
     }
   ],
   "refresh": "10s",

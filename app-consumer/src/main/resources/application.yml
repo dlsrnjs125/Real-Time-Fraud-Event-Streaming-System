@@ -24,6 +24,8 @@ spring:
       timeout: 500ms
 
 fraud:
+  consumer:
+    concurrency: ${FRAUD_CONSUMER_CONCURRENCY:1}
   sliding-window:
     window: 5m
     max-events: 5

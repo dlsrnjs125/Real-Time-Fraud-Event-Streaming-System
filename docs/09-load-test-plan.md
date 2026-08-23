@@ -22,6 +22,8 @@ V3는 다음 workload를 별도 ID와 version으로 관리합니다.
 
 Phase 0 implemented `load-test/workloads/v3/normal-baseline-v1.json` and `make k6-v3-baseline`. This fixed 5 EPS, 30 seconds, 150 emissions, 50 uniform users, and `REBASE_TO_ARRIVAL` workload validates stream-observability wiring only. Its accepted local result is in [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md). Sustainable throughput and recovery measurement begin in V3 Phase 1.
 
+Phase 1 adds staged manifests for capacity discovery, knee confirmation, and backlog recovery. These manifests are not production targets; they are local experiment contracts for finding the first observed throughput limit under documented conditions.
+
 ## 2. 시나리오
 
 ## Phase 13 k6 Scenarios

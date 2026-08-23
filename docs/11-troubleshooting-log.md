@@ -2649,3 +2649,111 @@ This is an operational sequencing rule, not a distributed migration coordinator.
 ### Evidence
 
 Consumer startup log, health checks, `kafka-consumer-groups.sh --describe`, and [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md).
+
+## V3 Phase 0 CI Data Test Python Environment Drift
+
+### Problem
+
+After workload validation switched to JSON Schema, CI failed in `test_validate_v3_workload_manifest` with `ModuleNotFoundError: No module named 'jsonschema'`.
+
+### Expected
+
+Python data tests and workload validators should use the same dependency owner, `scripts/data/requirements.txt`.
+
+### Observation
+
+`make verify-v3-workload-manifests` used `data-env` and `.venv-data/bin/python`, but `make test-data-scripts-ci` used system `python3`. CI therefore bypassed the virtualenv where `jsonschema` was installed.
+
+### Hypothesis
+
+The dependency declaration was correct, but the CI test target used the wrong Python interpreter.
+
+### Root Cause
+
+Dependency ownership split between Makefile targets caused system Python and data virtualenv drift.
+
+### Change
+
+`test-data-scripts-ci` now depends on `data-env` and runs `$(DATA_PYTHON) -m unittest discover -s scripts/data -p 'test_*.py'`.
+
+### Verification
+
+`make test-data-scripts-ci` and `make verify-v3-phase0` passed locally after the target change, and the fix was pushed on the Phase 0 branch before Phase 1 started.
+
+### Trade-off
+
+CI now bootstraps the data virtualenv for data unit tests. This is slower than system Python, but it keeps Python dependencies in one declared location.
+
+## V3 Phase 1 Runtime Evidence Boundary
+
+### Problem
+
+Phase 1 adds workload and metric infrastructure, but unit tests alone cannot prove sustainable throughput, knee point, or backlog recovery.
+
+### Expected
+
+Phase 1 is complete only after local runtime capacity discovery, knee confirmation, backlog recovery, bottleneck attribution, and same-load re-test when a fix is applied.
+
+### Decision
+
+The Phase 1 evidence document starts as `Runtime evidence pending`. Implementation-only work must be reported as incomplete evidence rather than Phase 1 completion.
+
+### Evidence
+
+[V3 Phase 1 Plan](45-v3-phase1-sustainable-throughput-plan.md) and [V3 Phase 1 Evidence](46-v3-phase1-sustainable-throughput-evidence.md).
+
+## V3 Phase 1 k6 Stage Contract Drift
+
+### Problem
+
+The first Phase 1 capacity attempt used k6 `ramping-arrival-rate` stages directly. k6 ramps linearly across a stage duration, while the workload manifest expected a plateau at each stage's `targetEps`.
+
+### Expected
+
+For staged throughput evidence, the manifest's `eventLimit` must equal the sum of `targetEps * duration` for all declared stages.
+
+### Observation
+
+The initial runner could produce fewer events than the manifest contract implied because a stage such as 200 EPS over 60s was treated as a ramp toward 200 EPS rather than a 60s plateau at 200 EPS.
+
+### Root Cause
+
+The runner and manifest used different meanings for a stage. The manifest described plateau capacity stages; the k6 executor implemented gradual ramps.
+
+### Change
+
+The Phase 1 k6 runner now converts each manifest stage into a separate `constant-arrival-rate` plateau scenario for the declared duration. It also enforces a stage-level HTTP emission limit, so `eventLimit` and summary `emittedEventCount` share one contract.
+
+### Verification
+
+The accepted capacity, knee, and recovery summaries emitted the configured event limits: 22,500, 60,000, and 51,000 events respectively.
+
+## V3 Phase 1 Consumer Concurrency Bottleneck
+
+### Problem
+
+The 300 EPS knee workload accumulated Consumer Lag even though API intake and Kafka publish wait latency remained low.
+
+### Expected
+
+If API, Kafka publish, and DB connection pool are healthy, app-consumer should keep Lag bounded until its own effective throughput is exceeded.
+
+### Observation
+
+The before-fix knee run emitted 60,000 events with HTTP failure rate 0, but immediate Consumer Lag reached 14,027. Lag was distributed across all six partitions.
+
+### Root Cause
+
+`transaction-events` had six partitions, but the Spring Kafka listener concurrency defaulted to one during the before-run. One consumer thread owned all six partitions.
+
+### Change
+
+`fraud.consumer.concurrency` now controls listener concurrency and is guarded to a minimum of 1. The repository default remains 1; the local Phase 1 after-run sets `FRAUD_CONSUMER_CONCURRENCY=6` explicitly to match the six partitions.
+
+### Verification
+
+The same `backlog-recovery-v1` workload was re-run with 51,000 emitted HTTP events and max 300 EPS. Before the fix, peak Lag was 17,857 and recovery took 170s after overload ended. After setting `FRAUD_CONSUMER_CONCURRENCY=6`, peak Lag was 86, final Consumer Lag was 0, and `transaction_event_receipts`, `fraud_detection_results`, and `event_processing_logs` all reached 51,000 rows.
+
+### Trade-off
+
+The after-run topology uses more consumer clients and more concurrent DB/Redis work. The value is bounded by the six partitions and must be revisited in V3 Phase 3 partition-skew and scale-out experiments.

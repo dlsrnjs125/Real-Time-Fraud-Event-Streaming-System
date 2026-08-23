@@ -44,10 +44,12 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, TransactionEventMessage> kafkaListenerContainerFactory(
-            ConsumerFactory<String, TransactionEventMessage> transactionEventConsumerFactory
+            ConsumerFactory<String, TransactionEventMessage> transactionEventConsumerFactory,
+            @Value("${fraud.consumer.concurrency:1}") int concurrency
     ) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, TransactionEventMessage>();
         factory.setConsumerFactory(transactionEventConsumerFactory);
+        factory.setConcurrency(Math.max(1, concurrency));
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }

@@ -34,6 +34,9 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | Duplicate Replay Check | `make k6-duplicate-check` | Duplicate replay plus DB count check |
 | Redis Down Load | `make k6-redis-down` | Degraded mode load with Redis stopped by script |
 | V3 Phase 0 Baseline | `make k6-v3-baseline` | Versioned 5 EPS normal HTTP baseline with arrival-time event timestamps |
+| V3 Phase 1 Capacity Discovery | `make k6-v3-phase1-capacity` | Staged local capacity discovery workload |
+| V3 Phase 1 Knee Confirmation | `make k6-v3-phase1-knee` | Narrower staged workload around the candidate knee |
+| V3 Phase 1 Backlog Recovery | `make k6-v3-phase1-recovery` | Overload and drain workload for recovery measurement |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -56,3 +59,5 @@ V3_RUN_ID=<run-id> make k6-v3-baseline
 ```
 
 `V3_RUN_ID` is required. The generated summary under `load-test/k6/results` records `runId`, `workloadId`, `workloadVersion`, commit SHA, target EPS, and achieved EPS. User and partition distributions remain `null` until measured from an appropriate driver/report or Kafka evidence; the k6 HTTP driver does not infer Kafka partition placement.
+
+Phase 1 workloads additionally require `V3_WORKLOAD_MANIFEST`, which the Makefile targets set automatically. The runner converts each manifest stage into a separate `constant-arrival-rate` plateau scenario and enforces a stage-level HTTP emission limit so `eventLimit` remains the sum of each stage's `targetEps * duration`. Raw summaries remain local ignored evidence.

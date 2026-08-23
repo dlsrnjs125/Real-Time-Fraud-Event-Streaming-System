@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ def validate_distribution(distribution: dict[str, Any] | None, field: str) -> No
 def validate_manifest(manifest: dict[str, Any]) -> None:
     validate_schema(manifest)
     validate_distribution(manifest["targetPartitionDistribution"], "targetPartitionDistribution")
+    validate_stages(manifest)
 
     mode = manifest["eventTimeMode"]
     role = manifest["workloadRole"]
@@ -52,6 +54,36 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise ManifestError("PARTITION_SKEW requires target distribution and affinity strategy")
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
+
+
+def validate_stages(manifest: dict[str, Any]) -> None:
+    stages = manifest.get("stages")
+    if stages is None:
+        return
+    expected_events = 0
+    max_stage_eps = 0
+    for stage in stages:
+        target_eps = stage["targetEps"]
+        duration_seconds = parse_duration_seconds(stage["duration"])
+        expected_events += int(target_eps * duration_seconds)
+        max_stage_eps = max(max_stage_eps, target_eps)
+    if manifest["eventLimit"] != expected_events:
+        raise ManifestError("eventLimit must equal the sum of stage targetEps * duration seconds")
+    if manifest["targetEps"] != max_stage_eps:
+        raise ManifestError("targetEps must equal the maximum stage targetEps")
+
+
+def parse_duration_seconds(value: str) -> int:
+    match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", value)
+    if match is None:
+        raise ManifestError("duration must use a positive s, m, or h suffix")
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if unit == "s":
+        return amount
+    if unit == "m":
+        return amount * 60
+    return amount * 60 * 60
 
 
 def validate_schema(manifest: dict[str, Any]) -> None:
@@ -80,14 +112,15 @@ def load_and_validate(path: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate a V3 workload manifest.")
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("manifest", nargs="+", type=Path)
     args = parser.parse_args()
-    try:
-        manifest = load_and_validate(args.manifest)
-    except ManifestError as exc:
-        print(f"ERROR: {exc}")
-        return 1
-    print(f"Valid V3 workload manifest: {manifest['workloadId']} {manifest['workloadVersion']}")
+    for manifest_path in args.manifest:
+        try:
+            manifest = load_and_validate(manifest_path)
+        except ManifestError as exc:
+            print(f"ERROR: {manifest_path}: {exc}")
+            return 1
+        print(f"Valid V3 workload manifest: {manifest['workloadId']} {manifest['workloadVersion']}")
     return 0
 
 

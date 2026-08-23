@@ -40,7 +40,7 @@
 | V2 Phase 15 | Done | Final evidence closure 완료 | Phase 7~14 evidence map, implemented/local-manual/future work separation, anti-overclaim guardrails | Final Docs/Blog Closure에 통합 |
 | V3 Direction Reset | Done | High-Throughput Stateful Stream Processing 방향과 Phase 0 사전 계약 문서화 | V3 direction, dataset/workload/time contract, Phase 0 plan | review contracts before implementation |
 | V3 Phase 0 | Done | Dataset, Workload, and Stream Observability Foundation | PaySim profiler, versioned baseline manifest, time/metric contracts, V3 dashboard, local baseline evidence | V3 Phase 1 sustainable throughput and backlog recovery |
-| V3 Phase 1 | Not Started | Sustainable Throughput and Backlog Recovery | planned capacity-curve experiment; preflight Consumer DB-stage meters added | find sustainable EPS and recovery behavior |
+| V3 Phase 1 | Done | Sustainable Throughput and Backlog Recovery | API intake diagnostics, staged capacity/recovery manifests, local runtime evidence, consumer concurrency re-test | V3 Phase 2 state-size experiment |
 | V3 Phase 2 | Not Started | Stateful Sliding-Window Scaling | planned state-size experiment | measure Redis cost by events/user and window size |
 | V3 Phase 3 | Not Started | Kafka Partition Skew and Consumer Parallelism | planned uniform/skew experiment | quantify hot-partition and scale-out limits |
 | V3 Phase 4 | Not Started | Redelivery and Stateful Processing Semantics | planned failure-point experiment | verify Redis state and decision stability after redelivery |
@@ -114,6 +114,12 @@ V3 Phase 1 and later can start only after Phase 0 can distinguish source age, Ka
 Phase 0 implemented and verified the corpus profiler, workload manifest validator, transactional stream-boundary counters, stage histograms, ingress age, Kafka `CreateTime` producer-to-Consumer delay, Kafka client metrics, Redis exporter, and the V3 Grafana dashboard. The committed normal workload was executed against a clean local environment and all 150 emitted events reached receipt, publish, Consumer delivery, processing log, and fraud result boundaries with final Lag 0.
 
 Detailed fingerprint, measurements, discarded runs, and limitations are in [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md). This 5 EPS run validates observability wiring and reproducibility only; it is not a capacity result.
+
+### V3 Phase 1 Result
+
+Phase 1 implemented API intake stage diagnostics, staged HTTP k6 workloads, workload contract validation, and Grafana panels for throughput attribution. Local runtime evidence found that one app-consumer listener thread could not keep up with the 300 EPS overload stage even though API transaction p99, Kafka publish wait p99, and Hikari pending remained healthy. With one listener thread, the same recovery workload reached peak Lag 17,857 and recovered 170s after overload ended. Setting `FRAUD_CONSUMER_CONCURRENCY=6` matched the six local Kafka partitions for the experiment, and the same 51,000-event recovery workload completed with peak Lag 86, final Consumer Lag 0, and all receipt, fraud result, and processing-log counts aligned.
+
+Detailed run IDs, metrics, bottleneck attribution, before/after comparison, and limitations are in [V3 Phase 1 Sustainable Throughput and Backlog Recovery Evidence](46-v3-phase1-sustainable-throughput-evidence.md). Capacity above 300 EPS remains unmeasured.
 
 ### V3 Planned Phase Summary
 

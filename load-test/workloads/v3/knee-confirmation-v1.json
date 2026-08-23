@@ -1,0 +1,30 @@
+{
+  "workloadId": "v3-phase1-knee-confirmation",
+  "workloadVersion": "v1",
+  "workloadRole": "NORMAL_CAPACITY",
+  "datasetVersion": "synthetic-transaction-attributes-v1",
+  "driverType": "HTTP_K6",
+  "targetEps": 300,
+  "duration": "5m",
+  "eventLimit": 60000,
+  "userCardinality": 3000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "runtime-emission",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "replayRate": null,
+  "randomSeed": 420519,
+  "stages": [
+    {"name": "near-stable-100eps", "targetEps": 100, "duration": "60s"},
+    {"name": "candidate-150eps", "targetEps": 150, "duration": "60s"},
+    {"name": "candidate-200eps", "targetEps": 200, "duration": "60s"},
+    {"name": "candidate-250eps", "targetEps": 250, "duration": "60s"},
+    {"name": "candidate-300eps", "targetEps": 300, "duration": "60s"}
+  ]
+}

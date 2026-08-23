@@ -1,0 +1,20 @@
+# V3 Phase 1 Final Consistency Check
+
+Captured at: 2026-08-23T04:10:55Z
+
+## PostgreSQL row counts
+ receipts | fraud_results | processing_logs
+----------+---------------+-----------------
+    51000 |         51000 |           51000
+(1 row)
+
+
+## Kafka consumer group lag
+
+GROUP                TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+fraud-event-consumer transaction-events 0          25244           25244           0               consumer-fraud-event-consumer-1-28a2cc6b-3d74-4360-9c00-1e304828baea /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 1          27130           27130           0               consumer-fraud-event-consumer-2-f5b1f7d9-a46f-4001-965b-48d7043e6da5 /172.19.0.1     consumer-fraud-event-consumer-2
+fraud-event-consumer transaction-events 5          26672           26672           0               consumer-fraud-event-consumer-6-659b3dcf-8686-4e14-a8aa-428c18588530 /172.19.0.1     consumer-fraud-event-consumer-6
+fraud-event-consumer transaction-events 2          23407           23407           0               consumer-fraud-event-consumer-3-7282f43f-7cab-43af-b918-6b9d5b72f9a2 /172.19.0.1     consumer-fraud-event-consumer-3
+fraud-event-consumer transaction-events 3          24939           24939           0               consumer-fraud-event-consumer-4-1dc64044-f943-4040-8771-b210fbfa9427 /172.19.0.1     consumer-fraud-event-consumer-4
+fraud-event-consumer transaction-events 4          25601           25601           0               consumer-fraud-event-consumer-5-e7ae295c-3b27-4764-a7ca-f6ac3c91f7db /172.19.0.1     consumer-fraud-event-consumer-5
