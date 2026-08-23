@@ -44,6 +44,22 @@
 
 `44639fc` is the runtime code SHA used for the final before/after recovery evidence. Later documentation commits record the measured results but do not change the runtime behavior under test.
 
+## 3-1. Visual and Terminal Evidence Artifacts
+
+Selected local evidence captures are stored under `docs/evidence/v3-phase1/`.
+
+| File | Purpose |
+|---|---|
+| `01-before-lag-growth.png` | Grafana evidence that total and partition Consumer Lag grew with one listener consumer |
+| `02-before-bottleneck-isolation.png` | Grafana dashboard crop for Consumer-side bottleneck isolation |
+| `02b-before-api-kafka-hikari.png` | Supplemental crop showing Kafka publish wait and Hikari panels |
+| `03-consumer-assignment-before.txt` | Kafka consumer group evidence that one consumer owned all six partitions |
+| `04-consumer-assignment-after.txt` | Kafka consumer group evidence that six consumers owned the six partitions |
+| `05-after-lag-contained.png` | Grafana evidence that lag stayed bounded with `FRAUD_CONSUMER_CONCURRENCY=6` |
+| `06-final-consistency-check.txt` | PostgreSQL row-count equality and final Consumer Lag 0 |
+
+The 2026-08-23 before screenshot run used run ID `phase1-evidence-before-concurrency1-20260823-001` and emitted 50,993 of 51,000 configured HTTP events with 7 dropped iterations. It is kept as visual evidence of the bottleneck pattern, not as the authoritative final row-count run. The after evidence run used run ID `phase1-evidence-after-concurrency6-20260823-001`, emitted 51,000 of 51,000 events, and produced the final consistency artifact.
+
 ## 4. Workload Contract
 
 `backlog-recovery-v1.json` defines four plateau stages:

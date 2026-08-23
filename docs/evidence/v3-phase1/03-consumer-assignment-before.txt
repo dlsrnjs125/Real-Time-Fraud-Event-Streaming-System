@@ -1,0 +1,12 @@
+# V3 Phase 1 Consumer Assignment (before)
+
+Captured at: 2026-08-23T03:47:38Z
+
+
+GROUP                TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+fraud-event-consumer transaction-events 0          8415            8415            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 4          8534            8534            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 1          9044            9044            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 5          8891            8891            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 3          8313            8313            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 2          7803            7803            0               consumer-fraud-event-consumer-1-6d94f834-153c-4074-ac7e-eb115ddc7aa4 /172.19.0.1     consumer-fraud-event-consumer-1
