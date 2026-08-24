@@ -5,6 +5,7 @@ import com.example.fraud.common.event.FraudRuleCode;
 import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
+import com.example.fraud.consumer.redis.RecentTransactionWindowStatus;
 import com.example.fraud.consumer.redis.SlidingWindowProperties;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -110,7 +111,11 @@ public class FraudRuleEngine {
         if (windowResult == null || !windowResult.degraded()) {
             return matchedReason;
         }
-        return matchedReason + "; Redis degraded mode: " + windowResult.reason();
+        return switch (windowResult.status()) {
+            case REDIS_UNAVAILABLE -> matchedReason + "; Redis unavailable: " + windowResult.reason();
+            case TOO_LATE -> matchedReason + "; Freshness policy skip: " + windowResult.reason();
+            case NORMAL -> matchedReason;
+        };
     }
 
     private RiskLevel toRiskLevel(int riskScore) {

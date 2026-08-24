@@ -67,7 +67,8 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
                         Duration.ofMinutes(5),
                         5,
                         BigDecimal.valueOf(3_000_000),
-                        Duration.ofMinutes(10)
+                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(5)
                 ),
                 new FraudConsumerMetrics(new SimpleMeterRegistry())
         );
@@ -198,11 +199,71 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
         )).containsExactly("evt-it-current-window");
     }
 
+    @Test
+    void acceptsOutOfOrderEventWithinAllowedLatenessByEventTimeScore() {
+        store.recordAndGetWindow(message(
+                "evt-it-arrived-first",
+                "user-it-out-of-order",
+                BigDecimal.valueOf(100_000),
+                "2026-06-19T10:00:00Z",
+                "2026-06-19T10:00:01Z"
+        ));
+
+        RecentTransactionWindowResult result = store.recordAndGetWindow(message(
+                "evt-it-arrived-second",
+                "user-it-out-of-order",
+                BigDecimal.valueOf(200_000),
+                "2026-06-19T09:58:00Z",
+                "2026-06-19T10:01:00Z"
+        ));
+
+        assertThat(result.degraded()).isFalse();
+        assertThat(result.transactionCount()).isEqualTo(1);
+        assertThat(result.amountSum()).isEqualByComparingTo("200000");
+        assertThat(redisTemplate.opsForZSet().range(userEventsKey("user-it-out-of-order"), 0, -1))
+                .containsExactly("evt-it-arrived-second", "evt-it-arrived-first");
+        assertThat(redisTemplate.opsForZSet().score(
+                userEventsKey("user-it-out-of-order"),
+                "evt-it-arrived-second"
+        )).isLessThan(redisTemplate.opsForZSet().score(
+                userEventsKey("user-it-out-of-order"),
+                "evt-it-arrived-first"
+        ));
+    }
+
+    @Test
+    void skipsTooLateEventWithoutMutatingRedisState() {
+        RecentTransactionWindowResult result = store.recordAndGetWindow(message(
+                "evt-it-too-late",
+                "user-it-too-late",
+                BigDecimal.valueOf(100_000),
+                "2026-06-19T10:00:00Z",
+                "2026-06-19T10:05:01Z"
+        ));
+
+        assertThat(result.degraded()).isTrue();
+        assertThat(result.status()).isEqualTo(RecentTransactionWindowStatus.TOO_LATE);
+        assertThat(result.reason()).contains("allowed lateness");
+        assertThat(redisTemplate.opsForZSet().zCard(userEventsKey("user-it-too-late"))).isZero();
+        assertThat(redisTemplate.hasKey(eventKey("evt-it-too-late"))).isFalse();
+    }
+
     private TransactionEventMessage message(
             String eventId,
             String userId,
             BigDecimal amount,
             String eventTime
+    ) {
+        OffsetDateTime time = OffsetDateTime.parse(eventTime);
+        return message(eventId, userId, amount, eventTime, time.plusSeconds(1).toString());
+    }
+
+    private TransactionEventMessage message(
+            String eventId,
+            String userId,
+            BigDecimal amount,
+            String eventTime,
+            String receivedAt
     ) {
         OffsetDateTime time = OffsetDateTime.parse(eventTime);
         return new TransactionEventMessage(
@@ -217,7 +278,7 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
                 "device-it-001",
                 "SEOUL",
                 time,
-                time.plusSeconds(1),
+                OffsetDateTime.parse(receivedAt),
                 "trace-" + eventId
         );
     }

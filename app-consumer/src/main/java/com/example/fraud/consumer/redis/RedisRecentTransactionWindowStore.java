@@ -3,6 +3,7 @@ package com.example.fraud.consumer.redis;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,11 +52,24 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
                     message.userId(),
                     exception.getClass().getSimpleName()
             );
-            return RecentTransactionWindowResult.degraded("Redis sliding window unavailable");
+            return RecentTransactionWindowResult.redisUnavailable("Redis sliding window unavailable");
         }
     }
 
     private RecentTransactionWindowResult recordAndGetWindowOrThrow(TransactionEventMessage message) {
+        if (isTooLateForLiveWindow(message)) {
+            metrics.incrementRedisWindowTooLate();
+            log.info(
+                    "redis sliding window skipped too-late event traceId={} eventId={} userId={} latenessMs={} allowedLatenessMs={}",
+                    message.traceId(),
+                    message.eventId(),
+                    message.userId(),
+                    lateness(message).toMillis(),
+                    properties.allowedLateness().toMillis()
+            );
+            return RecentTransactionWindowResult.tooLate("Event exceeded allowed lateness; Redis sliding window skipped");
+        }
+
         long eventTimeMillis = message.eventTime().toInstant().toEpochMilli();
         long windowStartMillis = message.eventTime()
                 .minus(properties.window())
@@ -95,6 +109,18 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
         metrics.recordRedisWindowState(validAmounts.size(), amountSum);
 
         return RecentTransactionWindowResult.normal(validAmounts.size(), amountSum);
+    }
+
+    private boolean isTooLateForLiveWindow(TransactionEventMessage message) {
+        if (message.eventTime() == null || message.receivedAt() == null) {
+            return false;
+        }
+        Duration eventLateness = lateness(message);
+        return !eventLateness.isNegative() && eventLateness.compareTo(properties.allowedLateness()) > 0;
+    }
+
+    private Duration lateness(TransactionEventMessage message) {
+        return Duration.between(message.eventTime().toInstant(), message.receivedAt().toInstant());
     }
 
     private String userEventsKey(String userId) {

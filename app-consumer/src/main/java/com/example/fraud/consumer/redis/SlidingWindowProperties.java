@@ -9,7 +9,8 @@ public record SlidingWindowProperties(
         Duration window,
         int maxEvents,
         BigDecimal amountThreshold,
-        Duration ttl
+        Duration ttl,
+        Duration allowedLateness
 ) {
 
     public SlidingWindowProperties {
@@ -24,6 +25,9 @@ public record SlidingWindowProperties(
         }
         if (ttl == null) {
             ttl = Duration.ofMinutes(10);
+        }
+        if (allowedLateness == null || allowedLateness.isNegative()) {
+            allowedLateness = Duration.ofMinutes(5);
         }
     }
 }

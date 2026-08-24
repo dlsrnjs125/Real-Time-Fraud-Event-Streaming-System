@@ -37,6 +37,7 @@ fraud:
     max-events: 5
     amount-threshold: 3000000
     ttl: 10m
+    allowed-lateness: 5m
 
 server:
   port: 8081

@@ -51,7 +51,43 @@
     "eventTimeMode": {"enum": ["PRESERVE_SOURCE_TIME", "REBASE_TO_ARRIVAL", "CONTROLLED_LATENESS"]},
     "sourceTimeResolution": {"type": "string", "minLength": 1},
     "timeScaleFactor": {"type": ["number", "null"], "exclusiveMinimum": 0},
-    "latenessProfile": {"type": ["object", "null"]},
+    "latenessProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "allowedLateness",
+        "tooLateAge",
+        "eventAmount",
+        "buckets",
+        "expectedTooLateEvents",
+        "expectedAcceptedLateEvents"
+      ],
+      "properties": {
+        "allowedLateness": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"},
+        "tooLateAge": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"},
+        "eventAmount": {"type": "number", "minimum": 0},
+        "buckets": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "lateness"],
+            "properties": {
+              "name": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+              "lateness": {"type": "string", "pattern": "^[0-9]+(s|m|h)$"}
+            }
+          }
+        },
+        "expectedTooLateEvents": {"type": "integer", "minimum": 0},
+        "expectedAcceptedLateEvents": {"type": "integer", "minimum": 0},
+        "outOfOrderPattern": {
+          "type": ["array", "null"],
+          "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"}
+        },
+        "note": {"type": "string"}
+      }
+    },
     "replayRate": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "statefulWindowProfile": {
       "type": ["object", "null"],

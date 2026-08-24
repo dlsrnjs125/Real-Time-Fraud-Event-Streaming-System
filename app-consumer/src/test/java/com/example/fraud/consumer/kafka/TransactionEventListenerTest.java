@@ -345,7 +345,7 @@ class TransactionEventListenerTest {
                         com.example.fraud.common.event.FraudRuleCode.WINDOW_AMOUNT_SUM
                 ),
                 true,
-                "No fraud rule matched; Redis degraded mode: Redis unavailable"
+                "No fraud rule matched; Redis unavailable: Redis unavailable"
         );
         when(fraudDetectionResultService.existsResultForEventId(message.eventId())).thenReturn(false);
         when(recentTransactionWindowStore.recordAndGetWindow(message)).thenReturn(windowResult);

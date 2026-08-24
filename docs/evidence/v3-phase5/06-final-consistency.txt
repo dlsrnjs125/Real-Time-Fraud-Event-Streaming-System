@@ -1,0 +1,31 @@
+# Final Consistency
+
+Run ID: phase5-late-out-of-order-20260824-001
+Commit SHA: d540bc7
+
+Configured events: 300
+Emitted events: 300
+Accepted stateful events: 250
+Too-late events: 50
+
+PostgreSQL counts:
+
+receipts: 300
+processing_logs: 300
+fraud_results: 300
+
+Kafka consumer group lag:
+
+GROUP                TOPIC               PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
+fraud-event-consumer transaction-events  0          80              80              0
+fraud-event-consumer transaction-events  1          20              20              0
+fraud-event-consumer transaction-events  2          20              20              0
+fraud-event-consumer transaction-events  3          60              60              0
+fraud-event-consumer transaction-events  4          60              60              0
+fraud-event-consumer transaction-events  5          60              60              0
+
+Final lag: 0
+
+Correctness check:
+
+Too-late events are not stored in the live Redis sliding-window state, but they still create durable fraud results. Therefore `fraud_results = 300` is expected, while Redis live-state membership applies only to accepted stateful events that remain inside the current event-time window.

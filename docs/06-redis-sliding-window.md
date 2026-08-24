@@ -19,11 +19,12 @@ Redis는 사용자별 최근 거래 패턴을 빠르게 계산하기 위한 단�
 처리 흐름:
 
 1. PostgreSQL fraud result가 이미 존재하는 `eventId`이면 Redis window를 갱신하지 않고 duplicate 처리합니다.
-2. 이벤트별 Hash에 amount/userId/eventTime을 저장합니다.
-3. 현재 거래 이벤트를 ZSET에 추가합니다.
-4. window 범위 밖의 오래된 이벤트를 제거합니다.
-5. window 내부 이벤트 수와 누적 금액을 계산합니다.
-6. 기준 횟수 또는 누적 금액을 초과하면 stateful rule을 매칭합니다.
+2. `receivedAt - eventTime`이 `allowed-lateness`를 초과하면 Redis window를 갱신하지 않고 Redis 기반 rule을 skipped 처리합니다.
+3. 이벤트별 Hash에 amount/userId/eventTime을 저장합니다.
+4. 현재 거래 이벤트를 ZSET에 추가합니다.
+5. window 범위 밖의 오래된 이벤트를 제거합니다.
+6. window 내부 이벤트 수와 누적 금액을 계산합니다.
+7. 기준 횟수 또는 누적 금액을 초과하면 stateful rule을 매칭합니다.
 
 Hash metadata가 없는 ZSET member는 부분 실패로 남은 불완전 데이터로 보고 count와 amount sum에서 제외합니다. Phase 6에서는 Redis Lua나 transaction을 사용하지 않으므로, 부분 실패는 degraded 또는 유효 metadata 기준 계산으로 완화합니다.
 
@@ -31,6 +32,7 @@ Phase 6 기본 기준:
 
 - window: 5 minutes
 - TTL: 10 minutes
+- allowed lateness: 5 minutes
 - `RAPID_TRANSACTION_COUNT`: 최근 5분 내 5건 이상, +30
 - `WINDOW_AMOUNT_SUM`: 최근 5분 누적 3,000,000 KRW 이상, +40
 
@@ -61,6 +63,7 @@ Redis timeout은 Consumer thread가 Redis 장애에 오래 묶이지 않도록 `
 
 - `fraud.redis.window.record.latency`: Redis window record/get 처리 시간
 - `fraud.redis.window.degraded.total`: Redis 장애 중 degraded window result 횟수
+- `fraud.redis.window.too_late.total`: allowed-lateness 초과로 Redis live-state 갱신을 건너뛴 이벤트 수
 - `fraud.redis.window.event.count`: Redis window 안에 남은 유효 이벤트 수 분포
 - `fraud.redis.window.amount.sum`: Redis window 안에 남은 유효 거래 금액 합계 분포
 - `fraud.detection.degraded.total`: `degraded=true` fraud result 저장 횟수
@@ -87,7 +90,19 @@ V3 Phase 4 redelivery drill은 이 동작을 명시적으로 검증합니다. Re
 
 허용 가능한 clock skew를 초과하면 validation failure 또는 DLT 대상으로 분류합니다. 이 기준은 `docs/10-failure-scenarios.md`의 Future eventTime 시나리오와 함께 검증합니다.
 
-## 8. Phase 7 Integration Test 검증 항목
+## 8. Late and Out-of-Order 기준
+
+V3 Phase 5부터 `fraud.sliding-window.allowed-lateness`를 기준으로 live Redis state 갱신 여부를 결정합니다.
+
+- `receivedAt - eventTime <= allowed-lateness`: Hash와 ZSET을 갱신하고 Redis 기반 rule을 정상 평가합니다.
+- `receivedAt - eventTime == allowed-lateness`: boundary late로 보고 정상 평가합니다.
+- `receivedAt - eventTime > allowed-lateness`: Hash/ZSET mutation을 수행하지 않고 Redis 기반 rule을 skipped 처리합니다.
+
+허용 지연 안의 out-of-order 이벤트는 도착 순서가 아니라 `eventTime` epoch milliseconds를 ZSET score로 저장합니다. 해당 이벤트의 반환 window는 `[eventTime - window, eventTime]` 범위로 계산합니다.
+
+too-late 이벤트는 Redis 인프라 장애가 아니므로 `fraud.redis.window.degraded.total` 대신 `fraud.redis.window.too_late.total`로 원인을 분리합니다. Rule evaluation에서는 Redis 기반 rule을 실행하지 않아야 하므로 `RecentTransactionWindowStatus.TOO_LATE` 상태를 사용해 skipped rule을 남기고, fraud result reason에는 `Freshness policy skip`을 기록합니다.
+
+## 9. Phase 7 Integration Test 검증 항목
 
 Phase 7에서는 Testcontainers 대신 Docker Compose Redis를 사용하는 별도 integration test target으로 실제 Redis 자료구조 기준 검증을 분리했습니다. Redis integration test는 테스트 전용 Redis database index `15`를 사용하며, 테스트 시작 전 해당 DB만 초기화합니다.
 
