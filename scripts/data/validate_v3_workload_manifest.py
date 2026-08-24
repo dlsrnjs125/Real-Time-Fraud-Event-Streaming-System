@@ -56,6 +56,14 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_partition_skew(manifest)
     if role == "USER_SKEW" and manifest["targetUserConcentration"] is None:
         raise ManifestError("USER_SKEW requires targetUserConcentration")
+    source_delay_profile = manifest.get("sourceDelayProfile")
+    if role == "ORGANIC_BURST":
+        if source_delay_profile is not None:
+            validate_source_delay_profile(manifest, expected_source_profile="NORMAL", expected_source_delay_seconds=0)
+    elif role == "CATCH_UP_BURST":
+        validate_source_delay_profile(manifest, expected_source_profile="BATCH_CATCHUP")
+    elif source_delay_profile is not None:
+        raise ManifestError("sourceDelayProfile is only allowed for ORGANIC_BURST or CATCH_UP_BURST workloads")
     if role in STATEFUL_WINDOW_ROLES:
         validate_stateful_window_profile(manifest)
     elif manifest["statefulWindowProfile"] is not None:
@@ -64,6 +72,41 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_lateness_profile(manifest)
     elif manifest["latenessProfile"] is not None:
         raise ManifestError("latenessProfile is only allowed for LATE_OUT_OF_ORDER workloads")
+
+
+def validate_source_delay_profile(
+    manifest: dict[str, Any],
+    *,
+    expected_source_profile: str,
+    expected_source_delay_seconds: int | None = None,
+) -> None:
+    profile = manifest.get("sourceDelayProfile")
+    if profile is None:
+        raise ManifestError(f"{manifest['workloadRole']} requires sourceDelayProfile")
+    if manifest["driverType"] != "HTTP_SOURCE_EMULATOR":
+        raise ManifestError(f"{manifest['workloadRole']} requires HTTP_SOURCE_EMULATOR")
+    if manifest["sourceProfile"] != expected_source_profile:
+        raise ManifestError(f"{manifest['workloadRole']} requires {expected_source_profile} sourceProfile")
+    if manifest["userDistribution"] != "UNIFORM":
+        raise ManifestError(f"{manifest['workloadRole']} requires UNIFORM userDistribution")
+    if manifest["targetPartitionDistribution"] is not None or manifest["partitionAffinityStrategy"] is not None:
+        raise ManifestError(f"{manifest['workloadRole']} must not use partition affinity")
+    if manifest["targetUserConcentration"] is not None or manifest["heavyUserRatio"] != 0:
+        raise ManifestError(f"{manifest['workloadRole']} must keep user distribution uniform")
+
+    allowed_lateness_seconds = parse_duration_seconds(profile["allowedLateness"])
+    source_delay_seconds = parse_non_negative_duration_seconds(profile["sourceDelay"])
+    if expected_source_delay_seconds is not None and source_delay_seconds != expected_source_delay_seconds:
+        raise ManifestError("sourceDelay must match the expected source-delay policy")
+    if profile["expectedSourceDelaySeconds"] != source_delay_seconds:
+        raise ManifestError("expectedSourceDelaySeconds must equal sourceDelay")
+
+    expected_too_late = manifest["eventLimit"] if source_delay_seconds > allowed_lateness_seconds else 0
+    expected_accepted = manifest["eventLimit"] - expected_too_late
+    if profile["expectedTooLateEvents"] != expected_too_late:
+        raise ManifestError("expectedTooLateEvents must match sourceDelay and allowedLateness")
+    if profile["expectedAcceptedEvents"] != expected_accepted:
+        raise ManifestError("expectedAcceptedEvents must match eventLimit and expectedTooLateEvents")
 
 
 def validate_partition_skew(manifest: dict[str, Any]) -> None:

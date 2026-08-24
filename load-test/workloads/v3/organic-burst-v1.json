@@ -1,0 +1,33 @@
+{
+  "workloadId": "v3-phase6-organic-burst",
+  "workloadVersion": "v1",
+  "workloadRole": "ORGANIC_BURST",
+  "datasetVersion": "synthetic-v3",
+  "driverType": "HTTP_SOURCE_EMULATOR",
+  "targetEps": 300,
+  "duration": "30s",
+  "eventLimit": 9000,
+  "userCardinality": 1000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "NORMAL",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "sourceTimeResolution": "millisecond",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "sourceDelayProfile": {
+    "allowedLateness": "5m",
+    "sourceDelay": "0s",
+    "eventAmount": 100000,
+    "expectedSourceDelaySeconds": 0,
+    "expectedAcceptedEvents": 9000,
+    "expectedTooLateEvents": 0,
+    "note": "Organic burst represents new market activity arriving at the source-emulator dispatch time."
+  },
+  "replayRate": null,
+  "statefulWindowProfile": null,
+  "randomSeed": 660519
+}

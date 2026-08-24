@@ -42,6 +42,9 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | V3 Phase 3 Partition Balanced | `make k6-v3-phase3-partition-balanced` | Partition-affinity workload targeting balanced local partition shares |
 | V3 Phase 3 Partition Skew | `make k6-v3-phase3-partition-skew` | Partition-affinity workload targeting a hot P2 partition |
 | V3 Phase 4 Stateful Redelivery | `make k6-v3-phase4-stateful-redelivery` | Deterministic single-user stream for redelivery failure-point drills |
+| V3 Phase 5 Late / Out-of-Order | `make k6-v3-phase5-late-out-of-order` | Controlled lateness workload for accepted-late, too-late, and event-time ordering |
+| V3 Phase 6 Organic Burst | `make k6-v3-phase6-organic-burst` | Source-emulator workload for new activity burst with event-time rebased to dispatch |
+| V3 Phase 6 Catch-up Burst | `make k6-v3-phase6-catch-up-burst` | Source-emulator workload with same EPS/event count and controlled upstream source delay |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -68,6 +71,8 @@ V3_RUN_ID=<run-id> make k6-v3-baseline
 Phase 1 workloads additionally require `V3_WORKLOAD_MANIFEST`, which the Makefile targets set automatically. The runner converts each manifest stage into a separate `constant-arrival-rate` plateau scenario and enforces a stage-level HTTP emission limit so `eventLimit` remains the sum of each stage's `targetEps * duration`. Raw summaries remain local ignored evidence.
 
 Phase 2 state-size workloads keep EPS, duration, event amount, and total event count fixed while changing `userCardinality`. Compare `fraud.redis.window.event.count`, `fraud.redis.window.amount.sum`, `fraud.redis.state.latency`, Consumer service latency, Redis memory, and Consumer Lag over the same Grafana time range.
+
+Phase 6 source-emulator workloads use the same `targetEps`, `duration`, `eventLimit`, and `randomSeed` for organic and catch-up bursts. The organic workload sets `eventTime` at source dispatch time. The catch-up workload sets `eventTime` 270 seconds before source dispatch, staying inside the 5-minute freshness policy so evidence can isolate source delay from too-late rejection.
 
 Phase 3 partition workloads use `PARTITION_AFFINITY` manifests. The k6 runner pre-generates synthetic `userId` values whose Kafka Murmur2 key hash maps to the configured local partitions, then emits events according to `targetPartitionDistribution`. User assignment uses a per-partition occurrence counter so partition skew is not accidentally implemented as hot-user pressure. Confirm achieved distribution with Kafka exporter metrics or processing logs after the run.
 

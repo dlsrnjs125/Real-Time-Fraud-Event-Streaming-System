@@ -88,6 +88,27 @@
         "note": {"type": "string"}
       }
     },
+    "sourceDelayProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "allowedLateness",
+        "sourceDelay",
+        "eventAmount",
+        "expectedSourceDelaySeconds",
+        "expectedAcceptedEvents",
+        "expectedTooLateEvents"
+      ],
+      "properties": {
+        "allowedLateness": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"},
+        "sourceDelay": {"type": "string", "pattern": "^[0-9]+(s|m|h)$"},
+        "eventAmount": {"type": "number", "minimum": 0},
+        "expectedSourceDelaySeconds": {"type": "integer", "minimum": 0},
+        "expectedAcceptedEvents": {"type": "integer", "minimum": 0},
+        "expectedTooLateEvents": {"type": "integer", "minimum": 0},
+        "note": {"type": "string"}
+      }
+    },
     "replayRate": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "statefulWindowProfile": {
       "type": ["object", "null"],
