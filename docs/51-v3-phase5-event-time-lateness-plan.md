@@ -29,6 +29,8 @@ Default runtime policy:
 
 `fraud.sliding-window.allowed-lateness` defaults to `5m`, aligned with the current runtime window.
 
+app-api already rejects events whose `eventTime` is more than 5 minutes after `receivedAt`, so the Redis store does not classify negative lateness as too-late.
+
 ## 3. Event-Time Window Semantics
 
 Accepted events are stored in Redis as:
@@ -67,13 +69,15 @@ Manifest contract:
 - `eventTimeMode=CONTROLLED_LATENESS`
 - `sourceProfile=SLOW_SOURCE`
 - `allowedLateness=5m`
-- buckets: on-time, 30 seconds late, 2 minutes late, 5-minute boundary, 10 minutes too-late, and a 1-minute return bucket
+- buckets: on-time, 30 seconds late, 2 minutes late, 4m59s accepted near-boundary, 10 minutes too-late, and a 1-minute return bucket
 - `expectedTooLateEvents=50`
 - `expectedAcceptedLateEvents=250`
 
 The validator rejects lateness profiles on non-late workloads and checks expected too-late counts from the bucket pattern.
 
 The k6 runner applies `outOfOrderPattern` to each user's deterministic event plan. Bucket selection uses the user's event index plus user index, so the whole run keeps the expected bucket counts while each user receives a non-monotonic event-time sequence.
+
+The HTTP runtime workload intentionally does not try to prove exact equality at `allowedLateness=5m`. k6 creates `eventTime` before the API service assigns `receivedAt`, so a nominal client-side 5-minute event can become `5m + network/service latency` on the server. Exact boundary semantics are verified in unit/integration tests with controlled `eventTime` and `receivedAt`.
 
 ## 5. Metrics
 
@@ -96,6 +100,7 @@ Redis infrastructure failure and event freshness rejection are different causes 
 Implementation completion:
 
 - Redis store skips too-late live-state mutation
+- exact `allowedLateness` equality is accepted in controlled tests
 - accepted out-of-order events are stored by event-time score
 - unit and integration tests cover too-late and out-of-order behavior
 - Phase 5 manifest validates through the V3 workload validator

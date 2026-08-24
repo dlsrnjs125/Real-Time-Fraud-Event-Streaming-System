@@ -35,8 +35,8 @@
         "lateness": "2m"
       },
       {
-        "name": "LATE_5M_BOUNDARY",
-        "lateness": "5m"
+        "name": "LATE_NEAR_BOUNDARY_4M59S",
+        "lateness": "299s"
       },
       {
         "name": "TOO_LATE_10M",
@@ -54,7 +54,7 @@
       "LATE_2M",
       "LATE_30S"
     ],
-    "note": "Controlled lateness buckets verify allowed-late, boundary-late, too-late, and non-monotonic arrival order semantics."
+    "note": "Controlled lateness buckets verify allowed-late, near-boundary accepted-late, too-late, and non-monotonic arrival order semantics. Exact equality boundary is covered by controlled unit/integration tests, not HTTP runtime."
   },
   "replayRate": null,
   "statefulWindowProfile": null,

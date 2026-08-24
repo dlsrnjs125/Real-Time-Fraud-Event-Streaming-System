@@ -138,6 +138,8 @@ V3 Phase 2 adds Redis sliding-window state-size signals. `fraud.redis.window.eve
 
 V3 Phase 5 adds `fraud.redis.window.too_late.total`. This counter represents event freshness policy rejection, not Redis infrastructure failure. Compare it with the workload manifest's expected too-late bucket count; do not interpret it as Redis availability degradation.
 
+`fraud.detection.degraded.total` counts decisions where full stateful evaluation was not possible. It can increase for Redis infrastructure failure and for freshness-policy skips such as too-late events. Use `fraud.redis.window.degraded.total` for Redis unavailable cause and `fraud.redis.window.too_late.total` for freshness cause.
+
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 
 ## 4-2. 후속 Observability 후보

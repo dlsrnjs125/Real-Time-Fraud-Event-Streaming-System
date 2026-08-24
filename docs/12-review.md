@@ -1691,6 +1691,7 @@ V3_RUN_ID=phase4-after-result-threshold-20260824-001 make k6-v3-phase4-stateful-
 - Phase 5는 runtime evidence 수집 전 구현 범위로 제한했습니다.
 - Redis live-state eligibility 기준은 `receivedAt - eventTime <= fraud.sliding-window.allowed-lateness`입니다.
 - 기본 `allowed-lateness`는 5분이며, boundary late는 허용합니다.
+- HTTP runtime workload에서는 정확한 5분 equality를 검증하지 않고 `4m59s` near-boundary bucket을 사용합니다. 정확한 equality는 controlled unit/integration test에서 검증합니다.
 - too-late 이벤트는 Redis Hash/ZSET mutation을 수행하지 않고 Redis 기반 rule을 skipped 처리합니다.
 - too-late는 Redis infrastructure failure가 아니므로 `fraud.redis.window.too_late.total`로 분리해 기록합니다.
 - fraud result reason에서도 Redis 장애와 freshness policy skip을 분리하기 위해 `RecentTransactionWindowStatus`를 추가했습니다.
@@ -1701,6 +1702,7 @@ V3_RUN_ID=phase4-after-result-threshold-20260824-001 make k6-v3-phase4-stateful-
 ### 검증 포인트
 
 - too-late 이벤트에서 Redis `opsForZSet`/`opsForHash` 호출이 발생하지 않는가
+- `receivedAt - eventTime == allowedLateness`가 controlled test에서 accepted 되는가
 - too-late 이벤트가 Redis degraded infrastructure counter가 아니라 too-late counter를 증가시키는가
 - too-late fraud result reason이 `Redis degraded mode`가 아니라 `Freshness policy skip`으로 남는가
 - k6 summary의 `runtimePattern`과 `outOfOrderPatternApplied`가 manifest의 non-monotonic pattern을 반영하는가

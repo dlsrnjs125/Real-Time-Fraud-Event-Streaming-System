@@ -162,6 +162,33 @@ class RedisRecentTransactionWindowStoreTest {
     }
 
     @Test
+    void acceptsEventExactlyAtAllowedLatenessBoundary() {
+        OffsetDateTime eventTime = OffsetDateTime.parse("2026-06-19T10:00:00Z");
+        TransactionEventMessage message = message(
+                "evt-redis-boundary",
+                BigDecimal.valueOf(100_000),
+                eventTime,
+                eventTime.plusMinutes(5)
+        );
+        mockRedisOperations();
+        when(zSet.rangeByScore(
+                "fraud:tx:user:user-1001:events",
+                millis("2026-06-19T09:55:00Z"),
+                millis("2026-06-19T10:00:00Z")
+        )).thenReturn(Set.of("evt-redis-boundary"));
+        when(hash.get("fraud:tx:event:evt-redis-boundary", "amount")).thenReturn("100000");
+
+        RecentTransactionWindowResult result = store.recordAndGetWindow(message);
+
+        assertThat(result.degraded()).isFalse();
+        assertThat(result.status()).isEqualTo(RecentTransactionWindowStatus.NORMAL);
+        assertThat(result.transactionCount()).isEqualTo(1);
+        assertThat(result.amountSum()).isEqualByComparingTo("100000");
+        assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_TOO_LATE_TOTAL).count()).isZero();
+        verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-boundary", millis("2026-06-19T10:00:00Z"));
+    }
+
+    @Test
     void skipsRedisMutationForTooLateEvent() {
         OffsetDateTime eventTime = OffsetDateTime.parse("2026-06-19T10:00:00Z");
         TransactionEventMessage message = message(
@@ -192,6 +219,8 @@ class RedisRecentTransactionWindowStoreTest {
         when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-duplicate"), anyDouble()))
                 .thenReturn(true);
         when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-new"), anyDouble()))
+                .thenReturn(true);
+        when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-boundary"), anyDouble()))
                 .thenReturn(true);
     }
 
