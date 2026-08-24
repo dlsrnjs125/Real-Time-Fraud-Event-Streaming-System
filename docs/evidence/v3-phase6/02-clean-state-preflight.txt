@@ -1,0 +1,33 @@
+V3 Phase 6 clean-state preflight
+Run date: 2026-08-24
+
+Scope:
+LOCAL EXPERIMENT ONLY. The Phase 6 preflight uses Redis FLUSHDB against the local Docker Redis DB.
+Do not run this preflight against shared or production Redis.
+
+Organic accepted run:
+Run ID: phase6-organic-20260824-003
+Preflight command: scripts/load_tests/prepare_v3_phase6_run.sh
+Preflight output:
+  Preparing V3 Phase 6 run isolation
+  Scope: LOCAL EXPERIMENT ONLY. Redis FLUSHDB will be executed.
+  Kafka consumer group: fraud-event-consumer
+  Redis container/db: fraud-redis/0
+  Kafka pre-run Consumer Lag is 0.
+  Redis DB 0 flushed for clean Phase 6 source-delay run state.
+Redis DBSIZE immediately before run: 0
+
+Catch-up accepted run:
+Run ID: phase6-catchup-20260824-001
+Preflight command: scripts/load_tests/prepare_v3_phase6_run.sh
+Preflight output:
+  Preparing V3 Phase 6 run isolation
+  Scope: LOCAL EXPERIMENT ONLY. Redis FLUSHDB will be executed.
+  Kafka consumer group: fraud-event-consumer
+  Redis container/db: fraud-redis/0
+  Kafka pre-run Consumer Lag is 0.
+  Redis DB 0 flushed for clean Phase 6 source-delay run state.
+Redis DBSIZE immediately before run: 0
+
+Purpose:
+The clean-state preflight prevents Catch-up Redis window state from inheriting Organic run state and ensures pre-run backlog is not mixed into the attribution result.

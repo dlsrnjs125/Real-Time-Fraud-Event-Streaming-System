@@ -36,7 +36,7 @@
 | V3 Phase 0 | Dataset, workload, timestamp, stream observability foundation | `make verify-v3-phase0`, `make k6-v3-baseline`, Prometheus/Grafana local checks | `docs/44-v3-phase0-foundation-evidence.md` |
 | V3 Phase 1 | Sustainable throughput and backlog recovery | `make k6-v3-phase1-capacity`, `make k6-v3-phase1-knee`, `make k6-v3-phase1-recovery` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 | V3 Phase 5 | Event-time lateness semantics | `make k6-v3-phase5-late-out-of-order` | `docs/evidence/v3-phase5/` |
-| V3 Phase 6 | External delay and catch-up burst | `make k6-v3-phase6-organic-burst`, `make k6-v3-phase6-catch-up-burst` | Implementation ready; runtime evidence pending |
+| V3 Phase 6 | External delay and catch-up burst | `make k6-v3-phase6-organic-burst`, `make k6-v3-phase6-catch-up-burst` | `docs/evidence/v3-phase6/` accepted runtime evidence and Grafana screenshots |
 
 ## CI / Build
 

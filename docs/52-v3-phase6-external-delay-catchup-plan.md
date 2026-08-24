@@ -1,6 +1,6 @@
 # V3 Phase 6 External Delay and Catch-up Burst Plan
 
-Status: Implementation ready; runtime evidence pending.
+Status: Done.
 
 ## 1. Objective
 
@@ -120,15 +120,23 @@ Implementation completion:
 - k6 source-emulator driver records source profile, event-time mode, source delay, achieved EPS, dropped iterations, and HTTP latency summary
 - Makefile exposes separate organic and catch-up burst run targets with clean Redis state and pre-run Consumer Lag guardrails
 
-Runtime completion, to be collected next:
+Accepted runtime evidence:
 
-- organic and catch-up runs execute with the same configured rate and event count
-- catch-up run shows higher ingress age while organic run stays near dispatch time
-- API/Kafka/Redis/Consumer metrics are captured to distinguish pre-ingress event age from downstream bottlenecks
-- matched-rule distribution is checked or the run window is chosen away from time-based rule boundaries
-- any Lag observed at 300 EPS is interpreted by organic/catch-up difference, not attributed to catch-up source age by itself
-- final DB counts match emitted events for both runs
-- final Consumer Lag returns to 0 for both runs
+- organic and catch-up runs executed with the same configured rate and event count
+- organic run emitted 9000 events with HTTP failure 0 and dropped iterations 0
+- catch-up run emitted 9000 events with HTTP failure 0 and dropped iterations 0
+- persisted event-to-ingress age showed organic p95 `0.239387s` and catch-up p95 `270.127421s`
+- both runs produced too-late result count `0`, keeping Phase 6 separate from Phase 5 freshness rejection
+- API/Kafka/Redis/Consumer/Sink metrics were captured separately from persisted pre-ingress age
+- matched-rule distribution was identical for both accepted runs: `RAPID_TRANSACTION_COUNT=5000`, `(none)=4000`
+- final DB counts matched emitted events for both runs: receipts/results/logs = `9000/9000/9000`
+- final Consumer Lag returned to `0` for both runs
+
+Evidence:
+
+```text
+docs/evidence/v3-phase6/
+```
 
 ## 7. Known Limitations
 

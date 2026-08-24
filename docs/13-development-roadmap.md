@@ -45,7 +45,7 @@
 | V3 Phase 3 | Done | Kafka Partition Skew and Consumer Parallelism | partition-affinity manifests, k6 runner, accepted runtime evidence, Grafana screenshots | V3 Phase 4 redelivery semantics |
 | V3 Phase 4 | Done | Redelivery and Stateful Processing Semantics | redelivery drill injector, deterministic workload, accepted runtime evidence, Grafana screenshots | V3 Phase 5 event-time lateness semantics |
 | V3 Phase 5 | Done | Event-Time, Late, and Out-of-Order Processing | allowed-lateness runtime policy, too-late Redis skip, controlled lateness manifest, k6 driver, accepted runtime evidence, Grafana screenshots | V3 Phase 6 external delay and catch-up burst |
-| V3 Phase 6 | In Progress | External Delay and Catch-up Burst | organic/catch-up manifests, source-emulator k6 driver, workload validator guardrails, Phase 6 plan | collect runtime evidence for organic vs catch-up attribution |
+| V3 Phase 6 | Done | External Delay and Catch-up Burst | organic/catch-up manifests, source-emulator k6 driver, workload validator guardrails, accepted runtime evidence, Grafana screenshots | V3 Phase 7 scope definition |
 | V3 Phase 7 | Not Started | Historical Replay Isolation | planned live/replay isolation | isolate topic/group/state/metrics and replay rate |
 | V3 Optional Phase 8 | Deferred | Downstream Streaming and Backpressure | outside core V3 sequence | reconsider after Phase 0~7 evidence |
 

@@ -1,0 +1,44 @@
+V3 Phase 6 final consistency
+Run date: 2026-08-24
+Commit: c7e348a
+
+Organic accepted run
+Run ID: phase6-organic-20260824-003
+Configured events: 9000
+Emitted events: 9000
+HTTP failure rate: 0
+Dropped iterations: 0
+
+PostgreSQL counts:
+transaction_event_receipts = 9000
+event_processing_logs     = 9000
+fraud_detection_results   = 9000
+
+Freshness policy skip results: 0
+Final Kafka consumer lag: 0
+
+Matched rules:
+RAPID_TRANSACTION_COUNT = 5000
+(none)                  = 4000
+
+Catch-up accepted run
+Run ID: phase6-catchup-20260824-001
+Configured events: 9000
+Emitted events: 9000
+HTTP failure rate: 0
+Dropped iterations: 0
+
+PostgreSQL counts:
+transaction_event_receipts = 9000
+event_processing_logs     = 9000
+fraud_detection_results   = 9000
+
+Freshness policy skip results: 0
+Final Kafka consumer lag: 0
+
+Matched rules:
+RAPID_TRANSACTION_COUNT = 5000
+(none)                  = 4000
+
+Conclusion:
+Both paired Phase 6 workloads preserved durable 9000/9000/9000 counts and drained to final lag 0. Catch-up remained inside the 5-minute allowed-lateness policy, so all 9000 events produced durable fraud results and were not treated as too-late freshness skips.

@@ -247,7 +247,7 @@ Rules:
 | 3 | Kafka Partition Skew and Consumer Parallelism | How far does Consumer scale-out help under uniform and skewed keys? | Done |
 | 4 | Redelivery and Stateful Processing Semantics | Does redelivery preserve Redis state and subsequent fraud decisions? | Done |
 | 5 | Event-Time, Late, and Out-of-Order Processing | What state-update policy preserves window meaning for late arrivals? | Done |
-| 6 | External Delay and Catch-up Burst | Can organic bursts be distinguished from delayed upstream catch-up? | Implementation ready; evidence pending |
+| 6 | External Delay and Catch-up Burst | Can organic bursts be distinguished from delayed upstream catch-up? | Done; accepted runtime evidence captured |
 | 7 | Historical Replay Isolation | Can replay run without contaminating live state and live latency? | Not started |
 | Optional 8 | Downstream Streaming and Backpressure | Can slow clients be isolated after the core stream is proven? | Deferred |
 

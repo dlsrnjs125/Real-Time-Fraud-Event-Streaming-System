@@ -1,0 +1,58 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "v3-phase6-delay-attribution-evidence",
+    "title": "V3 Phase 6 Evidence - Source Delay Attribution",
+    "tags": ["v3", "phase6", "evidence"],
+    "timezone": "utc",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "",
+    "time": {
+      "from": "2026-08-24T10:30:45Z",
+      "to": "2026-08-24T10:36:00Z"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "timeseries",
+        "title": "Delay Attribution: Pre-Ingress Age vs Internal Processing",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {"unit": "s", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}},
+          "overrides": []
+        },
+        "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}},
+        "targets": [
+          {"refId": "A", "expr": "max(fraud_event_ingress_age_seconds_max)", "legendFormat": "event ingress age max"},
+          {"refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_kafka_producer_to_consumer_delay_seconds_bucket[1m])))", "legendFormat": "kafka producer-to-consumer p95"},
+          {"refId": "C", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_consumer_service_latency_seconds_bucket[1m])))", "legendFormat": "consumer service p95"},
+          {"refId": "D", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_redis_state_latency_seconds_bucket[1m])))", "legendFormat": "redis state p95"},
+          {"refId": "E", "expr": "histogram_quantile(0.95, sum by (le) (rate(fraud_result_sink_latency_seconds_bucket[1m])))", "legendFormat": "result sink p95"}
+        ]
+      },
+      {
+        "id": 2,
+        "type": "timeseries",
+        "title": "Processing Health: Rate, Lag, Freshness Policy",
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 10},
+        "fieldConfig": {
+          "defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}},
+          "overrides": []
+        },
+        "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true}},
+        "targets": [
+          {"refId": "A", "expr": "rate(fraud_api_intake_service_latency_seconds_count[1m])", "legendFormat": "api accepted rate"},
+          {"refId": "B", "expr": "rate(fraud_consumer_service_latency_seconds_count[1m])", "legendFormat": "consumer processed rate"},
+          {"refId": "C", "expr": "sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"})", "legendFormat": "total consumer lag"},
+          {"refId": "D", "expr": "max(fraud_redis_window_too_late_total)", "legendFormat": "too-late total"},
+          {"refId": "E", "expr": "max(fraud_redis_window_degraded_total)", "legendFormat": "redis degraded total"}
+        ]
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderUid": ""
+}
