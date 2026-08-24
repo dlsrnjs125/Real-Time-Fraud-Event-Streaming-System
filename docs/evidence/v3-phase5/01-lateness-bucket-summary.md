@@ -17,7 +17,7 @@
 
 ## Bucket Counts
 
-| Bucket | Expected | Actual |
+| Bucket | Expected | Runtime Generated |
 | --- | ---: | ---: |
 | `ON_TIME` | 50 | 50 |
 | `LATE_30S` | 50 | 50 |

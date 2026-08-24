@@ -1,6 +1,6 @@
 # V3 Phase 5 Event-Time Lateness Semantics Plan
 
-Status: Implementation ready; runtime evidence pending.
+Status: Done.
 
 ## 1. Objective
 
@@ -13,7 +13,7 @@ The goal is to separate freshness semantics from throughput or partition-skew be
 - too-late events should not mutate live Redis state
 - too-late events should be observable without being misclassified as Redis infrastructure failure
 
-Runtime evidence is intentionally deferred to the evidence collection step.
+Runtime evidence is recorded in `docs/evidence/v3-phase5/`.
 
 ## 2. Policy
 
@@ -106,14 +106,16 @@ Implementation completion:
 - Phase 5 manifest validates through the V3 workload validator
 - k6 script can inspect the Phase 5 workload contract
 
-Runtime completion, to be collected next:
+Runtime completion:
 
-- accepted late bucket count matches manifest expectation
-- too-late skip count matches manifest expectation
-- per-user accepted out-of-order sequence is present in the runtime summary
-- Redis state excludes too-late event IDs
-- final DB result/log counts match accepted API emissions
-- final Consumer Lag returns to 0 after the run drains
+- accepted runtime split recorded as `250` accepted stateful events and `50` too-late events
+- per-user out-of-order sequence reproduced for `v3-phase5-late-user-0`
+- accepted out-of-order events stored in Redis by event-time score
+- near-boundary `4m59s` late event accepted and present in Redis state
+- too-late Redis state exclusion confirmed for a representative `10m` late event
+- durable fraud results persisted for all `300` emitted events
+- final DB counts recorded as receipts `300`, processing logs `300`, and fraud results `300`
+- final Consumer Lag recorded as `0`
 
 ## 7. Known Limitations
 
