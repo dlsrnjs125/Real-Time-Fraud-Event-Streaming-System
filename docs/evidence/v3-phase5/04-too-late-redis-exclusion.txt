@@ -1,0 +1,28 @@
+# Too-Late Redis Exclusion
+
+Representative event: v3-phase5-phase5-late-out-of-order-20260824-001-120
+Bucket: TOO_LATE_10M
+Allowed lateness: 5m
+
+Timestamp evidence:
+
+event_time:  2026-08-24 02:26:39.011 UTC
+received_at: 2026-08-24 02:36:39.024415 UTC
+calculated_lateness: 00:10:00.013415
+
+Redis evidence:
+
+EXISTS fraud:tx:event:v3-phase5-phase5-late-out-of-order-20260824-001-120
+0
+
+ZSCORE fraud:tx:user:v3-phase5-late-user-0:events v3-phase5-phase5-late-out-of-order-20260824-001-120
+(nil)
+
+PostgreSQL durable result evidence:
+
+event_id: v3-phase5-phase5-late-out-of-order-20260824-001-120
+fraud_results rows: 1
+
+Interpretation:
+
+The too-late event is excluded from live Redis sliding-window state, but a durable fraud result is still persisted for audit and processing completeness.
