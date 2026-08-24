@@ -79,6 +79,44 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         self.assertEqual(50, manifest["latenessProfile"]["expectedTooLateEvents"])
         self.assertEqual(250, manifest["latenessProfile"]["expectedAcceptedLateEvents"])
 
+    def test_committed_phase6_source_delay_manifests_are_valid(self):
+        manifests = {
+            "organic-burst-v1.json": ("ORGANIC_BURST", "REBASE_TO_ARRIVAL", "NORMAL", 0),
+            "catch-up-burst-v1.json": ("CATCH_UP_BURST", "CONTROLLED_LATENESS", "BATCH_CATCHUP", 270),
+        }
+
+        for filename, expected in manifests.items():
+            with self.subTest(filename=filename):
+                manifest = json.loads((WORKLOAD_DIR / filename).read_text(encoding="utf-8"))
+                validator.validate_manifest(manifest)
+                expected_role, expected_mode, expected_source_profile, expected_delay_seconds = expected
+                self.assertEqual(expected_role, manifest["workloadRole"])
+                self.assertEqual("HTTP_SOURCE_EMULATOR", manifest["driverType"])
+                self.assertEqual(expected_mode, manifest["eventTimeMode"])
+                self.assertEqual(expected_source_profile, manifest["sourceProfile"])
+                self.assertEqual(expected_delay_seconds, manifest["sourceDelayProfile"]["expectedSourceDelaySeconds"])
+                self.assertEqual(9000, manifest["sourceDelayProfile"]["expectedAcceptedEvents"])
+                self.assertEqual(0, manifest["sourceDelayProfile"]["expectedTooLateEvents"])
+
+    def test_phase6_organic_and_catch_up_manifests_keep_paired_runtime_shape(self):
+        organic = json.loads((WORKLOAD_DIR / "organic-burst-v1.json").read_text(encoding="utf-8"))
+        catch_up = json.loads((WORKLOAD_DIR / "catch-up-burst-v1.json").read_text(encoding="utf-8"))
+
+        validator.validate_manifest(organic)
+        validator.validate_manifest(catch_up)
+
+        for field in ["targetEps", "duration", "eventLimit", "userCardinality"]:
+            with self.subTest(field=field):
+                self.assertEqual(organic[field], catch_up[field])
+        self.assertEqual(
+            organic["sourceDelayProfile"]["eventAmount"],
+            catch_up["sourceDelayProfile"]["eventAmount"],
+        )
+        self.assertEqual("REBASE_TO_ARRIVAL", organic["eventTimeMode"])
+        self.assertEqual("CONTROLLED_LATENESS", catch_up["eventTimeMode"])
+        self.assertEqual(0, organic["sourceDelayProfile"]["expectedSourceDelaySeconds"])
+        self.assertEqual(270, catch_up["sourceDelayProfile"]["expectedSourceDelaySeconds"])
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"
@@ -191,6 +229,35 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(validator.ManifestError, "latenessProfile is only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_source_delay_profile_on_non_phase6_workload(self):
+        invalid = copy.deepcopy(self.manifest)
+        invalid["sourceDelayProfile"] = {
+            "allowedLateness": "5m",
+            "sourceDelay": "0s",
+            "eventAmount": 100000,
+            "expectedSourceDelaySeconds": 0,
+            "expectedAcceptedEvents": invalid["eventLimit"],
+            "expectedTooLateEvents": 0,
+        }
+
+        with self.assertRaisesRegex(validator.ManifestError, "sourceDelayProfile is only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_catch_up_source_delay_expected_count_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "catch-up-burst-v1.json").read_text(encoding="utf-8"))
+        invalid["sourceDelayProfile"]["expectedAcceptedEvents"] = 8999
+
+        with self.assertRaisesRegex(validator.ManifestError, "expectedAcceptedEvents"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_organic_burst_with_non_zero_source_delay(self):
+        invalid = json.loads((WORKLOAD_DIR / "organic-burst-v1.json").read_text(encoding="utf-8"))
+        invalid["sourceDelayProfile"]["sourceDelay"] = "1s"
+        invalid["sourceDelayProfile"]["expectedSourceDelaySeconds"] = 1
+
+        with self.assertRaisesRegex(validator.ManifestError, "sourceDelay must match"):
             validator.validate_manifest(invalid)
 
     def test_rejects_late_out_of_order_without_lateness_profile(self):

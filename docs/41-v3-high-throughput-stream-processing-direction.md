@@ -244,10 +244,10 @@ Rules:
 | 0 | Dataset, Workload, and Stream Observability Foundation | Are data, time, workload, and measurement contracts sufficient for later experiments? | Done |
 | 1 | Sustainable Throughput and Backlog Recovery | What EPS is sustainable and how quickly does backlog drain after a burst? | Done |
 | 2 | Stateful Sliding-Window Scaling | How does user-state size affect Redis cost and Consumer throughput? | Done |
-| 3 | Kafka Partition Skew and Consumer Parallelism | How far does Consumer scale-out help under uniform and skewed keys? | Not started |
-| 4 | Redelivery and Stateful Processing Semantics | Does redelivery preserve Redis state and subsequent fraud decisions? | Not started |
-| 5 | Event-Time, Late, and Out-of-Order Processing | What state-update policy preserves window meaning for late arrivals? | Not started |
-| 6 | External Delay and Catch-up Burst | Can organic bursts be distinguished from delayed upstream catch-up? | Not started |
+| 3 | Kafka Partition Skew and Consumer Parallelism | How far does Consumer scale-out help under uniform and skewed keys? | Done |
+| 4 | Redelivery and Stateful Processing Semantics | Does redelivery preserve Redis state and subsequent fraud decisions? | Done |
+| 5 | Event-Time, Late, and Out-of-Order Processing | What state-update policy preserves window meaning for late arrivals? | Done |
+| 6 | External Delay and Catch-up Burst | Can organic bursts be distinguished from delayed upstream catch-up? | Done; accepted runtime evidence captured |
 | 7 | Historical Replay Isolation | Can replay run without contaminating live state and live latency? | Not started |
 | Optional 8 | Downstream Streaming and Backpressure | Can slow clients be isolated after the core stream is proven? | Deferred |
 

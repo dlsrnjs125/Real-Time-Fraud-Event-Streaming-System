@@ -1,0 +1,33 @@
+{
+  "workloadId": "v3-phase6-catch-up-burst",
+  "workloadVersion": "v1",
+  "workloadRole": "CATCH_UP_BURST",
+  "datasetVersion": "synthetic-v3",
+  "driverType": "HTTP_SOURCE_EMULATOR",
+  "targetEps": 300,
+  "duration": "30s",
+  "eventLimit": 9000,
+  "userCardinality": 1000,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "BATCH_CATCHUP",
+  "eventTimeMode": "CONTROLLED_LATENESS",
+  "sourceTimeResolution": "millisecond",
+  "timeScaleFactor": null,
+  "latenessProfile": null,
+  "sourceDelayProfile": {
+    "allowedLateness": "5m",
+    "sourceDelay": "270s",
+    "eventAmount": 100000,
+    "expectedSourceDelaySeconds": 270,
+    "expectedAcceptedEvents": 9000,
+    "expectedTooLateEvents": 0,
+    "note": "Catch-up burst keeps the same EPS and event count as organic burst, but assigns eventTime 270 seconds before source dispatch to represent accumulated upstream delay without crossing the 5m too-late policy."
+  },
+  "replayRate": null,
+  "statefulWindowProfile": null,
+  "randomSeed": 660519
+}

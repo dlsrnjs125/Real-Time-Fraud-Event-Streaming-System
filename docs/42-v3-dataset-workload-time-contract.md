@@ -158,7 +158,7 @@ eventTime < sourceSentAt <= receivedAt
 
 Use `eventTimeMode=CONTROLLED_LATENESS` so source age is intentional and reproducible.
 
-Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning.
+Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning. The Phase 6 committed pair keeps target EPS, duration, event limit, user cardinality, and amount aligned, then changes only `eventTimeMode`, `sourceProfile`, and configured source delay. `randomSeed` remains common manifest metadata, but the Phase 6 runner uses deterministic modulo user assignment rather than seeded random selection.
 
 ### Workload E1: User Skew
 
@@ -336,13 +336,14 @@ Planned source profiles:
 
 The emulator must apply the manifest's `eventTimeMode`, create `sourceSentAt`, and produce a report containing configured versus achieved delay and EPS. It preserves original `eventTime` only for `PRESERVE_SOURCE_TIME`; other modes must record the generated timestamp policy.
 
-Phase 0 decisions:
+Phase 0 decisions and Phase 6 extension:
 
 - Source profile metadata remains test-only in the versioned manifest and driver report; it is not propagated in the event contract or Kafka headers.
 - `REBASE_TO_ARRIVAL` uses the k6 host's UTC wall clock for `eventTime`; app-api and app-consumer use their JVM clocks, and Kafka `CreateTime` uses the producer clock.
 - No cross-host clock correction is applied. Negative ingress or producer-to-Consumer durations are rejected from Timer populations instead of being clamped to zero.
 - Events without `sourceSentAt` remain backward compatible. Source-processing and transport-delay meters are not registered in Phase 0, so their dashboard absence is expected.
-- k6 is sufficient for the normal HTTP baseline. Controlled source delay and catch-up ownership require a dedicated source emulator decision in Phase 6.
+- k6 is sufficient for the normal HTTP baseline. Phase 6 adds an HTTP source-emulator driver that owns `sourceSentAt` at dispatch time in the local workload summary and trace headers, while app-api remains the owner of persisted `receivedAt`.
+- Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema. It must not claim measured source transport latency. Evidence must compare the source-emulator summary with persisted `eventTime`/`receivedAt`, `fraud.event.ingress.age`, downstream stage metrics, clean Redis state, pre-run/final Consumer Lag, matched-rule distribution or time-rule boundary avoidance, and final DB consistency.
 
 ## 11. Live and Replay Isolation Contract
 
