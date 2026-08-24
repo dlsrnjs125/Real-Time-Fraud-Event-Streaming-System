@@ -58,6 +58,7 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
 - [V3 Phase 3 Partition Skew Plan](49-v3-phase3-partition-skew-plan.md)
 - [V3 Phase 4 Redelivery and Stateful Processing Semantics Plan](50-v3-phase4-redelivery-stateful-semantics-plan.md)
+- [V3 Phase 5 Event-Time Lateness Semantics Plan](51-v3-phase5-event-time-lateness-plan.md)
 
 ## Rule Version Traceability
 

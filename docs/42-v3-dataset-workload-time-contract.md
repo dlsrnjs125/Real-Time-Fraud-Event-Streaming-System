@@ -180,6 +180,8 @@ This workload measures partition imbalance and Consumer parallelism limits. Reco
 
 Generate controlled lateness buckets and arrival permutations. Examples include on-time, 30 seconds late, 2 minutes late, 5 minutes late, 10 minutes late, and explicit A/C/B arrival.
 
+Phase 5 uses `load-test/workloads/v3/late-out-of-order-v1.json` for this workload. The initial policy sets `allowedLateness=5m`; events at or below that age update Redis live state by `eventTime`, while events beyond that age skip Redis live-state mutation and mark Redis-dependent rules as skipped.
+
 ### Workload G: Historical Replay
 
 Replay old events at a controlled rate with `eventTimeMode=PRESERVE_SOURCE_TIME`. Verify that live state, live Lag, and live latency evidence are not contaminated.
@@ -305,16 +307,18 @@ Consumer service time must be decomposed into Redis state, rule processing, and 
 Phase 0 must not create two identical metrics for ingress age and lateness.
 
 - `ingress age` is immediately definable as `receivedAt - eventTime`.
-- `lateness` is reserved for Phase 5 until the project defines its comparison reference, allowed-lateness threshold, and state-update policy.
+- `lateness` is defined in Phase 5 as `receivedAt - eventTime` for Redis live-state eligibility.
 - `out-of-order` requires a per-user ordering reference, not only a positive duration.
 
-Phase 5 must decide:
+Phase 5 defines:
 
-- allowed lateness
-- live-state update policy
-- too-late policy
-- out-of-order detection reference
-- historical handling
+- allowed lateness: `fraud.sliding-window.allowed-lateness`, default `5m`
+- live-state update policy: accepted late and out-of-order events update Redis by `eventTime` score
+- too-late policy: events beyond allowed lateness skip Redis mutation and skip Redis-dependent rules
+- out-of-order reference: accepted events are ordered by event-time score inside the user ZSET
+- historical handling: still separate from live late/out-of-order handling and remains Phase 7 scope
+
+Detailed runtime policy is in [V3 Phase 5 Event-Time Lateness Semantics Plan](51-v3-phase5-event-time-lateness-plan.md). Runtime evidence remains a separate step.
 
 ## 10. Source Emulator Contract
 

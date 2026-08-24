@@ -16,6 +16,7 @@ public class FraudConsumerMetrics {
 
     public static final String REDIS_WINDOW_RECORD_LATENCY = "fraud.redis.window.record.latency";
     public static final String REDIS_WINDOW_DEGRADED_TOTAL = "fraud.redis.window.degraded.total";
+    public static final String REDIS_WINDOW_TOO_LATE_TOTAL = "fraud.redis.window.too_late.total";
     public static final String RULE_SKIPPED_TOTAL = "fraud.rule.skipped.total";
     public static final String DETECTION_DEGRADED_TOTAL = "fraud.detection.degraded.total";
     public static final String DETECTION_PROCESSING_LATENCY = "fraud.detection.processing.latency";
@@ -133,6 +134,10 @@ public class FraudConsumerMetrics {
 
     public void incrementRedisDegraded() {
         meterRegistry.counter(REDIS_WINDOW_DEGRADED_TOTAL).increment();
+    }
+
+    public void incrementRedisWindowTooLate() {
+        meterRegistry.counter(REDIS_WINDOW_TOO_LATE_TOTAL).increment();
     }
 
     public void incrementSkippedRule(FraudRuleCode ruleCode) {

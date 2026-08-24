@@ -60,6 +60,10 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_stateful_window_profile(manifest)
     elif manifest["statefulWindowProfile"] is not None:
         raise ManifestError("statefulWindowProfile is only allowed for stateful workload roles")
+    if role == "LATE_OUT_OF_ORDER":
+        validate_lateness_profile(manifest)
+    elif manifest["latenessProfile"] is not None:
+        raise ManifestError("latenessProfile is only allowed for LATE_OUT_OF_ORDER workloads")
 
 
 def validate_partition_skew(manifest: dict[str, Any]) -> None:
@@ -141,6 +145,66 @@ def validate_stateful_redelivery_profile(manifest: dict[str, Any], profile: dict
         raise ManifestError("expectedNextEventAmountSum must equal expectedNextEventTransactionCount * eventAmount")
 
 
+def validate_lateness_profile(manifest: dict[str, Any]) -> None:
+    profile = manifest["latenessProfile"]
+    if profile is None:
+        raise ManifestError("LATE_OUT_OF_ORDER requires latenessProfile")
+    if manifest["sourceProfile"] not in {"SLOW_SOURCE", "BATCH_CATCHUP"}:
+        raise ManifestError("LATE_OUT_OF_ORDER requires SLOW_SOURCE or BATCH_CATCHUP sourceProfile")
+    if manifest["targetPartitionDistribution"] is not None or manifest["partitionAffinityStrategy"] is not None:
+        raise ManifestError("LATE_OUT_OF_ORDER must not use partition affinity")
+    if manifest["targetUserConcentration"] is not None or manifest["heavyUserRatio"] != 0:
+        raise ManifestError("LATE_OUT_OF_ORDER must keep user distribution uniform")
+
+    allowed_lateness_seconds = parse_duration_seconds(profile["allowedLateness"])
+    too_late_age_seconds = parse_duration_seconds(profile["tooLateAge"])
+    if too_late_age_seconds <= allowed_lateness_seconds:
+        raise ManifestError("tooLateAge must be greater than allowedLateness")
+
+    buckets = profile["buckets"]
+    bucket_names = [bucket["name"] for bucket in buckets]
+    if len(set(bucket_names)) != len(bucket_names):
+        raise ManifestError("latenessProfile bucket names must be unique")
+
+    too_late_bucket_count = 0
+    accepted_late_bucket_count = 0
+    for bucket in buckets:
+        lateness_seconds = parse_non_negative_duration_seconds(bucket["lateness"])
+        if lateness_seconds > allowed_lateness_seconds:
+            too_late_bucket_count += 1
+        else:
+            accepted_late_bucket_count += 1
+
+    full_cycles, remainder = divmod(manifest["eventLimit"], len(buckets))
+    expected_too_late = too_late_bucket_count * full_cycles
+    expected_accepted = accepted_late_bucket_count * full_cycles
+    for bucket in buckets[:remainder]:
+        lateness_seconds = parse_non_negative_duration_seconds(bucket["lateness"])
+        if lateness_seconds > allowed_lateness_seconds:
+            expected_too_late += 1
+        else:
+            expected_accepted += 1
+
+    if profile["expectedTooLateEvents"] != expected_too_late:
+        raise ManifestError("expectedTooLateEvents must match buckets, eventLimit, and allowedLateness")
+    if profile["expectedAcceptedLateEvents"] != expected_accepted:
+        raise ManifestError("expectedAcceptedLateEvents must match buckets, eventLimit, and allowedLateness")
+
+    out_of_order_pattern = profile.get("outOfOrderPattern")
+    if out_of_order_pattern is not None:
+        unknown = [name for name in out_of_order_pattern if name not in bucket_names]
+        if unknown:
+            raise ManifestError("outOfOrderPattern must reference latenessProfile bucket names")
+        pattern_lateness = [
+            parse_non_negative_duration_seconds(bucket["lateness"])
+            for name in out_of_order_pattern
+            for bucket in buckets
+            if bucket["name"] == name
+        ]
+        if pattern_lateness == sorted(pattern_lateness):
+            raise ManifestError("outOfOrderPattern must contain a non-monotonic lateness sequence")
+
+
 def validate_stages(manifest: dict[str, Any]) -> None:
     stages = manifest.get("stages")
     if stages is None:
@@ -165,6 +229,19 @@ def parse_duration_seconds(value: str) -> int:
     match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", value)
     if match is None:
         raise ManifestError("duration must use a positive s, m, or h suffix")
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if unit == "s":
+        return amount
+    if unit == "m":
+        return amount * 60
+    return amount * 60 * 60
+
+
+def parse_non_negative_duration_seconds(value: str) -> int:
+    match = re.fullmatch(r"([0-9]+)(s|m|h)", value)
+    if match is None:
+        raise ManifestError("duration must use a non-negative s, m, or h suffix")
     amount = int(match.group(1))
     unit = match.group(2)
     if unit == "s":

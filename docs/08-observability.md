@@ -69,6 +69,7 @@ Phase 7부터 app-consumer는 Redis Sliding Window와 degraded mode를 관측하
 | `fraud.kafka.producer.to.consumer.delay` | Histogram Timer | Kafka CreateTime부터 Consumer 시작까지의 non-negative delay |
 | `fraud.event.ingress.age` | Histogram Timer | `receivedAt - eventTime` |
 | `fraud.redis.state.latency` | Histogram Timer | Redis state update/read 시도 시간 |
+| `fraud.redis.window.too_late.total` | Counter | allowed-lateness 초과로 Redis live-state 갱신을 건너뛴 이벤트 수 |
 | `fraud.rule.processing.latency` | Histogram Timer | Rule Engine 평가 시도 시간 |
 | `fraud.result.sink.latency` | Histogram Timer | detection result sink 시도 시간 |
 | `fraud.consumer.service.latency` | Histogram Timer | typed listener 시작부터 성공/실패 종료까지의 시간 |
@@ -134,6 +135,8 @@ Kafka Consumer Lag panel은 애플리케이션 내부 처리 시간이 아니라
 V3 Phase 0 dashboard는 `infra/grafana/dashboards/v3-stream-foundation.json`에 별도로 provision합니다. Stream boundary EPS, total/partition Lag, 15초 scrape 기반 Lag growth/drain, stage p95/p99, ingress age, partition incoming rate, Consumer assignment/rebalance, Redis/Consumer resource를 연결합니다. Broker는 `CreateTime`으로 검증되었으므로 dashboard는 producer-to-Consumer delay를 표시하며 queue latency라는 이름을 사용하지 않습니다. `sourceSentAt` 기반 source/transport delay는 구현하지 않아 No Data가 정상입니다. 상세 population과 실제 series 검증은 [V3 Phase 0 Foundation Evidence](44-v3-phase0-foundation-evidence.md)를 따릅니다.
 
 V3 Phase 2 adds Redis sliding-window state-size signals. `fraud.redis.window.event.count` records valid members inside the runtime window after metadata filtering, and `fraud.redis.window.amount.sum` records the corresponding amount sum. These metrics have no `userId`, `eventId`, `traceId`, or offset tags; they are distribution evidence for state-size experiments, not per-user debugging metrics.
+
+V3 Phase 5 adds `fraud.redis.window.too_late.total`. This counter represents event freshness policy rejection, not Redis infrastructure failure. Compare it with the workload manifest's expected too-late bucket count; do not interpret it as Redis availability degradation.
 
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 

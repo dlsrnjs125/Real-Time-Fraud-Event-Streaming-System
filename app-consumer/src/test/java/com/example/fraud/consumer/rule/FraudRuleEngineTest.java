@@ -26,7 +26,8 @@ class FraudRuleEngineTest {
             Duration.ofMinutes(5),
             5,
             BigDecimal.valueOf(3_000_000),
-            Duration.ofMinutes(10)
+            Duration.ofMinutes(10),
+            Duration.ofMinutes(5)
     ));
 
     @Test

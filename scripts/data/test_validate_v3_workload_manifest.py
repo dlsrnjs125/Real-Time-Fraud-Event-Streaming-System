@@ -69,6 +69,16 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         self.assertEqual(30, profile["expectedNextEventRiskScore"])
         self.assertEqual("RAPID_TRANSACTION_COUNT", profile["expectedNextEventMatchedRule"])
 
+    def test_committed_phase5_late_out_of_order_manifest_is_valid(self):
+        manifest = json.loads((WORKLOAD_DIR / "late-out-of-order-v1.json").read_text(encoding="utf-8"))
+
+        validator.validate_manifest(manifest)
+        self.assertEqual("LATE_OUT_OF_ORDER", manifest["workloadRole"])
+        self.assertEqual("CONTROLLED_LATENESS", manifest["eventTimeMode"])
+        self.assertEqual("5m", manifest["latenessProfile"]["allowedLateness"])
+        self.assertEqual(50, manifest["latenessProfile"]["expectedTooLateEvents"])
+        self.assertEqual(250, manifest["latenessProfile"]["expectedAcceptedLateEvents"])
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"
@@ -164,6 +174,48 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(validator.ManifestError, "only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_lateness_profile_on_non_late_workload(self):
+        invalid = copy.deepcopy(self.manifest)
+        invalid["latenessProfile"] = {
+            "allowedLateness": "5m",
+            "tooLateAge": "10m",
+            "eventAmount": 100000,
+            "buckets": [
+                {"name": "ON_TIME", "lateness": "0s"},
+                {"name": "TOO_LATE", "lateness": "10m"},
+            ],
+            "expectedTooLateEvents": 75,
+            "expectedAcceptedLateEvents": 75,
+        }
+
+        with self.assertRaisesRegex(validator.ManifestError, "latenessProfile is only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_late_out_of_order_without_lateness_profile(self):
+        invalid = json.loads((WORKLOAD_DIR / "late-out-of-order-v1.json").read_text(encoding="utf-8"))
+        invalid["latenessProfile"] = None
+
+        with self.assertRaisesRegex(validator.ManifestError, "requires latenessProfile"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_late_out_of_order_expected_too_late_drift(self):
+        invalid = json.loads((WORKLOAD_DIR / "late-out-of-order-v1.json").read_text(encoding="utf-8"))
+        invalid["latenessProfile"]["expectedTooLateEvents"] = 49
+
+        with self.assertRaisesRegex(validator.ManifestError, "expectedTooLateEvents"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_monotonic_out_of_order_pattern(self):
+        invalid = json.loads((WORKLOAD_DIR / "late-out-of-order-v1.json").read_text(encoding="utf-8"))
+        invalid["latenessProfile"]["outOfOrderPattern"] = [
+            "ON_TIME",
+            "LATE_30S",
+            "LATE_2M",
+        ]
+
+        with self.assertRaisesRegex(validator.ManifestError, "non-monotonic"):
             validator.validate_manifest(invalid)
 
     def test_rejects_stateful_window_duration_larger_than_runtime_window(self):

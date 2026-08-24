@@ -1,0 +1,62 @@
+{
+  "workloadId": "v3-phase5-late-out-of-order",
+  "workloadVersion": "v1",
+  "workloadRole": "LATE_OUT_OF_ORDER",
+  "datasetVersion": "synthetic-v3",
+  "driverType": "HTTP_K6",
+  "targetEps": 10,
+  "duration": "30s",
+  "eventLimit": 300,
+  "userCardinality": 30,
+  "userDistribution": "UNIFORM",
+  "heavyUserRatio": 0,
+  "targetUserConcentration": null,
+  "targetPartitionDistribution": null,
+  "partitionAffinityStrategy": null,
+  "sourceProfile": "SLOW_SOURCE",
+  "eventTimeMode": "CONTROLLED_LATENESS",
+  "sourceTimeResolution": "millisecond",
+  "timeScaleFactor": null,
+  "latenessProfile": {
+    "allowedLateness": "5m",
+    "tooLateAge": "10m",
+    "eventAmount": 100000,
+    "buckets": [
+      {
+        "name": "ON_TIME",
+        "lateness": "0s"
+      },
+      {
+        "name": "LATE_30S",
+        "lateness": "30s"
+      },
+      {
+        "name": "LATE_2M",
+        "lateness": "2m"
+      },
+      {
+        "name": "LATE_5M_BOUNDARY",
+        "lateness": "5m"
+      },
+      {
+        "name": "TOO_LATE_10M",
+        "lateness": "10m"
+      },
+      {
+        "name": "LATE_1M_OUT_OF_ORDER_RETURN",
+        "lateness": "1m"
+      }
+    ],
+    "expectedTooLateEvents": 50,
+    "expectedAcceptedLateEvents": 250,
+    "outOfOrderPattern": [
+      "ON_TIME",
+      "LATE_2M",
+      "LATE_30S"
+    ],
+    "note": "Controlled lateness buckets verify allowed-late, boundary-late, too-late, and non-monotonic arrival order semantics."
+  },
+  "replayRate": null,
+  "statefulWindowProfile": null,
+  "randomSeed": 650519
+}

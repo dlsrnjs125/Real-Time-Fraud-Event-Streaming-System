@@ -24,6 +24,8 @@ Phase 0 implemented `load-test/workloads/v3/normal-baseline-v1.json` and `make k
 
 Phase 1 adds staged manifests for capacity discovery, knee confirmation, and backlog recovery. These manifests are not production targets; they are local experiment contracts for finding the first observed throughput limit under documented conditions.
 
+Phase 5 adds `load-test/workloads/v3/late-out-of-order-v1.json` and `make k6-v3-phase5-late-out-of-order`. This workload uses controlled lateness buckets to verify allowed-late, boundary-late, too-late, and out-of-order Redis state semantics. Runtime evidence is collected separately from the implementation PR.
+
 ## 2. 시나리오
 
 ## Phase 13 k6 Scenarios

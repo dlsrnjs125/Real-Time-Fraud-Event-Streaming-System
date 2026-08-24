@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,7 +38,8 @@ class RedisRecentTransactionWindowStoreTest {
                     Duration.ofMinutes(5),
                     5,
                     BigDecimal.valueOf(3_000_000),
-                    Duration.ofMinutes(10)
+                    Duration.ofMinutes(10),
+                    Duration.ofMinutes(5)
             ),
             metrics
     );
@@ -159,6 +161,28 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(meterRegistry.timer(FraudConsumerMetrics.REDIS_WINDOW_RECORD_LATENCY).count()).isEqualTo(1);
     }
 
+    @Test
+    void skipsRedisMutationForTooLateEvent() {
+        OffsetDateTime eventTime = OffsetDateTime.parse("2026-06-19T10:00:00Z");
+        TransactionEventMessage message = message(
+                "evt-redis-too-late",
+                BigDecimal.valueOf(100_000),
+                eventTime,
+                eventTime.plusMinutes(5).plusNanos(1)
+        );
+
+        RecentTransactionWindowResult result = store.recordAndGetWindow(message);
+
+        assertThat(result.degraded()).isTrue();
+        assertThat(result.transactionCount()).isZero();
+        assertThat(result.amountSum()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.reason()).contains("too-late event");
+        assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_TOO_LATE_TOTAL).count()).isEqualTo(1.0);
+        assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_DEGRADED_TOTAL).count()).isZero();
+        verify(redisTemplate, never()).opsForZSet();
+        verify(redisTemplate, never()).opsForHash();
+    }
+
     private void mockRedisOperations() {
         when(redisTemplate.opsForZSet()).thenReturn(zSet);
         when(redisTemplate.opsForHash()).thenReturn(hash);
@@ -172,6 +196,15 @@ class RedisRecentTransactionWindowStoreTest {
 
     private TransactionEventMessage message(String eventId, BigDecimal amount) {
         OffsetDateTime eventTime = OffsetDateTime.parse("2026-06-19T10:00:00Z");
+        return message(eventId, amount, eventTime, eventTime.plusSeconds(1));
+    }
+
+    private TransactionEventMessage message(
+            String eventId,
+            BigDecimal amount,
+            OffsetDateTime eventTime,
+            OffsetDateTime receivedAt
+    ) {
         return new TransactionEventMessage(
                 "v1",
                 eventId,
@@ -184,7 +217,7 @@ class RedisRecentTransactionWindowStoreTest {
                 "device-001",
                 "SEOUL",
                 eventTime,
-                eventTime.plusSeconds(1),
+                receivedAt,
                 "trace-" + eventId
         );
     }
