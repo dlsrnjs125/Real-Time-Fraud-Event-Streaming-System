@@ -9,7 +9,7 @@ Phase 6 separates two workloads that can look similar by input EPS:
 - organic burst: new activity arrives at high rate
 - catch-up burst: an upstream source releases accumulated older events at the same high rate
 
-The goal is delay attribution, not a new fraud rule or retry behavior. Runtime evidence should compare source delay, ingress age, Consumer Lag, API/Kafka/Redis/Consumer latency, and final consistency.
+The goal is upstream event-age attribution, not a new fraud rule or retry behavior. Runtime evidence should compare event-to-ingress age, Consumer Lag, API/Kafka/Redis/Consumer latency, and final consistency.
 
 ## 2. Workload Contract
 
@@ -85,7 +85,22 @@ V3_RUN_ID=phase6-organic-001 make k6-v3-phase6-organic-burst
 V3_RUN_ID=phase6-catch-up-001 make k6-v3-phase6-catch-up-burst
 ```
 
-The source emulator owns `sourceSentAt` at HTTP dispatch time and records that ownership in the local k6 summary. `sourceSentAt` is sent as an HTTP header for run traceability, but app-api remains the owner of persisted `receivedAt`; no runtime event schema change is introduced in this phase.
+The source emulator owns `sourceSentAt` at HTTP dispatch time and records that ownership in the local k6 summary. `sourceSentAt` is sent as an HTTP header for run traceability, but app-api does not persist it and it is not part of the Kafka payload. Therefore Phase 6 must not claim measured source transport latency. The measured runtime signal is pre-ingress event age:
+
+```text
+receivedAt - eventTime
+```
+
+For catch-up traffic this includes the configured upstream holding age plus HTTP/API boundary latency. No runtime event schema change is introduced in this phase.
+
+Each accepted Phase 6 run must start from an isolated runtime state:
+
+```text
+final Consumer Lag = 0 before run
+Redis DB = empty before run
+```
+
+The Makefile targets run `scripts/load_tests/prepare_v3_phase6_run.sh` before k6 to enforce this clean-state preflight for Redis-backed sliding-window comparisons.
 
 ## 6. Completion Criteria
 
@@ -94,19 +109,20 @@ Implementation completion:
 - organic and catch-up manifests validate through the V3 workload validator
 - both workloads use the same EPS, duration, event count, user cardinality, amount, and seed
 - source-delay profile rejects drift in expected accepted/too-late counts
+- organic/catch-up paired-manifest equality is verified for EPS, duration, event count, user cardinality, random seed, and event amount
 - k6 source-emulator driver records source profile, event-time mode, source delay, achieved EPS, dropped iterations, and HTTP latency summary
-- Makefile exposes separate organic and catch-up burst run targets
+- Makefile exposes separate organic and catch-up burst run targets with clean Redis state and pre-run Consumer Lag guardrails
 
 Runtime completion, to be collected next:
 
 - organic and catch-up runs execute with the same configured rate and event count
 - catch-up run shows higher ingress age while organic run stays near dispatch time
-- API/Kafka/Redis/Consumer metrics are captured to distinguish source delay from downstream bottlenecks
+- API/Kafka/Redis/Consumer metrics are captured to distinguish pre-ingress event age from downstream bottlenecks
 - final DB counts match emitted events for both runs
 - final Consumer Lag returns to 0 for both runs
 
 ## 7. Known Limitations
 
 - Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema.
-- Source transport delay remains approximate because persisted `receivedAt` is owned by app-api and `sourceSentAt` is retained in the workload summary/header boundary.
+- Source transport latency is not measured because persisted `receivedAt` is owned by app-api and `sourceSentAt` is retained only in the workload summary/header boundary.
 - Catch-up delay is intentionally below the too-late threshold. Too-late rejection remains Phase 5 behavior.

@@ -98,6 +98,25 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
                 self.assertEqual(9000, manifest["sourceDelayProfile"]["expectedAcceptedEvents"])
                 self.assertEqual(0, manifest["sourceDelayProfile"]["expectedTooLateEvents"])
 
+    def test_phase6_organic_and_catch_up_manifests_keep_paired_runtime_shape(self):
+        organic = json.loads((WORKLOAD_DIR / "organic-burst-v1.json").read_text(encoding="utf-8"))
+        catch_up = json.loads((WORKLOAD_DIR / "catch-up-burst-v1.json").read_text(encoding="utf-8"))
+
+        validator.validate_manifest(organic)
+        validator.validate_manifest(catch_up)
+
+        for field in ["targetEps", "duration", "eventLimit", "userCardinality", "randomSeed"]:
+            with self.subTest(field=field):
+                self.assertEqual(organic[field], catch_up[field])
+        self.assertEqual(
+            organic["sourceDelayProfile"]["eventAmount"],
+            catch_up["sourceDelayProfile"]["eventAmount"],
+        )
+        self.assertEqual("REBASE_TO_ARRIVAL", organic["eventTimeMode"])
+        self.assertEqual("CONTROLLED_LATENESS", catch_up["eventTimeMode"])
+        self.assertEqual(0, organic["sourceDelayProfile"]["expectedSourceDelaySeconds"])
+        self.assertEqual(270, catch_up["sourceDelayProfile"]["expectedSourceDelaySeconds"])
+
     def test_rejects_unsupported_driver(self):
         invalid = copy.deepcopy(self.manifest)
         invalid["driverType"] = "UNKNOWN"

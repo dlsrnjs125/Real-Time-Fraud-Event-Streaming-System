@@ -113,8 +113,8 @@ export function handleSummary(data) {
     httpRequestDurationP95Ms: metricValue(data, 'http_req_duration', 'p(95)'),
     httpRequestDurationP99Ms: metricValue(data, 'http_req_duration', 'p(99)'),
     sourceSentAtOwner: 'k6 HTTP source emulator before POST dispatch',
-    sourceSentAtPropagation: 'HTTP headers only; app-api remains the owner of persisted receivedAt',
-    attributionEvidenceNote: 'Compare this summary with DB receivedAt/eventTime samples, fraud.event.ingress.age, API/Kafka/Redis/Consumer metrics, and final Consumer Lag.',
+    sourceSentAtPropagation: 'HTTP headers only; not persisted in app-api receipts or Kafka payloads',
+    attributionEvidenceNote: 'Use this summary for source-emulator configuration only. Runtime attribution should compare persisted eventTime/receivedAt, fraud.event.ingress.age, API/Kafka/Redis/Consumer metrics, and final Consumer Lag.',
   };
   return {
     stdout: `${JSON.stringify(report, null, 2)}\n`,

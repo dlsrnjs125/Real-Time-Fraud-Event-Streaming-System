@@ -359,10 +359,12 @@ k6-v3-phase5-late-out-of-order:
 
 k6-v3-phase6-organic-burst:
 	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase6-organic-001 make k6-v3-phase6-organic-burst" && exit 1)
+	bash scripts/load_tests/prepare_v3_phase6_run.sh
 	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=organic-burst-v1.json run load-test/k6/scenarios/v3-phase6-source-delay.js
 
 k6-v3-phase6-catch-up-burst:
 	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase6-catch-up-001 make k6-v3-phase6-catch-up-burst" && exit 1)
+	bash scripts/load_tests/prepare_v3_phase6_run.sh
 	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=catch-up-burst-v1.json run load-test/k6/scenarios/v3-phase6-source-delay.js
 
 final-check: build infra-config observability-check scripts-check verify-v2-phase13 verify-v3-phase0

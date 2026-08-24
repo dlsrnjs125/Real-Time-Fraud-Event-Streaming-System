@@ -343,7 +343,7 @@ Phase 0 decisions and Phase 6 extension:
 - No cross-host clock correction is applied. Negative ingress or producer-to-Consumer durations are rejected from Timer populations instead of being clamped to zero.
 - Events without `sourceSentAt` remain backward compatible. Source-processing and transport-delay meters are not registered in Phase 0, so their dashboard absence is expected.
 - k6 is sufficient for the normal HTTP baseline. Phase 6 adds an HTTP source-emulator driver that owns `sourceSentAt` at dispatch time in the local workload summary and trace headers, while app-api remains the owner of persisted `receivedAt`.
-- Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema. Source-delay attribution evidence must compare the source-emulator summary with persisted `eventTime`/`receivedAt`, `fraud.event.ingress.age`, downstream stage metrics, and final Consumer Lag.
+- Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema. It must not claim measured source transport latency. Evidence must compare the source-emulator summary with persisted `eventTime`/`receivedAt`, `fraud.event.ingress.age`, downstream stage metrics, clean Redis state, pre-run/final Consumer Lag, and final DB consistency.
 
 ## 11. Live and Replay Isolation Contract
 

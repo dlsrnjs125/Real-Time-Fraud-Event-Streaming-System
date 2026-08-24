@@ -72,7 +72,9 @@ Phase 1 workloads additionally require `V3_WORKLOAD_MANIFEST`, which the Makefil
 
 Phase 2 state-size workloads keep EPS, duration, event amount, and total event count fixed while changing `userCardinality`. Compare `fraud.redis.window.event.count`, `fraud.redis.window.amount.sum`, `fraud.redis.state.latency`, Consumer service latency, Redis memory, and Consumer Lag over the same Grafana time range.
 
-Phase 6 source-emulator workloads use the same `targetEps`, `duration`, `eventLimit`, and `randomSeed` for organic and catch-up bursts. The organic workload sets `eventTime` at source dispatch time. The catch-up workload sets `eventTime` 270 seconds before source dispatch, staying inside the 5-minute freshness policy so evidence can isolate source delay from too-late rejection.
+Phase 6 source-emulator workloads use the same `targetEps`, `duration`, `eventLimit`, `userCardinality`, `eventAmount`, and `randomSeed` for organic and catch-up bursts. The organic workload sets `eventTime` at source dispatch time. The catch-up workload sets `eventTime` 270 seconds before source dispatch, staying inside the 5-minute freshness policy so evidence can isolate pre-ingress event age from too-late rejection.
+
+The Phase 6 Makefile targets run `scripts/load_tests/prepare_v3_phase6_run.sh` before k6. That preflight requires Consumer Lag 0 when the consumer group exists and flushes the local Redis DB so organic and catch-up accepted runs do not share sliding-window state.
 
 Phase 3 partition workloads use `PARTITION_AFFINITY` manifests. The k6 runner pre-generates synthetic `userId` values whose Kafka Murmur2 key hash maps to the configured local partitions, then emits events according to `targetPartitionDistribution`. User assignment uses a per-partition occurrence counter so partition skew is not accidentally implemented as hot-user pressure. Confirm achieved distribution with Kafka exporter metrics or processing logs after the run.
 
