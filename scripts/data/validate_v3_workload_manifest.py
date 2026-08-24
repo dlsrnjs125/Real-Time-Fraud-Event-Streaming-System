@@ -192,6 +192,8 @@ def validate_lateness_profile(manifest: dict[str, Any]) -> None:
 
     out_of_order_pattern = profile.get("outOfOrderPattern")
     if out_of_order_pattern is not None:
+        if len(set(out_of_order_pattern)) != len(out_of_order_pattern):
+            raise ManifestError("outOfOrderPattern bucket names must be unique")
         unknown = [name for name in out_of_order_pattern if name not in bucket_names]
         if unknown:
             raise ManifestError("outOfOrderPattern must reference latenessProfile bucket names")

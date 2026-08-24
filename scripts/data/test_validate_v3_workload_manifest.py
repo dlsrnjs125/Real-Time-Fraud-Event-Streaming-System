@@ -218,6 +218,17 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         with self.assertRaisesRegex(validator.ManifestError, "non-monotonic"):
             validator.validate_manifest(invalid)
 
+    def test_rejects_duplicate_out_of_order_pattern_bucket(self):
+        invalid = json.loads((WORKLOAD_DIR / "late-out-of-order-v1.json").read_text(encoding="utf-8"))
+        invalid["latenessProfile"]["outOfOrderPattern"] = [
+            "ON_TIME",
+            "LATE_2M",
+            "LATE_2M",
+        ]
+
+        with self.assertRaisesRegex(validator.ManifestError, "bucket names must be unique"):
+            validator.validate_manifest(invalid)
+
     def test_rejects_stateful_window_duration_larger_than_runtime_window(self):
         invalid = json.loads((WORKLOAD_DIR / "state-size-baseline-v1.json").read_text(encoding="utf-8"))
         invalid["duration"] = "10m"

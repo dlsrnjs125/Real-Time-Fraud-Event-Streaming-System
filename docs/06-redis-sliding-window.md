@@ -100,7 +100,7 @@ V3 Phase 5부터 `fraud.sliding-window.allowed-lateness`를 기준으로 live Re
 
 허용 지연 안의 out-of-order 이벤트는 도착 순서가 아니라 `eventTime` epoch milliseconds를 ZSET score로 저장합니다. 해당 이벤트의 반환 window는 `[eventTime - window, eventTime]` 범위로 계산합니다.
 
-too-late 이벤트는 Redis 인프라 장애가 아니므로 `fraud.redis.window.degraded.total` 대신 `fraud.redis.window.too_late.total`로 원인을 분리합니다. 다만 rule evaluation에서는 Redis 기반 rule을 실행하지 않아야 하므로 `RecentTransactionWindowResult.degraded(...)`를 사용해 skipped rule과 degraded fraud result를 남깁니다.
+too-late 이벤트는 Redis 인프라 장애가 아니므로 `fraud.redis.window.degraded.total` 대신 `fraud.redis.window.too_late.total`로 원인을 분리합니다. Rule evaluation에서는 Redis 기반 rule을 실행하지 않아야 하므로 `RecentTransactionWindowStatus.TOO_LATE` 상태를 사용해 skipped rule을 남기고, fraud result reason에는 `Freshness policy skip`을 기록합니다.
 
 ## 9. Phase 7 Integration Test 검증 항목
 

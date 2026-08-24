@@ -1693,13 +1693,17 @@ V3_RUN_ID=phase4-after-result-threshold-20260824-001 make k6-v3-phase4-stateful-
 - 기본 `allowed-lateness`는 5분이며, boundary late는 허용합니다.
 - too-late 이벤트는 Redis Hash/ZSET mutation을 수행하지 않고 Redis 기반 rule을 skipped 처리합니다.
 - too-late는 Redis infrastructure failure가 아니므로 `fraud.redis.window.too_late.total`로 분리해 기록합니다.
+- fraud result reason에서도 Redis 장애와 freshness policy skip을 분리하기 위해 `RecentTransactionWindowStatus`를 추가했습니다.
 - 허용 지연 안의 out-of-order 이벤트는 도착 순서가 아니라 `eventTime` score로 Redis ZSET에 저장합니다.
-- `LATE_OUT_OF_ORDER` workload role은 `CONTROLLED_LATENESS`와 `latenessProfile`을 요구하며, validator가 expected too-late/accepted count drift를 차단합니다.
+- `LATE_OUT_OF_ORDER` workload role은 `CONTROLLED_LATENESS`와 `latenessProfile`을 요구하며, validator가 expected too-late/accepted count drift와 invalid `outOfOrderPattern`을 차단합니다.
+- k6 runner는 `outOfOrderPattern`을 사용자별 deterministic event plan에 적용합니다. 전체 bucket count는 유지하면서 같은 사용자 안에서 accepted out-of-order sequence를 만들도록 수정했습니다.
 
 ### 검증 포인트
 
 - too-late 이벤트에서 Redis `opsForZSet`/`opsForHash` 호출이 발생하지 않는가
 - too-late 이벤트가 Redis degraded infrastructure counter가 아니라 too-late counter를 증가시키는가
+- too-late fraud result reason이 `Redis degraded mode`가 아니라 `Freshness policy skip`으로 남는가
+- k6 summary의 `runtimePattern`과 `outOfOrderPatternApplied`가 manifest의 non-monotonic pattern을 반영하는가
 - accepted out-of-order 이벤트가 Redis ZSET에서 event-time score 순서로 저장되는가
 - `late-out-of-order-v1.json` manifest가 schema와 semantic validator를 통과하는가
 - k6 inspect가 Phase 5 workload contract를 로드할 수 있는가

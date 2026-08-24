@@ -52,7 +52,7 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
                     message.userId(),
                     exception.getClass().getSimpleName()
             );
-            return RecentTransactionWindowResult.degraded("Redis sliding window unavailable");
+            return RecentTransactionWindowResult.redisUnavailable("Redis sliding window unavailable");
         }
     }
 
@@ -67,7 +67,7 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
                     lateness(message).toMillis(),
                     properties.allowedLateness().toMillis()
             );
-            return RecentTransactionWindowResult.degraded("Redis sliding window skipped for too-late event");
+            return RecentTransactionWindowResult.tooLate("Event exceeded allowed lateness; Redis sliding window skipped");
         }
 
         long eventTimeMillis = message.eventTime().toInstant().toEpochMilli();

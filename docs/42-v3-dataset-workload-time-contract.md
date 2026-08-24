@@ -182,6 +182,8 @@ Generate controlled lateness buckets and arrival permutations. Examples include 
 
 Phase 5 uses `load-test/workloads/v3/late-out-of-order-v1.json` for this workload. The initial policy sets `allowedLateness=5m`; events at or below that age update Redis live state by `eventTime`, while events beyond that age skip Redis live-state mutation and mark Redis-dependent rules as skipped.
 
+The Phase 5 k6 runner must apply the manifest's `outOfOrderPattern` per user. Workload-wide bucket variety is not enough; at least one user-level sequence must contain accepted events whose event-time order differs from arrival order.
+
 ### Workload G: Historical Replay
 
 Replay old events at a controlled rate with `eventTimeMode=PRESERVE_SOURCE_TIME`. Verify that live state, live Lag, and live latency evidence are not contaminated.

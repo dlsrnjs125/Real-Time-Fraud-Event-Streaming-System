@@ -242,7 +242,8 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
         ));
 
         assertThat(result.degraded()).isTrue();
-        assertThat(result.reason()).contains("too-late event");
+        assertThat(result.status()).isEqualTo(RecentTransactionWindowStatus.TOO_LATE);
+        assertThat(result.reason()).contains("allowed lateness");
         assertThat(redisTemplate.opsForZSet().zCard(userEventsKey("user-it-too-late"))).isZero();
         assertThat(redisTemplate.hasKey(eventKey("evt-it-too-late"))).isFalse();
     }

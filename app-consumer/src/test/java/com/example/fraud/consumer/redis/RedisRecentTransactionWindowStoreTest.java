@@ -174,9 +174,10 @@ class RedisRecentTransactionWindowStoreTest {
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 
         assertThat(result.degraded()).isTrue();
+        assertThat(result.status()).isEqualTo(RecentTransactionWindowStatus.TOO_LATE);
         assertThat(result.transactionCount()).isZero();
         assertThat(result.amountSum()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.reason()).contains("too-late event");
+        assertThat(result.reason()).contains("allowed lateness");
         assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_TOO_LATE_TOTAL).count()).isEqualTo(1.0);
         assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_DEGRADED_TOTAL).count()).isZero();
         verify(redisTemplate, never()).opsForZSet();

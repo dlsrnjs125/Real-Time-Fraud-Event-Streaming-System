@@ -9,6 +9,7 @@ import com.example.fraud.common.event.RiskLevel;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
 import com.example.fraud.consumer.redis.RecentTransactionWindowResult;
+import com.example.fraud.consumer.redis.RecentTransactionWindowStatus;
 import com.example.fraud.consumer.redis.SlidingWindowProperties;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -198,7 +199,26 @@ class FraudRuleEngineTest {
                 FraudRuleCode.WINDOW_AMOUNT_SUM
         );
         assertThat(result.degraded()).isTrue();
-        assertThat(result.reason()).contains("Redis degraded mode");
+        assertThat(result.reason()).contains("Redis unavailable");
+    }
+
+    @Test
+    void separatesTooLateWindowSkipFromRedisInfrastructureFailure() {
+        FraudRuleEngineResult result = ruleEngine.evaluate(
+                message(BigDecimal.valueOf(10_000), "SEOUL", "2026-06-19T10:00:00Z"),
+                RecentTransactionWindowResult.tooLate("Event exceeded allowed lateness")
+        );
+
+        assertThat(result.riskScore()).isZero();
+        assertThat(result.skippedRules()).containsExactly(
+                FraudRuleCode.RAPID_TRANSACTION_COUNT,
+                FraudRuleCode.WINDOW_AMOUNT_SUM
+        );
+        assertThat(result.degraded()).isTrue();
+        assertThat(result.reason()).contains("Freshness policy skip");
+        assertThat(result.reason()).doesNotContain("Redis degraded mode");
+        assertThat(RecentTransactionWindowResult.tooLate("late").status())
+                .isEqualTo(RecentTransactionWindowStatus.TOO_LATE);
     }
 
     @Test

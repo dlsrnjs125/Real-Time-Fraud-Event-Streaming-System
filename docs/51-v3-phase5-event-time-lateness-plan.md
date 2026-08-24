@@ -73,6 +73,8 @@ Manifest contract:
 
 The validator rejects lateness profiles on non-late workloads and checks expected too-late counts from the bucket pattern.
 
+The k6 runner applies `outOfOrderPattern` to each user's deterministic event plan. Bucket selection uses the user's event index plus user index, so the whole run keeps the expected bucket counts while each user receives a non-monotonic event-time sequence.
+
 ## 5. Metrics
 
 Phase 5 adds:
@@ -103,6 +105,7 @@ Runtime completion, to be collected next:
 
 - accepted late bucket count matches manifest expectation
 - too-late skip count matches manifest expectation
+- per-user accepted out-of-order sequence is present in the runtime summary
 - Redis state excludes too-late event IDs
 - final DB result/log counts match accepted API emissions
 - final Consumer Lag returns to 0 after the run drains
@@ -111,4 +114,4 @@ Runtime completion, to be collected next:
 
 - Phase 5 does not add `sourceSentAt` to the event schema. Source transport delay remains manifest/report metadata until a source emulator owns that timestamp.
 - The returned Redis window is event-time scoped for the current event. It is not a global watermark implementation.
-- Too-late events are persisted as degraded fraud decisions because Redis-dependent rules are intentionally skipped. This preserves a durable result while avoiding mutation of live Redis state.
+- Too-late events keep the fraud result `degraded=true` because Redis-dependent rules are intentionally skipped, but the window status and reason identify this as `TOO_LATE` / freshness policy behavior rather than Redis infrastructure failure.
