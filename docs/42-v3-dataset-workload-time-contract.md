@@ -158,7 +158,7 @@ eventTime < sourceSentAt <= receivedAt
 
 Use `eventTimeMode=CONTROLLED_LATENESS` so source age is intentional and reproducible.
 
-Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning. The Phase 6 committed pair keeps target EPS, duration, event limit, user cardinality, amount, and random seed aligned, then changes only `eventTimeMode`, `sourceProfile`, and configured source delay.
+Organic and catch-up bursts may have identical input EPS but different freshness and operational meaning. The Phase 6 committed pair keeps target EPS, duration, event limit, user cardinality, and amount aligned, then changes only `eventTimeMode`, `sourceProfile`, and configured source delay. `randomSeed` remains common manifest metadata, but the Phase 6 runner uses deterministic modulo user assignment rather than seeded random selection.
 
 ### Workload E1: User Skew
 
@@ -343,7 +343,7 @@ Phase 0 decisions and Phase 6 extension:
 - No cross-host clock correction is applied. Negative ingress or producer-to-Consumer durations are rejected from Timer populations instead of being clamped to zero.
 - Events without `sourceSentAt` remain backward compatible. Source-processing and transport-delay meters are not registered in Phase 0, so their dashboard absence is expected.
 - k6 is sufficient for the normal HTTP baseline. Phase 6 adds an HTTP source-emulator driver that owns `sourceSentAt` at dispatch time in the local workload summary and trace headers, while app-api remains the owner of persisted `receivedAt`.
-- Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema. It must not claim measured source transport latency. Evidence must compare the source-emulator summary with persisted `eventTime`/`receivedAt`, `fraud.event.ingress.age`, downstream stage metrics, clean Redis state, pre-run/final Consumer Lag, and final DB consistency.
+- Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema. It must not claim measured source transport latency. Evidence must compare the source-emulator summary with persisted `eventTime`/`receivedAt`, `fraud.event.ingress.age`, downstream stage metrics, clean Redis state, pre-run/final Consumer Lag, matched-rule distribution or time-rule boundary avoidance, and final DB consistency.
 
 ## 11. Live and Replay Isolation Contract
 

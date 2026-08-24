@@ -29,9 +29,14 @@ Common runtime shape:
 | Event limit | 9000 |
 | User cardinality | 1000 |
 | Event amount | 100000 |
-| Random seed | 660519 |
 
-The two workloads intentionally share EPS, event count, user cardinality, amount, and seed. They differ only in event-time/source-delay semantics.
+The two workloads intentionally share EPS, event count, user cardinality, and amount. They differ only in event-time/source-delay semantics.
+
+`randomSeed` remains in both manifests as common V3 metadata, but the Phase 6 k6 runner does not use seeded randomness. User assignment is deterministic through modulo assignment:
+
+```text
+globalIteration % userCardinality
+```
 
 ## 3. Organic Burst
 
@@ -102,14 +107,16 @@ Redis DB = empty before run
 
 The Makefile targets run `scripts/load_tests/prepare_v3_phase6_run.sh` before k6 to enforce this clean-state preflight for Redis-backed sliding-window comparisons.
 
+`prepare_v3_phase6_run.sh` is a local-experiment-only guardrail. It runs Redis `FLUSHDB` against the configured local Redis DB and must not be used against shared or production Redis.
+
 ## 6. Completion Criteria
 
 Implementation completion:
 
 - organic and catch-up manifests validate through the V3 workload validator
-- both workloads use the same EPS, duration, event count, user cardinality, amount, and seed
+- both workloads use the same EPS, duration, event count, user cardinality, and amount
 - source-delay profile rejects drift in expected accepted/too-late counts
-- organic/catch-up paired-manifest equality is verified for EPS, duration, event count, user cardinality, random seed, and event amount
+- organic/catch-up paired-manifest equality is verified for EPS, duration, event count, user cardinality, and event amount
 - k6 source-emulator driver records source profile, event-time mode, source delay, achieved EPS, dropped iterations, and HTTP latency summary
 - Makefile exposes separate organic and catch-up burst run targets with clean Redis state and pre-run Consumer Lag guardrails
 
@@ -118,6 +125,8 @@ Runtime completion, to be collected next:
 - organic and catch-up runs execute with the same configured rate and event count
 - catch-up run shows higher ingress age while organic run stays near dispatch time
 - API/Kafka/Redis/Consumer metrics are captured to distinguish pre-ingress event age from downstream bottlenecks
+- matched-rule distribution is checked or the run window is chosen away from time-based rule boundaries
+- any Lag observed at 300 EPS is interpreted by organic/catch-up difference, not attributed to catch-up source age by itself
 - final DB counts match emitted events for both runs
 - final Consumer Lag returns to 0 for both runs
 
@@ -126,3 +135,5 @@ Runtime completion, to be collected next:
 - Phase 6 does not add `sourceSentAt` to the Kafka event schema or PostgreSQL receipt schema.
 - Source transport latency is not measured because persisted `receivedAt` is owned by app-api and `sourceSentAt` is retained only in the workload summary/header boundary.
 - Catch-up delay is intentionally below the too-late threshold. Too-late rejection remains Phase 5 behavior.
+- Phase 6 shifts catch-up `eventTime` by 270 seconds. If a run crosses a time-based fraud-rule boundary, matched rule distribution may differ between organic and catch-up runs. Evidence must either run away from that boundary or record matched-rule distribution for both runs.
+- 300 EPS is a high-rate burst condition. Absolute Lag can include downstream capacity pressure; Phase 6 attribution depends on comparing organic and catch-up runs under the same clean environment.

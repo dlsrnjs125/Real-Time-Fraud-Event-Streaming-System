@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# LOCAL EXPERIMENT ONLY.
+# This script runs Redis FLUSHDB against the configured container/db to isolate
+# accepted Phase 6 source-delay runs. Do not run it against shared or production
+# Redis.
+
 KAFKA_CONTAINER="${KAFKA_CONTAINER:-fraud-kafka}"
 KAFKA_BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-localhost:9092}"
 KAFKA_CONSUMER_GROUP="${KAFKA_CONSUMER_GROUP:-fraud-event-consumer}"
@@ -8,6 +13,7 @@ REDIS_CONTAINER="${REDIS_CONTAINER:-fraud-redis}"
 REDIS_DB="${REDIS_DB:-0}"
 
 echo "Preparing V3 Phase 6 run isolation"
+echo "Scope: LOCAL EXPERIMENT ONLY. Redis FLUSHDB will be executed."
 echo "Kafka consumer group: ${KAFKA_CONSUMER_GROUP}"
 echo "Redis container/db: ${REDIS_CONTAINER}/${REDIS_DB}"
 

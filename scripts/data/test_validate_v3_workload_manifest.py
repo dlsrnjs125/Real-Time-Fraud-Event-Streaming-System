@@ -105,7 +105,7 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         validator.validate_manifest(organic)
         validator.validate_manifest(catch_up)
 
-        for field in ["targetEps", "duration", "eventLimit", "userCardinality", "randomSeed"]:
+        for field in ["targetEps", "duration", "eventLimit", "userCardinality"]:
             with self.subTest(field=field):
                 self.assertEqual(organic[field], catch_up[field])
         self.assertEqual(
