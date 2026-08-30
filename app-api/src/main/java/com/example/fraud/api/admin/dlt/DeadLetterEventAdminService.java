@@ -82,7 +82,7 @@ public class DeadLetterEventAdminService {
             }
             event.startReprocessing(now);
             TransactionEventMessage payload = readPayload(event);
-            publisher.publish(payload);
+            publisher.publish(payload, event.getSourceTopic());
             event.markReprocessed(now);
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "reprocessed");
             metrics.incrementReprocessRequested("success");

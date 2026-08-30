@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.kafka.FraudStreamMode;
+import com.example.fraud.consumer.kafka.FraudStreamProperties;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
@@ -71,6 +73,7 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
                         Duration.ofMinutes(5),
                         "live"
                 ),
+                new FraudStreamProperties(FraudStreamMode.LIVE),
                 new FraudConsumerMetrics(new SimpleMeterRegistry())
         );
     }
@@ -267,6 +270,7 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
                         Duration.ofMinutes(5),
                         "replay"
                 ),
+                new FraudStreamProperties(FraudStreamMode.REPLAY),
                 new FraudConsumerMetrics(new SimpleMeterRegistry())
         );
 

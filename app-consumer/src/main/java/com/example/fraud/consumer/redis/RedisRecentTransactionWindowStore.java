@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.redis;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import com.example.fraud.consumer.kafka.FraudStreamProperties;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -22,15 +23,18 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
 
     private final StringRedisTemplate redisTemplate;
     private final SlidingWindowProperties properties;
+    private final FraudStreamProperties streamProperties;
     private final FraudConsumerMetrics metrics;
 
     public RedisRecentTransactionWindowStore(
             StringRedisTemplate redisTemplate,
             SlidingWindowProperties properties,
+            FraudStreamProperties streamProperties,
             FraudConsumerMetrics metrics
     ) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
+        this.streamProperties = streamProperties;
         this.metrics = metrics;
     }
 
@@ -111,6 +115,9 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
     }
 
     private boolean isTooLateForLiveWindow(TransactionEventMessage message) {
+        if (streamProperties.replay()) {
+            return false;
+        }
         if (message.eventTime() == null || message.receivedAt() == null) {
             return false;
         }

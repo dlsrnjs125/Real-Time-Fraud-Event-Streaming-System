@@ -12,6 +12,8 @@ import static org.mockito.Mockito.when;
 
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.kafka.FraudStreamMode;
+import com.example.fraud.consumer.kafka.FraudStreamProperties;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
@@ -42,6 +44,7 @@ class RedisRecentTransactionWindowStoreTest {
                     Duration.ofMinutes(5),
                     "live"
             ),
+            new FraudStreamProperties(FraudStreamMode.LIVE),
             metrics
     );
 
@@ -216,6 +219,50 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_DEGRADED_TOTAL).count()).isZero();
         verify(redisTemplate, never()).opsForZSet();
         verify(redisTemplate, never()).opsForHash();
+    }
+
+    @Test
+    void recordsHistoricalEventWhenStreamModeIsReplay() {
+        RedisRecentTransactionWindowStore replayStore = new RedisRecentTransactionWindowStore(
+                redisTemplate,
+                new SlidingWindowProperties(
+                        Duration.ofMinutes(5),
+                        5,
+                        BigDecimal.valueOf(3_000_000),
+                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(5),
+                        "replay"
+                ),
+                new FraudStreamProperties(FraudStreamMode.REPLAY),
+                metrics
+        );
+        OffsetDateTime receivedAt = OffsetDateTime.parse("2026-06-20T10:00:00Z");
+        TransactionEventMessage message = message(
+                "evt-redis-replay-old",
+                BigDecimal.valueOf(100_000),
+                receivedAt.minusHours(24),
+                receivedAt
+        );
+        when(redisTemplate.opsForZSet()).thenReturn(zSet);
+        when(redisTemplate.opsForHash()).thenReturn(hash);
+        when(zSet.rangeByScore(
+                "fraud:tx:replay:user:user-1001:events",
+                millis("2026-06-19T09:55:00Z"),
+                millis("2026-06-19T10:00:00Z")
+        )).thenReturn(Set.of("evt-redis-replay-old"));
+        when(hash.get("fraud:tx:replay:event:evt-redis-replay-old", "amount")).thenReturn("100000");
+
+        RecentTransactionWindowResult result = replayStore.recordAndGetWindow(message);
+
+        assertThat(result.degraded()).isFalse();
+        assertThat(result.status()).isEqualTo(RecentTransactionWindowStatus.NORMAL);
+        assertThat(result.transactionCount()).isEqualTo(1);
+        assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_TOO_LATE_TOTAL).count()).isZero();
+        verify(zSet).add(
+                "fraud:tx:replay:user:user-1001:events",
+                "evt-redis-replay-old",
+                millis("2026-06-19T10:00:00Z")
+        );
     }
 
     private void mockRedisOperations() {

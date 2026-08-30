@@ -24,6 +24,8 @@ spring:
       timeout: 500ms
 
 fraud:
+  stream:
+    mode: ${FRAUD_STREAM_MODE:LIVE}
   consumer:
     topic: ${FRAUD_CONSUMER_TOPIC:transaction-events}
     concurrency: ${FRAUD_CONSUMER_CONCURRENCY:1}

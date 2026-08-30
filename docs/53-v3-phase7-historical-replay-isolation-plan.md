@@ -19,7 +19,7 @@ This phase does not claim production replay throughput until local evidence reco
 Live path:
 
 ```text
-app-api fraud.producer.topic=transaction-events
+app-api FRAUD_STREAM_MODE=LIVE
 app-consumer fraud.consumer.topic=transaction-events
 app-consumer spring.kafka.consumer.group-id=fraud-event-consumer
 app-consumer fraud.sliding-window.namespace=live
@@ -29,7 +29,7 @@ Redis keys fraud:tx:live:*
 Replay path:
 
 ```text
-app-api FRAUD_PRODUCER_TOPIC=transaction-events-replay
+app-api FRAUD_STREAM_MODE=REPLAY
 app-consumer FRAUD_CONSUMER_TOPIC=transaction-events-replay
 app-consumer SPRING_KAFKA_CONSUMER_GROUP_ID=fraud-event-replay-consumer
 app-consumer FRAUD_SLIDING_WINDOW_NAMESPACE=replay
@@ -37,6 +37,15 @@ Redis keys fraud:tx:replay:*
 ```
 
 The replay topic still uses `userId` as the Kafka key. Historical replay should preserve same-user ordering semantics and partition behavior instead of switching to `eventId` distribution.
+
+Startup guard:
+
+- live app-api must publish to `transaction-events`.
+- replay app-api must publish to `transaction-events-replay`.
+- live app-consumer must consume `transaction-events` with group `fraud-event-consumer` and namespace `live`.
+- replay app-consumer must consume `transaction-events-replay` with group `fraud-event-replay-consumer` and namespace `replay`.
+
+Replay mode does not apply the live `allowed-lateness` Redis skip policy. A 24-hour-old replay event should build `fraud:tx:replay:*` state against the replay timeline. Live mode keeps the existing freshness policy and skips too-late live events.
 
 ## Workload
 
@@ -61,10 +70,18 @@ Shape:
 Run command:
 
 ```bash
-V3_RUN_ID=phase7-replay-001 make k6-v3-phase7-historical-replay
+make replay-api
+make replay-consumer
+REPLAY_API_BASE_URL=http://localhost:8082 V3_RUN_ID=phase7-replay-001 make k6-v3-phase7-historical-replay
 ```
 
-The Makefile target runs `scripts/load_tests/prepare_v3_phase7_run.sh` first. The preflight checks live and replay Consumer Lag when those groups exist, then deletes only `fraud:tx:replay:*` keys.
+The Makefile target runs `scripts/load_tests/prepare_v3_phase7_run.sh` first. The preflight checks live and replay Consumer Lag when those groups exist, then deletes only `fraud:tx:replay:*` keys. The k6 scenario requires `REPLAY_API_BASE_URL` and rejects the default live port `8080`.
+
+## Scope Boundary
+
+Phase 7 historical replay means a workload with historical `eventTime` routed through isolated replay stream state.
+
+It does not mean replaying an event already processed by live with the same `eventId` for backfill or re-evaluation. PostgreSQL receipt and fraud result uniqueness remain global by `eventId`. Supporting repeated processing scopes such as `LIVE` and `REPLAY:{runId}` would require a later data-model change to composite uniqueness.
 
 ## Experiments
 
@@ -109,6 +126,9 @@ Record:
 - app-api can publish to a configured topic while preserving `userId` key.
 - app-consumer can consume a configured topic with a separate group id.
 - Redis keys include a configurable namespace and default to `live`.
+- Replay mode creates replay Redis state for historical event times instead of classifying every 24-hour-old event as too-late.
+- Replay k6 workload cannot run against the default live API URL by omission.
+- DLT reprocess republishes to the original source topic after allowlist validation.
 - Historical replay manifest is CI-validated.
 - k6 summary records replay routing requirements and workload fingerprint.
 - Runtime evidence shows live Lag, live latency, and live Redis state are not contaminated by replay traffic.
@@ -119,8 +139,11 @@ Implemented:
 
 - configurable API producer topic
 - configurable Consumer topic
+- stream mode startup validation for live/replay topic, group, and Redis namespace combinations
 - replay topic constant and topic creation script entry
 - configurable Redis sliding-window namespace
+- replay-mode historical event Redis state semantics
+- DLT reprocess source-topic routing
 - Phase 7 workload manifest
 - Phase 7 k6 replay driver
 - Phase 7 preflight script

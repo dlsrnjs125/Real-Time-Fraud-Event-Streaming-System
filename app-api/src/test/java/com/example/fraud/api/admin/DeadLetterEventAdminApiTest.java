@@ -2,6 +2,7 @@ package com.example.fraud.api.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -104,6 +105,24 @@ class DeadLetterEventAdminApiTest {
         assertAudit("DLT_REPROCESS", "SUCCESS", 3L, "operator-001");
         assertThat(metricCount(DeadLetterAdminMetrics.DLT_REPROCESS_REQUESTED_TOTAL, "success") - before)
                 .isEqualTo(1.0);
+        verify(reprocessPublisher).publish(any(), eq("transaction-events"));
+    }
+
+    @Test
+    void reprocessesReplayDeadLetterEventBackToReplayTopic() throws Exception {
+        insertDltEvent(17L, "evt-dlt-api-replay-reprocess-001", "PENDING", 0, "transaction-events-replay");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 17L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"operator-001","reason":"manual replay after payload review"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dlqId").value(17))
+                .andExpect(jsonPath("$.status").value("REPROCESSED"));
+
+        verify(reprocessPublisher).publish(any(), eq("transaction-events-replay"));
     }
 
     @Test
@@ -176,7 +195,7 @@ class DeadLetterEventAdminApiTest {
         insertDltEvent(4L, "evt-dlt-api-reprocess-fail-001", "PENDING");
         doThrow(new DeadLetterPublishFailedException(new RuntimeException("kafka unavailable")))
                 .when(reprocessPublisher)
-                .publish(any());
+                .publish(any(), any());
 
         mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 4L)
                         .header("X-Admin-Token", ADMIN_TOKEN)
@@ -293,7 +312,7 @@ class DeadLetterEventAdminApiTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("MAX_REPROCESS_ATTEMPTS_EXCEEDED"));
 
-        verify(reprocessPublisher, never()).publish(any());
+        verify(reprocessPublisher, never()).publish(any(), any());
         assertAudit("DLT_REPROCESS", "FAILED", 9L, "operator-001");
     }
 
@@ -316,6 +335,10 @@ class DeadLetterEventAdminApiTest {
     }
 
     private void insertDltEvent(long id, String eventId, String status, int attempts) {
+        insertDltEvent(id, eventId, status, attempts, "transaction-events");
+    }
+
+    private void insertDltEvent(long id, String eventId, String status, int attempts, String sourceTopic) {
         OffsetDateTime now = OffsetDateTime.parse("2026-06-22T10:00:00Z");
         jdbcTemplate.update("""
                         insert into dead_letter_events (
@@ -341,7 +364,7 @@ class DeadLetterEventAdminApiTest {
                 eventId,
                 "trace-" + eventId,
                 "user-1001",
-                "transaction-events",
+                sourceTopic,
                 0,
                 id,
                 "transaction-events-dlt",

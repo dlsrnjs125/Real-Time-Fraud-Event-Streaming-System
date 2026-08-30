@@ -30,7 +30,7 @@
     "eventAmount": 100000,
     "expectedLiveRedisCollisionKeys": 0,
     "expectedReplayAcceptedEvents": 4500,
-    "note": "Run app-api with FRAUD_PRODUCER_TOPIC=transaction-events-replay and app-consumer with FRAUD_CONSUMER_TOPIC=transaction-events-replay, spring.kafka.consumer.group-id=fraud-event-replay-consumer, and FRAUD_SLIDING_WINDOW_NAMESPACE=replay."
+    "note": "Run app-api with FRAUD_STREAM_MODE=REPLAY or make replay-api. Run app-consumer with FRAUD_STREAM_MODE=REPLAY, FRAUD_CONSUMER_TOPIC=transaction-events-replay, spring.kafka.consumer.group-id=fraud-event-replay-consumer, and FRAUD_SLIDING_WINDOW_NAMESPACE=replay or make replay-consumer."
   },
   "replayRate": 150,
   "statefulWindowProfile": null,

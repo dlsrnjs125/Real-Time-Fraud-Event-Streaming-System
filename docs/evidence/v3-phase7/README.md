@@ -29,10 +29,12 @@ Event count:
 | Replay group pre-run Lag | 0 or group absent | TBD |
 | Replay Redis namespace cleanup | only `fraud:tx:replay:*` deleted | TBD |
 | Replay accepted event count | 4,500 | TBD |
+| Replay Redis state created for historical events | `fraud:tx:replay:*` count > 0 | TBD |
 | Replay final Lag | 0 | TBD |
 | Live final Lag during replay | no replay-driven increase | TBD |
 | Live Redis collision keys | 0 | TBD |
 | Replay Redis keys created | `fraud:tx:replay:*` present | TBD |
+| DLT replay reprocess target | original `transaction-events-replay` source topic | TBD |
 | PostgreSQL duplicate result count | 0 duplicate result rows | TBD |
 
 ## Evidence Files To Add

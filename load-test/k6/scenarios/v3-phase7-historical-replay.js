@@ -1,13 +1,16 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import exec from 'k6/execution';
-import { apiBaseUrl, jsonHeaders } from '../common.js';
+import { jsonHeaders } from '../common.js';
 
 if (!__ENV.V3_RUN_ID) {
   throw new Error('V3_RUN_ID is required');
 }
 if (!__ENV.V3_WORKLOAD_MANIFEST) {
   throw new Error('V3_WORKLOAD_MANIFEST is required');
+}
+if (!__ENV.REPLAY_API_BASE_URL) {
+  throw new Error('REPLAY_API_BASE_URL is required for Phase 7 to avoid sending replay traffic to the live API');
 }
 
 const manifestName = __ENV.V3_WORKLOAD_MANIFEST;
@@ -27,6 +30,10 @@ if (!manifest.replayIsolationProfile) {
 
 const runId = __ENV.V3_RUN_ID;
 const commitSha = __ENV.V3_COMMIT_SHA || 'unknown';
+const replayApiBaseUrl = __ENV.REPLAY_API_BASE_URL;
+if (/^https?:\/\/(localhost|127\.0\.0\.1):8080\/?$/.test(replayApiBaseUrl)) {
+  throw new Error('REPLAY_API_BASE_URL must not point to the default live app-api port 8080');
+}
 const profile = manifest.replayIsolationProfile;
 const historicalAgeSeconds = durationSeconds(profile.historicalAge);
 const preAllocatedVUs = Number(__ENV.V3_PRE_ALLOCATED_VUS || 75);
@@ -70,7 +77,7 @@ export default function () {
     eventTime: new Date(eventTime).toISOString(),
   });
 
-  const response = http.post(`${apiBaseUrl}/api/v1/transactions/events`, payload, {
+  const response = http.post(`${replayApiBaseUrl}/api/v1/transactions/events`, payload, {
     headers: Object.assign({}, jsonHeaders.headers, {
       'X-Source-System': 'v3-phase7-historical-replay',
       'X-Source-Delivery-Profile': manifest.sourceProfile,
@@ -92,6 +99,7 @@ export function handleSummary(data) {
     driverType: manifest.driverType,
     workloadRole: manifest.workloadRole,
     sourceProfile: manifest.sourceProfile,
+    replayApiBaseUrl,
     eventTimeMode: manifest.eventTimeMode,
     targetEps: manifest.targetEps,
     replayRate: manifest.replayRate,

@@ -37,7 +37,7 @@ Phase 6 기본 기준:
 - `RAPID_TRANSACTION_COUNT`: 최근 5분 내 5건 이상, +30
 - `WINDOW_AMOUNT_SUM`: 최근 5분 누적 3,000,000 KRW 이상, +40
 
-`namespace`는 Redis DB index가 아니라 key prefix입니다. V3 Phase 7 Historical Replay는 replay Consumer를 `FRAUD_SLIDING_WINDOW_NAMESPACE=replay`로 실행해 historical event가 live 사용자 window에 섞이지 않도록 합니다.
+`namespace`는 Redis DB index가 아니라 key prefix입니다. V3 Phase 7 Historical Replay는 replay Consumer를 `FRAUD_STREAM_MODE=REPLAY`와 `FRAUD_SLIDING_WINDOW_NAMESPACE=replay`로 실행해 historical event가 live 사용자 window에 섞이지 않도록 합니다. Replay mode에서는 live event freshness policy인 `allowed-lateness` Redis skip을 적용하지 않습니다.
 
 ## 3. INCR + TTL을 기본으로 쓰지 않는 이유
 

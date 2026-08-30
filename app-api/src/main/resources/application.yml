@@ -52,5 +52,6 @@ dlt:
     max-attempts: ${DLT_REPROCESS_MAX_ATTEMPTS:3}
 
 fraud:
-  producer:
-    topic: ${FRAUD_PRODUCER_TOPIC:transaction-events}
+  stream:
+    mode: ${FRAUD_STREAM_MODE:LIVE}
+    producer-topic: ${FRAUD_PRODUCER_TOPIC:}

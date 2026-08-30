@@ -15,6 +15,15 @@ REDIS_DB="${REDIS_DB:-0}"
 REPLAY_REDIS_NAMESPACE="${REPLAY_REDIS_NAMESPACE:-replay}"
 REPLAY_REDIS_PATTERN="fraud:tx:${REPLAY_REDIS_NAMESPACE}:*"
 
+if ! printf '%s' "${REPLAY_REDIS_NAMESPACE}" | grep -Eq '^[a-z0-9][a-z0-9_-]*$'; then
+  echo "Invalid REPLAY_REDIS_NAMESPACE: ${REPLAY_REDIS_NAMESPACE}" >&2
+  exit 1
+fi
+if [ "${REPLAY_REDIS_NAMESPACE}" = "live" ]; then
+  echo "REPLAY_REDIS_NAMESPACE must not be live" >&2
+  exit 1
+fi
+
 check_group_lag() {
   local group="$1"
   local describe_output

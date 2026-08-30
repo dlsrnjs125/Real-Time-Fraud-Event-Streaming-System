@@ -5,6 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.fraud.api.kafka.FraudStreamMode;
+import com.example.fraud.api.kafka.FraudStreamProperties;
 import com.example.fraud.api.kafka.KafkaTopicNames;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
@@ -22,7 +24,7 @@ class KafkaTransactionEventProducerTest {
         KafkaTemplate<String, TransactionEventMessage> kafkaTemplate = mock(KafkaTemplate.class);
         KafkaTransactionEventProducer producer = new KafkaTransactionEventProducer(
                 kafkaTemplate,
-                KafkaTopicNames.TRANSACTION_EVENTS
+                new FraudStreamProperties(FraudStreamMode.LIVE, null)
         );
         TransactionEventMessage message = new TransactionEventMessage(
                 "v1",
@@ -53,7 +55,7 @@ class KafkaTransactionEventProducerTest {
         KafkaTemplate<String, TransactionEventMessage> kafkaTemplate = mock(KafkaTemplate.class);
         KafkaTransactionEventProducer producer = new KafkaTransactionEventProducer(
                 kafkaTemplate,
-                KafkaTopicNames.TRANSACTION_EVENTS_REPLAY
+                new FraudStreamProperties(FraudStreamMode.REPLAY, null)
         );
         TransactionEventMessage message = new TransactionEventMessage(
                 "v1",

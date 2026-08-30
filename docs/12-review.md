@@ -152,6 +152,22 @@ Date: 2026-08-30
 - Grafana screenshot comparing live and replay Lag.
 - Redis namespace comparison showing zero live collision keys.
 
+### Review follow-up
+
+Date: 2026-08-31
+
+Blocked issues fixed before merge:
+
+- Replay workload used 24-hour-old `eventTime`, but replay Consumer still applied the live `allowed-lateness` Redis skip policy. Replay mode now bypasses that live freshness skip so `fraud:tx:replay:*` state is actually populated.
+- Phase 7 k6 could silently send replay events to default live API port `8080`. The replay scenario now requires `REPLAY_API_BASE_URL` and rejects the default live port.
+- DLT reprocess always republished to `transaction-events`, which could move replay failures into live processing. Reprocess now republishes to the original `sourceTopic` after an allowlist check for `transaction-events` or `transaction-events-replay`.
+- Runtime mode combinations are now startup-validated. Live mode must use live topic/group/namespace, and replay mode must use replay topic/group/namespace.
+- Phase 7 Redis cleanup now validates replay namespace and refuses `live`.
+
+Still not complete:
+
+- Runtime evidence for Live Only, Replay Only, and Live + Replay remains required before V3 Phase 7 can be marked `Done`.
+
 ## Phase 12 Review
 
 ### 잘한 점
