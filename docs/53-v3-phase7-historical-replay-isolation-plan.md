@@ -77,11 +77,31 @@ REPLAY_API_BASE_URL=http://localhost:8082 V3_RUN_ID=phase7-replay-001 make k6-v3
 
 The Makefile target runs `scripts/load_tests/prepare_v3_phase7_run.sh` first. The preflight checks live and replay Consumer Lag when those groups exist, then deletes only `fraud:tx:replay:*` keys. The k6 scenario requires `REPLAY_API_BASE_URL` and rejects the default live port `8080`.
 
+The preflight also calls `${REPLAY_API_BASE_URL}/actuator/info` and requires:
+
+```text
+fraudStream.mode=REPLAY
+fraudStream.producerTopic=transaction-events-replay
+```
+
+Port `8082` alone is not accepted as proof that the process is a replay API.
+
+k6 success is strict for Phase 7 correctness evidence:
+
+```text
+http_req_failed == 0
+checks rate == 1
+dropped_iterations == 0
+http_reqs == eventLimit
+```
+
 ## Scope Boundary
 
 Phase 7 historical replay means a workload with historical `eventTime` routed through isolated replay stream state.
 
 It does not mean replaying an event already processed by live with the same `eventId` for backfill or re-evaluation. PostgreSQL receipt and fraud result uniqueness remain global by `eventId`. Supporting repeated processing scopes such as `LIVE` and `REPLAY:{runId}` would require a later data-model change to composite uniqueness.
+
+PostgreSQL remains shared by live and replay in Phase 7. Therefore the correct claim is not full physical isolation. The claim to prove is: Kafka backlog, Consumer group offset, Redis state, and live/replay application metrics are separated; any indirect impact through shared PostgreSQL resource contention must be measured in the Live + Replay experiment.
 
 ## Experiments
 
@@ -120,6 +140,13 @@ Record:
 - replay Redis namespace key count after replay
 - PostgreSQL receipt/result/processing-log counts for each run prefix
 
+Grafana panel requirement:
+
+- Phase 7 Live vs Replay Lag
+- Phase 7 Live vs Replay Consumer p99
+- Phase 7 Live vs Replay Redis p99
+- Phase 7 Live vs Replay Event Ingress Age p99
+
 ## Completion Criteria
 
 - `transaction-events-replay` is created by the topic script.
@@ -128,6 +155,8 @@ Record:
 - Redis keys include a configurable namespace and default to `live`.
 - Replay mode creates replay Redis state for historical event times instead of classifying every 24-hour-old event as too-late.
 - Replay k6 workload cannot run against the default live API URL by omission.
+- Replay k6 workload validates replay API routing through `/actuator/info` before sending traffic.
+- k6 rejects any run with failed requests, failed checks, dropped iterations, or event count drift.
 - DLT reprocess republishes to the original source topic after allowlist validation.
 - Historical replay manifest is CI-validated.
 - k6 summary records replay routing requirements and workload fingerprint.

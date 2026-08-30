@@ -1,7 +1,7 @@
 package com.example.fraud.api.kafka;
 
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 public class FraudStreamConfig {
 
     @Bean
-    ApplicationRunner fraudStreamModeValidator(FraudStreamProperties properties) {
-        return args -> validate(properties);
+    InitializingBean fraudStreamModeValidator(FraudStreamProperties properties) {
+        return () -> validate(properties);
     }
 
     static void validate(FraudStreamProperties properties) {

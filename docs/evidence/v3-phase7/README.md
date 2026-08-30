@@ -27,6 +27,7 @@ Event count:
 | Topic script created `transaction-events-replay` | PASS | TBD |
 | Live group pre-run Lag | 0 | TBD |
 | Replay group pre-run Lag | 0 or group absent | TBD |
+| Replay API `/actuator/info` | `mode=REPLAY`, `producerTopic=transaction-events-replay` | TBD |
 | Replay Redis namespace cleanup | only `fraud:tx:replay:*` deleted | TBD |
 | Replay accepted event count | 4,500 | TBD |
 | Replay Redis state created for historical events | `fraud:tx:replay:*` count > 0 | TBD |
@@ -45,5 +46,7 @@ Event count:
 - `04-redis-namespace-comparison.txt`
 - `05-final-consistency.txt`
 - `06-grafana-live-replay-isolation.png`
+
+The Grafana screenshot must use the Phase 7 live/replay panels, not only the generic Phase 0 aggregate panels.
 
 Do not mark V3 Phase 7 complete until this directory contains accepted runtime output for Live Only, Replay Only, and Live + Replay or explicitly documents a reduced evidence scope.

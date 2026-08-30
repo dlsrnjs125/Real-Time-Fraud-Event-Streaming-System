@@ -1,8 +1,8 @@
 package com.example.fraud.consumer.kafka;
 
 import com.example.fraud.consumer.redis.SlidingWindowProperties;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,15 +17,13 @@ public class FraudStreamConfig {
     private static final String REPLAY_NAMESPACE = "replay";
 
     @Bean
-    ApplicationRunner fraudStreamModeValidator(
+    InitializingBean fraudStreamModeValidator(
             FraudStreamProperties streamProperties,
             SlidingWindowProperties slidingWindowProperties,
             @Value("${fraud.consumer.topic:" + KafkaTopicNames.TRANSACTION_EVENTS + "}") String topic,
             @Value("${spring.kafka.consumer.group-id}") String consumerGroupId
     ) {
-        return args -> {
-            validate(streamProperties, slidingWindowProperties.namespace(), topic, consumerGroupId);
-        };
+        return () -> validate(streamProperties, slidingWindowProperties.namespace(), topic, consumerGroupId);
     }
 
     static void validate(

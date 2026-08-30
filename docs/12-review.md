@@ -168,6 +168,19 @@ Still not complete:
 
 - Runtime evidence for Live Only, Replay Only, and Live + Replay remains required before V3 Phase 7 can be marked `Done`.
 
+### Second review follow-up
+
+Date: 2026-08-31
+
+Additional issues fixed before runtime evidence:
+
+- Moved stream routing validation from `ApplicationRunner` to `InitializingBean` so invalid topic/group/namespace combinations fail during bean initialization, before runner execution.
+- Added `fraudStream` details to `/actuator/info` for app-api and app-consumer.
+- Added Phase 7 preflight validation against replay API `/actuator/info`; port `8082` alone is not treated as proof of replay routing.
+- Tightened the Phase 7 k6 gate to require zero HTTP failures, all checks passing, zero dropped iterations, and exact manifest request count.
+- Added V3 Grafana Phase 7 panels that split live/replay Lag, Consumer p99, Redis p99, and Event Ingress Age p99.
+- Clarified that Phase 7 does not claim full physical isolation because PostgreSQL remains shared; shared DB resource contention must be measured in Live + Replay evidence.
+
 ## Phase 12 Review
 
 ### 잘한 점

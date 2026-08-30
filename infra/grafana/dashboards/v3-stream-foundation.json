@@ -307,6 +307,55 @@
       ],
       "fieldConfig": {"defaults": {"unit": "currencyKRW", "min": 0}, "overrides": []},
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 26,
+      "title": "Phase 7 Live vs Replay Lag",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 72},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-consumer\", topic=\"transaction-events\"})", "legendFormat": "live lag"},
+        {"refId": "B", "expr": "sum(kafka_consumergroup_lag{job=\"kafka-exporter\", consumergroup=\"fraud-event-replay-consumer\", topic=\"transaction-events-replay\"})", "legendFormat": "replay lag"}
+      ],
+      "fieldConfig": {"defaults": {"min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 27,
+      "title": "Phase 7 Live vs Replay Consumer p99",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 72},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.99, sum by (le, stream_mode) (rate(fraud_consumer_service_latency_seconds_bucket{stream_mode=~\"live|replay\"}[1m])))", "legendFormat": "{{stream_mode}} consumer p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 28,
+      "title": "Phase 7 Live vs Replay Redis p99",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 80},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.99, sum by (le, stream_mode) (rate(fraud_redis_state_latency_seconds_bucket{stream_mode=~\"live|replay\"}[1m])))", "legendFormat": "{{stream_mode}} redis p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 29,
+      "title": "Phase 7 Live vs Replay Event Ingress Age p99",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 80},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.99, sum by (le, stream_mode) (rate(fraud_event_ingress_age_seconds_bucket{stream_mode=~\"live|replay\"}[1m])))", "legendFormat": "{{stream_mode}} ingress age p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
     }
   ],
   "refresh": "10s",

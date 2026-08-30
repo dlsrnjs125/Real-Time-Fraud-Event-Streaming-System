@@ -149,6 +149,15 @@ V3 Phase 7 uses existing low-cardinality stream metrics with topic/group separat
 
 Grafana should compare `kafka_consumergroup_lag{consumergroup="fraud-event-consumer",topic="transaction-events"}` with `kafka_consumergroup_lag{consumergroup="fraud-event-replay-consumer",topic="transaction-events-replay"}` during Live + Replay runs. Do not add `eventId`, `userId`, or replay run IDs as metric tags.
 
+The V3 dashboard includes Phase 7-specific panels for live/replay evidence:
+
+- `Phase 7 Live vs Replay Lag`
+- `Phase 7 Live vs Replay Consumer p99`
+- `Phase 7 Live vs Replay Redis p99`
+- `Phase 7 Live vs Replay Event Ingress Age p99`
+
+Use these panels for Phase 7 screenshots. Generic Phase 0 panels may aggregate live and replay targets and should not be used alone to prove Live + Replay isolation.
+
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 
 ## 4-2. 후속 Observability 후보
