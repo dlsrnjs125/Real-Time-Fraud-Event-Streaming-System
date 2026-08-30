@@ -195,12 +195,14 @@ Accepted evidence:
 - Accepted Live Only run `phase7-live-only-20260831-002`: 12,000/12,000 emitted events, zero HTTP failures, zero dropped iterations, final live Lag 0.
 - Accepted Replay Only run `phase7-replay-only-20260831-002`: 4,500/4,500 emitted replay events, zero HTTP failures, zero dropped iterations, final replay Lag 0, replay Redis state created.
 - Accepted concurrent Live + Replay runs `phase7-live-plus-20260831-001` and `phase7-replay-plus-20260831-001`: live/replay final Lag 0, DB counts aligned with emitted events, cross-namespace Redis collision checks stayed 0.
+- Added supplemental Redis user sliding-window evidence using `phase7-user-window-live-20260831-001` and `phase7-user-window-replay-20260831-001`: replay users under live namespace 0, replay users under replay namespace 500, live users under replay namespace 0, live users under live namespace 1,000, with sampled `TYPE=zset`.
 - Captured Grafana Phase 7 live/replay dashboard evidence through Google Chrome at `docs/evidence/v3-phase7/09-grafana-live-replay-isolation.png`.
 
 Interpretation boundary:
 
 - V3 Phase 7 is accepted as logical replay isolation across Kafka topic, Consumer group, and Redis key namespace.
 - It does not claim full physical isolation because PostgreSQL and Redis runtime remain shared in the local Docker environment.
+- Live latency movement during concurrent runs is recorded as an observation only. Shared-resource contention is a possible contributor, but this evidence does not establish causality.
 
 ## Phase 12 Review
 

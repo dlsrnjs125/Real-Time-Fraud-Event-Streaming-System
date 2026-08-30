@@ -40,7 +40,7 @@ Captured at: 2026-08-31 KST
 | Live control | `v3-phase2-state-size-baseline` | 100 | 120s | 12,000 | arrival time |
 | Historical replay | `v3-phase7-historical-replay` | 150 | 30s | 4,500 | 24h before arrival |
 
-The live control reuses the existing Phase 2 state-size baseline workload to avoid adding Phase 7-only load-test driver code. Phase 7 evidence compares logical routing/state isolation and records shared PostgreSQL/Redis resource impact separately.
+The live control reuses the existing Phase 2 state-size baseline workload to avoid adding Phase 7-only load-test driver code. Phase 7 evidence compares logical routing/state isolation and records concurrent-run latency observations separately.
 
 ## Acceptance Criteria
 
@@ -52,7 +52,6 @@ The live control reuses the existing Phase 2 state-size baseline workload to avo
 | Phase 7 replay emitted events | 4,500 |
 | Replay final Consumer Lag | 0 |
 | Live final Consumer Lag | 0 |
-| Replay Redis state | `fraud:tx:replay:*` keys created |
+| Replay Redis state | `fraud:tx:replay:user:{userId}:events` ZSET keys created |
 | Cross namespace contamination | 0 replay-prefixed users under live namespace, 0 live-prefixed users under replay namespace |
 | Final DB consistency | receipt/result/processing-log counts align by eventId prefix |
-

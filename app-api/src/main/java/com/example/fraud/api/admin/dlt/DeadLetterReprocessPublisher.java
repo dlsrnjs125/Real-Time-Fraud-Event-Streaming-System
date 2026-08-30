@@ -37,8 +37,6 @@ public class DeadLetterReprocessPublisher {
                 || KafkaTopicNames.TRANSACTION_EVENTS_REPLAY.equals(sourceTopic)) {
             return sourceTopic;
         }
-        throw new DeadLetterPublishFailedException(
-                new IllegalArgumentException("unsupported DLT source topic: " + sourceTopic)
-        );
+        throw new DeadLetterStateConflictException("unsupported DLT source topic: " + sourceTopic);
     }
 }

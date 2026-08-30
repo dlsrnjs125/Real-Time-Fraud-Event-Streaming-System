@@ -222,6 +222,35 @@ class DeadLetterEventAdminApiTest {
     }
 
     @Test
+    void unsupportedSourceTopicReturnsStateConflictAndMarksReprocessFailed() throws Exception {
+        insertDltEvent(18L, "evt-dlt-api-reprocess-unsupported-topic", "PENDING", 0, "unknown-topic");
+
+        mockMvc.perform(post("/api/v1/admin/dlq-events/{id}/reprocess", 18L)
+                        .header("X-Admin-Token", ADMIN_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"operatorId":"operator-001","reason":"retry corrupt DLT row"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DLT_STATE_CONFLICT"));
+
+        String status = jdbcTemplate.queryForObject(
+                "select status from dead_letter_events where id = ?",
+                String.class,
+                18L
+        );
+        Integer attempts = jdbcTemplate.queryForObject(
+                "select reprocess_attempts from dead_letter_events where id = ?",
+                Integer.class,
+                18L
+        );
+        assertThat(status).isEqualTo("REPROCESS_FAILED");
+        assertThat(attempts).isEqualTo(1);
+        verify(reprocessPublisher, never()).publish(any(), any());
+        assertAudit("DLT_REPROCESS", "FAILED", 18L, "operator-001");
+    }
+
+    @Test
     void discardsPendingDeadLetterEvent() throws Exception {
         insertDltEvent(5L, "evt-dlt-api-discard-001", "PENDING");
         double before = metricCount(DeadLetterAdminMetrics.DLT_DISCARDED_TOTAL, "success");

@@ -6,16 +6,18 @@ Date: 2026-08-31
 
 V3 Phase 7 verifies that historical replay traffic can run beside live traffic without contaminating live Kafka routing or live Redis detection state.
 
-The phase validates logical isolation only. PostgreSQL and Redis runtime remain physically shared in the local Docker environment, so Live + Replay evidence must be interpreted as isolation plus shared-resource impact measurement, not full physical tenancy isolation.
+The phase validates logical isolation only. PostgreSQL and Redis runtime remain physically shared in the local Docker environment, so Live + Replay evidence must be interpreted as isolation plus concurrent-run latency observation, not full physical tenancy isolation.
 
 ## Accepted Runs
 
 | Scope | Run ID | Workload | Target EPS | Duration | Emitted | HTTP failure | Dropped | Final Lag |
 |---|---|---|---:|---:|---:|---:|---:|---:|
-| Live Only | `phase7-live-only-20260831-002` | `v3-phase2-state-size-baseline` | 100 | 120s | 12,000 | 0 | 0 | 0 |
+| Live Only | `phase7-live-only-20260831-002` | `v3-phase2-state-size-baseline` | 100 | 120s | 12,000 | 0 | absent | 0 |
 | Replay Only | `phase7-replay-only-20260831-002` | `v3-phase7-historical-replay` | 150 | 30s | 4,500 | 0 | 0 | 0 |
-| Live + Replay | `phase7-live-plus-20260831-001` | `v3-phase2-state-size-baseline` | 100 | 120s | 12,000 | 0 | 0 | 0 |
+| Live + Replay | `phase7-live-plus-20260831-001` | `v3-phase2-state-size-baseline` | 100 | 120s | 12,000 | 0 | absent | 0 |
 | Live + Replay | `phase7-replay-plus-20260831-001` | `v3-phase7-historical-replay` | 150 | 30s | 4,500 | 0 | 0 | 0 |
+
+For the live workload, `dropped_iterations` was absent from the k6 summary when the run emitted the full configured event count. The discarded live run produced a concrete `droppedIterations=7`, so accepted live runs are interpreted as no dropped-iteration series observed rather than a serialized numeric zero.
 
 ## Discarded Runs
 
@@ -26,7 +28,7 @@ The phase validates logical isolation only. PostgreSQL and Redis runtime remain 
 
 ## Key Result
 
-The 24-hour historical replay workload processed 4,500 accepted replay events through a separate Kafka topic, separate Consumer group, and separate Redis namespace. During Live + Replay, both live and replay Consumer Lag drained to 0, and cross-namespace Redis key checks stayed 0.
+The 24-hour historical replay workload processed 4,500 accepted replay events through a separate Kafka topic, separate Consumer group, and separate Redis namespace. During Live + Replay, both live and replay Consumer Lag drained to 0. Supplemental Redis evidence directly verified that replay users created user sliding-window ZSET state only under the replay namespace and live users created user sliding-window ZSET state only under the live namespace.
 
 ## Routing Isolation
 
@@ -43,18 +45,35 @@ The 24-hour historical replay workload processed 4,500 accepted replay events th
 
 ## State Isolation
 
+Primary Redis state under test:
+
+```text
+fraud:tx:{namespace}:user:{userId}:events
+```
+
+Event hash keys under `fraud:tx:{namespace}:event:{eventId}` are retained as secondary evidence, but the user sliding-window ZSET is the core state for Phase 7.
+
 | Check | Result |
 |---|---:|
-| Replay-only keys in live namespace | 0 |
-| Replay-only keys in replay namespace | 4,500 |
-| Replay-plus keys in live namespace | 0 |
-| Live-plus keys in replay namespace | 0 |
-| Replay-plus keys in replay namespace | 4,500 |
-| Live-plus keys in live namespace | 12,000 |
+| Replay users in live namespace | 0 |
+| Replay users in replay namespace | 500 |
+| Live users in replay namespace | 0 |
+| Live users in live namespace | 1,000 |
+
+Sample key checks confirmed `TYPE=zset` for both live and replay user-window keys. Event hash key checks also stayed isolated:
+
+| Event-key check | Result |
+|---|---:|
+| Replay-only event keys in live namespace | 0 |
+| Replay-only event keys in replay namespace | 4,500 |
+| Replay-plus event keys in live namespace | 0 |
+| Live-plus event keys in replay namespace | 0 |
+| Replay-plus event keys in replay namespace | 4,500 |
+| Live-plus event keys in live namespace | 12,000 |
 
 Redis-dependent skipped rules were 0 for the accepted replay-only run, confirming that replay mode bypassed the live freshness skip and created replay sliding-window state.
 
-## Shared Resource Impact
+## Concurrent-Run Latency Observation
 
 | Metric | Live Only | Live + Replay |
 |---|---:|---:|
@@ -69,7 +88,7 @@ Prometheus 10-minute split after the concurrent run:
 | Redis state p99 | 0.026369s | 0.022121s |
 | Kafka final lag | 0 | 0 |
 
-The live latency movement is treated as local shared-resource impact. It is not evidence of live/replay state contamination.
+The concurrent run showed higher live latency than the Live Only run. Because PostgreSQL and Redis are physically shared, shared-resource contention is a possible contributor, but this experiment does not establish causality. The latency observation is not evidence of live/replay state contamination.
 
 ## Final Consistency
 
@@ -98,7 +117,7 @@ The discarded runs are retained in raw consistency output for traceability but a
 | `05a-live-plus-k6-summary.json` | Accepted concurrent live k6 summary. |
 | `05b-replay-plus-k6-summary.json` | Accepted concurrent replay k6 summary. |
 | `05-live-plus-replay-comparison.md` | Live + Replay comparison and interpretation. |
-| `06-redis-namespace-isolation.txt` | Redis namespace collision checks. |
+| `06-redis-namespace-isolation.txt` | Redis user sliding-window ZSET and event-key namespace collision checks. |
 | `07-kafka-group-isolation.txt` | Kafka live/replay group and topic Lag evidence. |
 | `08-final-consistency.txt` | Final PostgreSQL receipt/result/log counts. |
 | `09-grafana-live-replay-isolation.png` | Chrome-captured Grafana screenshot with Phase 7 live/replay panels. |

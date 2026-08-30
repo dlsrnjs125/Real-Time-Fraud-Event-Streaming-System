@@ -1,8 +1,51 @@
-live keys: 20345
-replay keys: 9500
-replay-only keys in live namespace: 0
-replay-only keys in replay namespace: 4500
-replay-plus keys in live namespace: 0
-replay-plus keys in replay namespace: 4500
-live-plus keys in replay namespace: 0
-live-plus keys in live namespace: 12000
+Redis namespace isolation evidence
+Captured at: 2026-08-31 KST
+
+Primary state under test:
+  fraud:tx:{namespace}:user:{userId}:events
+
+The primary Phase 7 Redis state is the per-user sliding-window ZSET.
+Event hash keys under fraud:tx:{namespace}:event:{eventId} are secondary receipt/state markers and must not be used as the only proof of user-window isolation.
+
+Accepted Live + Replay event-key evidence:
+  live keys: 20345
+  replay keys: 9500
+  replay-only event keys in live namespace: 0
+  replay-only event keys in replay namespace: 4500
+  replay-plus event keys in live namespace: 0
+  replay-plus event keys in replay namespace: 4500
+  live-plus event keys in replay namespace: 0
+  live-plus event keys in live namespace: 12000
+
+Supplemental user sliding-window run IDs:
+  live: phase7-user-window-live-20260831-001
+  replay: phase7-user-window-replay-20260831-001
+
+Supplemental run summaries:
+  live emitted events: 12000
+  replay emitted events: 4500
+  live final Consumer Lag: 0
+  replay final Consumer Lag: 0
+
+User sliding-window key patterns checked:
+  fraud:tx:live:user:v3-phase7-replay-user-*:events
+  fraud:tx:replay:user:v3-phase7-replay-user-*:events
+  fraud:tx:live:user:v3-phase2-state-user-*:events
+  fraud:tx:replay:user:v3-phase2-state-user-*:events
+
+User sliding-window results:
+  Replay users in LIVE namespace: 0
+  Replay users in REPLAY namespace: 500
+  Live users in REPLAY namespace: 0
+  Live users in LIVE namespace: 1000
+
+Sample Redis type/cardinality checks:
+  TYPE fraud:tx:live:user:v3-phase2-state-user-0:events = zset
+  ZCARD fraud:tx:live:user:v3-phase2-state-user-0:events = 12
+  TYPE fraud:tx:replay:user:v3-phase7-replay-user-0:events = zset
+  ZCARD fraud:tx:replay:user:v3-phase7-replay-user-0:events = 9
+
+Interpretation:
+  Historical replay created user sliding-window state only under fraud:tx:replay:*.
+  Live control traffic created user sliding-window state only under fraud:tx:live:*.
+  Cross-namespace user-window contamination was 0 in both directions.

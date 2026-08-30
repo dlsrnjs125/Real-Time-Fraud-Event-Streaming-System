@@ -2,6 +2,7 @@ package com.example.fraud.api.admin.dlt;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,7 +52,8 @@ class DeadLetterReprocessPublisherTest {
         DeadLetterReprocessPublisher publisher = new DeadLetterReprocessPublisher(kafkaTemplate);
 
         assertThatThrownBy(() -> publisher.publish(message("evt-dlt-reprocess-invalid"), "unknown-topic"))
-                .isInstanceOf(DeadLetterPublishFailedException.class);
+                .isInstanceOf(DeadLetterStateConflictException.class);
+        verify(kafkaTemplate, never()).send("unknown-topic", "user-1001", message("evt-dlt-reprocess-invalid"));
     }
 
     private TransactionEventMessage message(String eventId) {

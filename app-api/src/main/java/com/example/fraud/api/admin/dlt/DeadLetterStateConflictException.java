@@ -13,4 +13,16 @@ public class DeadLetterStateConflictException extends ApiException {
                 "dead letter event " + id + " cannot be changed from status " + status
         );
     }
+
+    public DeadLetterStateConflictException(long id, String message) {
+        super(
+                ApiErrorCode.DLT_STATE_CONFLICT,
+                HttpStatus.CONFLICT,
+                "dead letter event " + id + " state conflict: " + message
+        );
+    }
+
+    public DeadLetterStateConflictException(String message) {
+        super(ApiErrorCode.DLT_STATE_CONFLICT, HttpStatus.CONFLICT, message);
+    }
 }
