@@ -180,6 +180,10 @@ Additional issues fixed before runtime evidence:
 - Tightened the Phase 7 k6 gate to require zero HTTP failures, all checks passing, zero dropped iterations, and exact manifest request count.
 - Added V3 Grafana Phase 7 panels that split live/replay Lag, Consumer p99, Redis p99, and Event Ingress Age p99.
 - Clarified that Phase 7 does not claim full physical isolation because PostgreSQL remains shared; shared DB resource contention must be measured in Live + Replay evidence.
+- Changed Kafka Consumer Lag preflight to fail closed on Docker/Kafka CLI errors. Only missing consumer groups are accepted as a zero-baseline skip condition.
+- Added Phase 7 static verification to `ci-check`: shell script syntax, Docker Compose and observability provisioning, and V3 workload manifest validation.
+- Added optional replay Consumer `/actuator/info` preflight validation for `mode`, topic, group id, and Redis namespace.
+- Clarified that Redis runtime is also physically shared; Phase 7 validates logical Redis key namespace isolation while measuring shared Redis contention through live/replay p99 panels.
 
 ## Phase 12 Review
 

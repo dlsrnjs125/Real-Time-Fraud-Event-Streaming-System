@@ -131,6 +131,9 @@ ci-check:
 	./gradlew assemble
 	$(MAKE) test-data-scripts-ci
 	$(MAKE) data-policy-check
+	$(MAKE) scripts-check
+	$(MAKE) observability-check
+	$(MAKE) verify-v3-workload-manifests
 
 clean:
 	./gradlew clean
@@ -380,7 +383,7 @@ k6-v3-phase6-catch-up-burst:
 k6-v3-phase7-historical-replay:
 	@test -n "$(V3_RUN_ID)" || (echo "V3_RUN_ID is required, for example: V3_RUN_ID=phase7-replay-001 make k6-v3-phase7-historical-replay" && exit 1)
 	@test -n "$(REPLAY_API_BASE_URL)" || (echo "REPLAY_API_BASE_URL is required, for example: REPLAY_API_BASE_URL=http://localhost:8082 V3_RUN_ID=phase7-replay-001 make k6-v3-phase7-historical-replay" && exit 1)
-	REPLAY_API_BASE_URL="$(REPLAY_API_BASE_URL)" bash scripts/load_tests/prepare_v3_phase7_run.sh
+	REPLAY_API_BASE_URL="$(REPLAY_API_BASE_URL)" REPLAY_CONSUMER_BASE_URL="$(REPLAY_CONSUMER_BASE_URL)" bash scripts/load_tests/prepare_v3_phase7_run.sh
 	k6 -e V3_RUN_ID="$(V3_RUN_ID)" -e V3_COMMIT_SHA="$$(git rev-parse --short HEAD)$$(git diff --quiet || echo -dirty)" -e V3_WORKLOAD_MANIFEST=historical-replay-v1.json -e REPLAY_API_BASE_URL="$(REPLAY_API_BASE_URL)" run load-test/k6/scenarios/v3-phase7-historical-replay.js
 
 final-check: build infra-config observability-check scripts-check verify-v2-phase13 verify-v3-phase0

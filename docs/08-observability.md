@@ -147,6 +147,8 @@ V3 Phase 7 uses existing low-cardinality stream metrics with topic/group separat
 - Redis key namespace: `fraud:tx:live:*` vs. `fraud:tx:replay:*`
 - Prometheus scrape target: `stream_mode=live` on ports 8080/8081 and `stream_mode=replay` on ports 8082/8083
 
+PostgreSQL and Redis runtime are still shared in Phase 7. The dashboard proves logical stream separation and measures shared resource contention; it must not be used as evidence of full physical datastore isolation.
+
 Grafana should compare `kafka_consumergroup_lag{consumergroup="fraud-event-consumer",topic="transaction-events"}` with `kafka_consumergroup_lag{consumergroup="fraud-event-replay-consumer",topic="transaction-events-replay"}` during Live + Replay runs. Do not add `eventId`, `userId`, or replay run IDs as metric tags.
 
 The V3 dashboard includes Phase 7-specific panels for live/replay evidence:
