@@ -10,7 +10,8 @@ public record SlidingWindowProperties(
         int maxEvents,
         BigDecimal amountThreshold,
         Duration ttl,
-        Duration allowedLateness
+        Duration allowedLateness,
+        String namespace
 ) {
 
     public SlidingWindowProperties {
@@ -28,6 +29,9 @@ public record SlidingWindowProperties(
         }
         if (allowedLateness == null || allowedLateness.isNegative()) {
             allowedLateness = Duration.ofMinutes(5);
+        }
+        if (namespace == null || namespace.isBlank()) {
+            namespace = "live";
         }
     }
 }

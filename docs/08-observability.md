@@ -140,6 +140,14 @@ V3 Phase 5 adds `fraud.redis.window.too_late.total`. This counter represents eve
 
 `fraud.detection.degraded.total` counts decisions where full stateful evaluation was not possible. It can increase for Redis infrastructure failure and for freshness-policy skips such as too-late events. Use `fraud.redis.window.degraded.total` for Redis unavailable cause and `fraud.redis.window.too_late.total` for freshness cause.
 
+V3 Phase 7 uses existing low-cardinality stream metrics with topic/group separation rather than adding event-level replay tags. Live and replay are distinguished by:
+
+- Kafka topic: `transaction-events` vs. `transaction-events-replay`
+- Consumer group: `fraud-event-consumer` vs. `fraud-event-replay-consumer`
+- Redis key namespace: `fraud:tx:live:*` vs. `fraud:tx:replay:*`
+
+Grafana should compare `kafka_consumergroup_lag{consumergroup="fraud-event-consumer",topic="transaction-events"}` with `kafka_consumergroup_lag{consumergroup="fraud-event-replay-consumer",topic="transaction-events-replay"}` during Live + Replay runs. Do not add `eventId`, `userId`, or replay run IDs as metric tags.
+
 Prometheus alert rule 후보는 `infra/prometheus/rules/fraud-alerts.yml`에 둡니다. Alertmanager, Slack, PagerDuty, automatic incident response는 이번 범위가 아닙니다.
 
 ## 4-2. 후속 Observability 후보

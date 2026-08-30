@@ -8,11 +8,11 @@ Redis는 사용자별 최근 거래 패턴을 빠르게 계산하기 위한 단�
 
 사용자별 ZSET과 이벤트별 Hash를 함께 사용합니다.
 
-- User window key: `fraud:tx:user:{userId}:events`
+- User window key: `fraud:tx:{namespace}:user:{userId}:events`
 - User window type: Sorted Set
 - Score: `eventTime` epoch milliseconds
 - Member: `eventId`
-- Event metadata key: `fraud:tx:event:{eventId}`
+- Event metadata key: `fraud:tx:{namespace}:event:{eventId}`
 - Event metadata type: Hash
 - Hash fields: `amount`, `currency`, `eventTime`, `userId`
 
@@ -33,8 +33,11 @@ Phase 6 기본 기준:
 - window: 5 minutes
 - TTL: 10 minutes
 - allowed lateness: 5 minutes
+- namespace: `live`
 - `RAPID_TRANSACTION_COUNT`: 최근 5분 내 5건 이상, +30
 - `WINDOW_AMOUNT_SUM`: 최근 5분 누적 3,000,000 KRW 이상, +40
+
+`namespace`는 Redis DB index가 아니라 key prefix입니다. V3 Phase 7 Historical Replay는 replay Consumer를 `FRAUD_SLIDING_WINDOW_NAMESPACE=replay`로 실행해 historical event가 live 사용자 window에 섞이지 않도록 합니다.
 
 ## 3. INCR + TTL을 기본으로 쓰지 않는 이유
 
@@ -106,8 +109,8 @@ too-late 이벤트는 Redis 인프라 장애가 아니므로 `fraud.redis.window
 
 Phase 7에서는 Testcontainers 대신 Docker Compose Redis를 사용하는 별도 integration test target으로 실제 Redis 자료구조 기준 검증을 분리했습니다. Redis integration test는 테스트 전용 Redis database index `15`를 사용하며, 테스트 시작 전 해당 DB만 초기화합니다.
 
-- ZSET `fraud:tx:user:{userId}:events`에 eventId member 저장
-- Hash `fraud:tx:event:{eventId}`에 amount/currency/eventTime/userId 저장
+- ZSET `fraud:tx:{namespace}:user:{userId}:events`에 eventId member 저장
+- Hash `fraud:tx:{namespace}:event:{eventId}`에 amount/currency/eventTime/userId 저장
 - 같은 eventId 재기록 시 ZSET count 중복 증가 없음
 - eventTime 기준 window 밖 이벤트 cleanup
 - user window와 event metadata key TTL 설정

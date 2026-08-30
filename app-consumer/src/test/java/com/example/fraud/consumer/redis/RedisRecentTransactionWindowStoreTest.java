@@ -39,7 +39,8 @@ class RedisRecentTransactionWindowStoreTest {
                     5,
                     BigDecimal.valueOf(3_000_000),
                     Duration.ofMinutes(10),
-                    Duration.ofMinutes(5)
+                    Duration.ofMinutes(5),
+                    "live"
             ),
             metrics
     );
@@ -49,12 +50,12 @@ class RedisRecentTransactionWindowStoreTest {
         TransactionEventMessage message = message("evt-redis-001", BigDecimal.valueOf(1_200_000));
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-001", "evt-redis-previous"));
-        when(hash.get("fraud:tx:event:evt-redis-001", "amount")).thenReturn("1200000");
-        when(hash.get("fraud:tx:event:evt-redis-previous", "amount")).thenReturn("900000");
+        when(hash.get("fraud:tx:live:event:evt-redis-001", "amount")).thenReturn("1200000");
+        when(hash.get("fraud:tx:live:event:evt-redis-previous", "amount")).thenReturn("900000");
 
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 
@@ -66,11 +67,15 @@ class RedisRecentTransactionWindowStoreTest {
                 .isEqualTo(2);
         assertThat(meterRegistry.summary(FraudConsumerMetrics.REDIS_WINDOW_AMOUNT_SUM).totalAmount())
                 .isEqualTo(2_100_000);
-        verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
-        verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
-        verify(zSet).removeRangeByScore("fraud:tx:user:user-1001:events", 0, millis("2026-06-19T09:55:00Z") - 1);
-        verify(redisTemplate).expire("fraud:tx:user:user-1001:events", Duration.ofMinutes(10));
-        verify(redisTemplate).expire("fraud:tx:event:evt-redis-001", Duration.ofMinutes(10));
+        verify(zSet).add("fraud:tx:live:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
+        verify(hash).putAll(eq("fraud:tx:live:event:evt-redis-001"), anyMap());
+        verify(zSet).removeRangeByScore(
+                "fraud:tx:live:user:user-1001:events",
+                0,
+                millis("2026-06-19T09:55:00Z") - 1
+        );
+        verify(redisTemplate).expire("fraud:tx:live:user:user-1001:events", Duration.ofMinutes(10));
+        verify(redisTemplate).expire("fraud:tx:live:event:evt-redis-001", Duration.ofMinutes(10));
     }
 
     @Test
@@ -78,17 +83,18 @@ class RedisRecentTransactionWindowStoreTest {
         TransactionEventMessage message = message("evt-redis-001", BigDecimal.valueOf(1_200_000));
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-001"));
-        when(hash.get("fraud:tx:event:evt-redis-001", "amount")).thenReturn("1200000");
+        when(hash.get("fraud:tx:live:event:evt-redis-001", "amount")).thenReturn("1200000");
 
         store.recordAndGetWindow(message);
 
         InOrder inOrder = inOrder(hash, zSet);
-        inOrder.verify(hash).putAll(eq("fraud:tx:event:evt-redis-001"), anyMap());
-        inOrder.verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
+        inOrder.verify(hash).putAll(eq("fraud:tx:live:event:evt-redis-001"), anyMap());
+        inOrder.verify(zSet)
+                .add("fraud:tx:live:user:user-1001:events", "evt-redis-001", millis("2026-06-19T10:00:00Z"));
     }
 
     @Test
@@ -96,11 +102,11 @@ class RedisRecentTransactionWindowStoreTest {
         TransactionEventMessage message = message("evt-redis-duplicate", BigDecimal.valueOf(100_000));
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-duplicate"));
-        when(hash.get("fraud:tx:event:evt-redis-duplicate", "amount")).thenReturn("100000");
+        when(hash.get("fraud:tx:live:event:evt-redis-duplicate", "amount")).thenReturn("100000");
 
         RecentTransactionWindowResult first = store.recordAndGetWindow(message);
         RecentTransactionWindowResult second = store.recordAndGetWindow(message);
@@ -108,7 +114,7 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(first.transactionCount()).isEqualTo(1);
         assertThat(second.transactionCount()).isEqualTo(1);
         verify(zSet, org.mockito.Mockito.times(2))
-                .add("fraud:tx:user:user-1001:events", "evt-redis-duplicate", millis("2026-06-19T10:00:00Z"));
+                .add("fraud:tx:live:user:user-1001:events", "evt-redis-duplicate", millis("2026-06-19T10:00:00Z"));
     }
 
     @Test
@@ -116,11 +122,11 @@ class RedisRecentTransactionWindowStoreTest {
         TransactionEventMessage message = message("evt-redis-new", BigDecimal.valueOf(200_000));
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-new"));
-        when(hash.get("fraud:tx:event:evt-redis-new", "amount")).thenReturn("200000");
+        when(hash.get("fraud:tx:live:event:evt-redis-new", "amount")).thenReturn("200000");
 
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 
@@ -133,12 +139,12 @@ class RedisRecentTransactionWindowStoreTest {
         TransactionEventMessage message = message("evt-redis-new", BigDecimal.valueOf(200_000));
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-new", "evt-redis-partial"));
-        when(hash.get("fraud:tx:event:evt-redis-new", "amount")).thenReturn("200000");
-        when(hash.get("fraud:tx:event:evt-redis-partial", "amount")).thenReturn(null);
+        when(hash.get("fraud:tx:live:event:evt-redis-new", "amount")).thenReturn("200000");
+        when(hash.get("fraud:tx:live:event:evt-redis-partial", "amount")).thenReturn(null);
 
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 
@@ -172,11 +178,11 @@ class RedisRecentTransactionWindowStoreTest {
         );
         mockRedisOperations();
         when(zSet.rangeByScore(
-                "fraud:tx:user:user-1001:events",
+                "fraud:tx:live:user:user-1001:events",
                 millis("2026-06-19T09:55:00Z"),
                 millis("2026-06-19T10:00:00Z")
         )).thenReturn(Set.of("evt-redis-boundary"));
-        when(hash.get("fraud:tx:event:evt-redis-boundary", "amount")).thenReturn("100000");
+        when(hash.get("fraud:tx:live:event:evt-redis-boundary", "amount")).thenReturn("100000");
 
         RecentTransactionWindowResult result = store.recordAndGetWindow(message);
 
@@ -185,7 +191,8 @@ class RedisRecentTransactionWindowStoreTest {
         assertThat(result.transactionCount()).isEqualTo(1);
         assertThat(result.amountSum()).isEqualByComparingTo("100000");
         assertThat(meterRegistry.counter(FraudConsumerMetrics.REDIS_WINDOW_TOO_LATE_TOTAL).count()).isZero();
-        verify(zSet).add("fraud:tx:user:user-1001:events", "evt-redis-boundary", millis("2026-06-19T10:00:00Z"));
+        verify(zSet)
+                .add("fraud:tx:live:user:user-1001:events", "evt-redis-boundary", millis("2026-06-19T10:00:00Z"));
     }
 
     @Test
@@ -214,13 +221,13 @@ class RedisRecentTransactionWindowStoreTest {
     private void mockRedisOperations() {
         when(redisTemplate.opsForZSet()).thenReturn(zSet);
         when(redisTemplate.opsForHash()).thenReturn(hash);
-        when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-001"), anyDouble()))
+        when(zSet.add(eq("fraud:tx:live:user:user-1001:events"), eq("evt-redis-001"), anyDouble()))
                 .thenReturn(true);
-        when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-duplicate"), anyDouble()))
+        when(zSet.add(eq("fraud:tx:live:user:user-1001:events"), eq("evt-redis-duplicate"), anyDouble()))
                 .thenReturn(true);
-        when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-new"), anyDouble()))
+        when(zSet.add(eq("fraud:tx:live:user:user-1001:events"), eq("evt-redis-new"), anyDouble()))
                 .thenReturn(true);
-        when(zSet.add(eq("fraud:tx:user:user-1001:events"), eq("evt-redis-boundary"), anyDouble()))
+        when(zSet.add(eq("fraud:tx:live:user:user-1001:events"), eq("evt-redis-boundary"), anyDouble()))
                 .thenReturn(true);
     }
 

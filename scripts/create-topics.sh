@@ -21,6 +21,7 @@ create_topic() {
 }
 
 create_topic "transaction-events" "259200000"
+create_topic "transaction-events-replay" "259200000"
 create_topic "fraud-risk-events" "604800000"
 create_topic "fraud-alert-events" "604800000"
 create_topic "transaction-events.retry" "86400000"

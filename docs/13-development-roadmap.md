@@ -46,7 +46,7 @@
 | V3 Phase 4 | Done | Redelivery and Stateful Processing Semantics | redelivery drill injector, deterministic workload, accepted runtime evidence, Grafana screenshots | V3 Phase 5 event-time lateness semantics |
 | V3 Phase 5 | Done | Event-Time, Late, and Out-of-Order Processing | allowed-lateness runtime policy, too-late Redis skip, controlled lateness manifest, k6 driver, accepted runtime evidence, Grafana screenshots | V3 Phase 6 external delay and catch-up burst |
 | V3 Phase 6 | Done | External Delay and Catch-up Burst | organic/catch-up manifests, source-emulator k6 driver, workload validator guardrails, accepted runtime evidence, Grafana screenshots | V3 Phase 7 scope definition |
-| V3 Phase 7 | Not Started | Historical Replay Isolation | planned live/replay isolation | isolate topic/group/state/metrics and replay rate |
+| V3 Phase 7 | In Progress | Historical Replay Isolation foundation implemented | replay topic, configurable producer/consumer topic, replay Consumer group convention, Redis namespace, replay workload/driver | capture Live Only, Replay Only, Live + Replay runtime evidence |
 | V3 Optional Phase 8 | Deferred | Downstream Streaming and Backpressure | outside core V3 sequence | reconsider after Phase 0~7 evidence |
 
 Status 기준:
@@ -82,6 +82,7 @@ V3 preparation documents:
 - [V3 Phase 2 Stateful Sliding-Window Evidence](48-v3-phase2-stateful-window-evidence.md)
 - [V3 Phase 3 Partition Skew Plan](49-v3-phase3-partition-skew-plan.md)
 - [V3 Phase 6 External Delay and Catch-up Burst Plan](52-v3-phase6-external-delay-catchup-plan.md)
+- [V3 Phase 7 Historical Replay Isolation Plan](53-v3-phase7-historical-replay-isolation-plan.md)
 
 ### V3 Common Rule
 
@@ -642,8 +643,8 @@ Done
 
 ### 범위
 
-- `fraud:tx:user:{userId}:events` ZSET
-- `fraud:tx:event:{eventId}` Hash
+- `fraud:tx:{namespace}:user:{userId}:events` ZSET
+- `fraud:tx:{namespace}:event:{eventId}` Hash
 - score = `eventTime` epoch millis
 - member = `eventId`
 - 최근 5분 거래 횟수와 누적 금액 계산

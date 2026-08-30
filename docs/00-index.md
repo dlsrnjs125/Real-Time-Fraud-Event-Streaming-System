@@ -59,6 +59,8 @@ This index is the navigation entry point for the detailed engineering documents.
 - [V3 Phase 3 Partition Skew Plan](49-v3-phase3-partition-skew-plan.md)
 - [V3 Phase 4 Redelivery and Stateful Processing Semantics Plan](50-v3-phase4-redelivery-stateful-semantics-plan.md)
 - [V3 Phase 5 Event-Time Lateness Semantics Plan](51-v3-phase5-event-time-lateness-plan.md)
+- [V3 Phase 6 External Delay and Catch-up Burst Plan](52-v3-phase6-external-delay-catchup-plan.md)
+- [V3 Phase 7 Historical Replay Isolation Plan](53-v3-phase7-historical-replay-isolation-plan.md)
 
 ## Rule Version Traceability
 

@@ -37,6 +37,7 @@
 | V3 Phase 1 | Sustainable throughput and backlog recovery | `make k6-v3-phase1-capacity`, `make k6-v3-phase1-knee`, `make k6-v3-phase1-recovery` | `docs/46-v3-phase1-sustainable-throughput-evidence.md` |
 | V3 Phase 5 | Event-time lateness semantics | `make k6-v3-phase5-late-out-of-order` | `docs/evidence/v3-phase5/` |
 | V3 Phase 6 | External delay and catch-up burst | `make k6-v3-phase6-organic-burst`, `make k6-v3-phase6-catch-up-burst` | `docs/evidence/v3-phase6/` accepted runtime evidence and Grafana screenshots |
+| V3 Phase 7 | Historical replay isolation | `make k6-v3-phase7-historical-replay` | `docs/evidence/v3-phase7/` template only until runtime evidence is captured |
 
 ## CI / Build
 
@@ -107,6 +108,7 @@
 | V3 Phase 3 balanced partition workload | `V3_RUN_ID=<run-id> make k6-v3-phase3-partition-balanced` | `docs/49-v3-phase3-partition-skew-plan.md` |
 | V3 Phase 3 hot partition workload | `V3_RUN_ID=<run-id> make k6-v3-phase3-partition-skew` | `docs/49-v3-phase3-partition-skew-plan.md` |
 | V3 Phase 4 stateful redelivery workload | `V3_RUN_ID=<run-id> make k6-v3-phase4-stateful-redelivery` | `docs/50-v3-phase4-redelivery-stateful-semantics-plan.md` |
+| V3 Phase 7 historical replay workload | `V3_RUN_ID=<run-id> make k6-v3-phase7-historical-replay` | `docs/53-v3-phase7-historical-replay-isolation-plan.md` |
 
 ## Documentation
 

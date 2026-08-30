@@ -50,3 +50,7 @@ security:
 dlt:
   reprocess:
     max-attempts: ${DLT_REPROCESS_MAX_ATTEMPTS:3}
+
+fraud:
+  producer:
+    topic: ${FRAUD_PRODUCER_TOPIC:transaction-events}

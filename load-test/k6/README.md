@@ -45,6 +45,7 @@ Do not point `API_BASE_URL` at a production environment. Payloads use synthetic 
 | V3 Phase 5 Late / Out-of-Order | `make k6-v3-phase5-late-out-of-order` | Controlled lateness workload for accepted-late, too-late, and event-time ordering |
 | V3 Phase 6 Organic Burst | `make k6-v3-phase6-organic-burst` | Source-emulator workload for new activity burst with event-time rebased to dispatch |
 | V3 Phase 6 Catch-up Burst | `make k6-v3-phase6-catch-up-burst` | Source-emulator workload with same EPS/event count and controlled upstream source delay |
+| V3 Phase 7 Historical Replay | `make k6-v3-phase7-historical-replay` | Historical replay workload routed to replay topic, replay consumer group, and replay Redis namespace |
 
 Duplicate replay consistency can be checked after the scenario with:
 
@@ -75,6 +76,8 @@ Phase 2 state-size workloads keep EPS, duration, event amount, and total event c
 Phase 6 source-emulator workloads use the same `targetEps`, `duration`, `eventLimit`, `userCardinality`, and `eventAmount` for organic and catch-up bursts. The organic workload sets `eventTime` at source dispatch time. The catch-up workload sets `eventTime` 270 seconds before source dispatch, staying inside the 5-minute freshness policy so evidence can isolate pre-ingress event age from too-late rejection. `randomSeed` remains manifest metadata, but the Phase 6 runner uses deterministic modulo user assignment rather than seeded random selection.
 
 The Phase 6 Makefile targets run `scripts/load_tests/prepare_v3_phase6_run.sh` before k6. That local-only preflight requires Consumer Lag 0 when the consumer group exists and flushes the local Redis DB so organic and catch-up accepted runs do not share sliding-window state. Do not point this helper at shared or production Redis.
+
+Phase 7 historical replay requires a separate replay route. Start app-api with `FRAUD_PRODUCER_TOPIC=transaction-events-replay`, and start a replay app-consumer with `FRAUD_CONSUMER_TOPIC=transaction-events-replay`, `SPRING_KAFKA_CONSUMER_GROUP_ID=fraud-event-replay-consumer`, and `FRAUD_SLIDING_WINDOW_NAMESPACE=replay`. Keep the live app-consumer on `transaction-events`, `fraud-event-consumer`, and `live`. The Phase 7 preflight checks live/replay group Lag when groups exist and deletes only Redis keys matching `fraud:tx:replay:*`; it must not flush the live namespace.
 
 Phase 3 partition workloads use `PARTITION_AFFINITY` manifests. The k6 runner pre-generates synthetic `userId` values whose Kafka Murmur2 key hash maps to the configured local partitions, then emits events according to `targetPartitionDistribution`. User assignment uses a per-partition occurrence counter so partition skew is not accidentally implemented as hot-user pressure. Confirm achieved distribution with Kafka exporter metrics or processing logs after the run.
 

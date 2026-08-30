@@ -6,6 +6,7 @@ import com.example.fraud.common.event.TransactionEventMessage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -13,15 +14,20 @@ import org.springframework.stereotype.Component;
 public class KafkaTransactionEventProducer implements TransactionEventProducer {
 
     private final KafkaTemplate<String, TransactionEventMessage> kafkaTemplate;
+    private final String topic;
 
-    public KafkaTransactionEventProducer(KafkaTemplate<String, TransactionEventMessage> kafkaTemplate) {
+    public KafkaTransactionEventProducer(
+            KafkaTemplate<String, TransactionEventMessage> kafkaTemplate,
+            @Value("${fraud.producer.topic:" + KafkaTopicNames.TRANSACTION_EVENTS + "}") String topic
+    ) {
         this.kafkaTemplate = kafkaTemplate;
+        this.topic = topic;
     }
 
     @Override
     public void publish(TransactionEventMessage message) {
         try {
-            kafkaTemplate.send(KafkaTopicNames.TRANSACTION_EVENTS, message.userId(), message)
+            kafkaTemplate.send(topic, message.userId(), message)
                     .get(5, TimeUnit.SECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

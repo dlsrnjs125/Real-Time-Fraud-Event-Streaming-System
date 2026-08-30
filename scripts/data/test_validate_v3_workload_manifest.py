@@ -98,6 +98,25 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
                 self.assertEqual(9000, manifest["sourceDelayProfile"]["expectedAcceptedEvents"])
                 self.assertEqual(0, manifest["sourceDelayProfile"]["expectedTooLateEvents"])
 
+    def test_committed_phase7_historical_replay_manifest_is_valid(self):
+        manifest = json.loads((WORKLOAD_DIR / "historical-replay-v1.json").read_text(encoding="utf-8"))
+
+        validator.validate_manifest(manifest)
+        profile = manifest["replayIsolationProfile"]
+        self.assertEqual("HISTORICAL_REPLAY", manifest["workloadRole"])
+        self.assertEqual("HTTP_K6", manifest["driverType"])
+        self.assertEqual("PRESERVE_SOURCE_TIME", manifest["eventTimeMode"])
+        self.assertEqual("HISTORICAL", manifest["sourceProfile"])
+        self.assertEqual(manifest["targetEps"], manifest["replayRate"])
+        self.assertEqual("transaction-events", profile["liveTopic"])
+        self.assertEqual("transaction-events-replay", profile["replayTopic"])
+        self.assertEqual("fraud-event-consumer", profile["liveConsumerGroup"])
+        self.assertEqual("fraud-event-replay-consumer", profile["replayConsumerGroup"])
+        self.assertEqual("live", profile["liveRedisNamespace"])
+        self.assertEqual("replay", profile["replayRedisNamespace"])
+        self.assertEqual(0, profile["expectedLiveRedisCollisionKeys"])
+        self.assertEqual(manifest["eventLimit"], profile["expectedReplayAcceptedEvents"])
+
     def test_phase6_organic_and_catch_up_manifests_keep_paired_runtime_shape(self):
         organic = json.loads((WORKLOAD_DIR / "organic-burst-v1.json").read_text(encoding="utf-8"))
         catch_up = json.loads((WORKLOAD_DIR / "catch-up-burst-v1.json").read_text(encoding="utf-8"))
@@ -243,6 +262,27 @@ class ValidateV3WorkloadManifestTest(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(validator.ManifestError, "sourceDelayProfile is only allowed"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_historical_replay_without_replay_isolation_profile(self):
+        invalid = json.loads((WORKLOAD_DIR / "historical-replay-v1.json").read_text(encoding="utf-8"))
+        invalid["replayIsolationProfile"] = None
+
+        with self.assertRaisesRegex(validator.ManifestError, "requires replayIsolationProfile"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_historical_replay_when_replay_namespace_matches_live(self):
+        invalid = json.loads((WORKLOAD_DIR / "historical-replay-v1.json").read_text(encoding="utf-8"))
+        invalid["replayIsolationProfile"]["replayRedisNamespace"] = "live"
+
+        with self.assertRaisesRegex(validator.ManifestError, "replayRedisNamespace must be different"):
+            validator.validate_manifest(invalid)
+
+    def test_rejects_historical_replay_when_replay_rate_drifts_from_target_eps(self):
+        invalid = json.loads((WORKLOAD_DIR / "historical-replay-v1.json").read_text(encoding="utf-8"))
+        invalid["replayRate"] = invalid["targetEps"] + 1
+
+        with self.assertRaisesRegex(validator.ManifestError, "replayRate must equal targetEps"):
             validator.validate_manifest(invalid)
 
     def test_rejects_catch_up_source_delay_expected_count_drift(self):

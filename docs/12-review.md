@@ -121,6 +121,37 @@ Phase 1 can be marked complete for local Docker evidence because capacity discov
 - Consumer p99 increased after adding parallelism, so later phases should check stage-level p99 under higher rates and skew.
 - Partition skew and hot-key behavior remain intentionally outside this phase.
 
+## V3 Phase 7 Historical Replay Isolation Review
+
+Date: 2026-08-30
+
+### Accepted changes
+
+- Added `transaction-events-replay` as the V3 historical replay input topic while preserving `userId` as the Kafka key.
+- Made app-api producer topic configurable with default `transaction-events`.
+- Made app-consumer listener topic configurable with default `transaction-events`.
+- Added Redis sliding-window namespace configuration with default `live`.
+- Changed Redis keys to `fraud:tx:{namespace}:user:{userId}:events` and `fraud:tx:{namespace}:event:{eventId}`.
+- Added a Phase 7 historical replay workload manifest and k6 runner.
+- Added a local preflight script that checks live/replay Consumer Lag and deletes only replay namespace Redis keys.
+- Added tests for configured replay producer topic and live/replay Redis namespace separation.
+
+### Checks applied
+
+- Did not change the default live topic, default live Consumer group, or Kafka partition key.
+- Did not use `eventId` as replay partition key; replay keeps same-user ordering semantics.
+- Did not flush the full Redis DB in the Phase 7 preflight because that would destroy live-state evidence.
+- Did not add eventId, userId, traceId, runId, or offset as metric tags.
+- Did not mark V3 Phase 7 complete before runtime evidence exists.
+
+### Remaining evidence
+
+- Live Only run evidence.
+- Replay Only run evidence.
+- Live + Replay concurrent run evidence.
+- Grafana screenshot comparing live and replay Lag.
+- Redis namespace comparison showing zero live collision keys.
+
 ## Phase 12 Review
 
 ### 잘한 점
