@@ -1,0 +1,8 @@
+live keys: 20345
+replay keys: 9500
+replay-only keys in live namespace: 0
+replay-only keys in replay namespace: 4500
+replay-plus keys in live namespace: 0
+replay-plus keys in replay namespace: 4500
+live-plus keys in replay namespace: 0
+live-plus keys in live namespace: 12000

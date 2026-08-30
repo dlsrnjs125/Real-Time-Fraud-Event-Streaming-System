@@ -1,0 +1,10 @@
+          run          | receipts | fraud_results | processing_logs 
+-----------------------+----------+---------------+-----------------
+ live_only_discarded   |    11993 |         11993 |           11993
+ live_only             |    12000 |         12000 |           12000
+ replay_only_discarded |     4479 |          4479 |            4479
+ replay_only           |     4500 |          4500 |            4500
+ live_plus             |    12000 |         12000 |           12000
+ replay_plus           |     4500 |          4500 |            4500
+(6 rows)
+

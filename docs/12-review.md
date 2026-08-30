@@ -185,6 +185,23 @@ Additional issues fixed before runtime evidence:
 - Added optional replay Consumer `/actuator/info` preflight validation for `mode`, topic, group id, and Redis namespace.
 - Clarified that Redis runtime is also physically shared; Phase 7 validates logical Redis key namespace isolation while measuring shared Redis contention through live/replay p99 panels.
 
+### Runtime evidence acceptance
+
+Date: 2026-08-31
+
+Accepted evidence:
+
+- Ran Docker Compose local infrastructure, live API/Consumer, and replay API/Consumer.
+- Accepted Live Only run `phase7-live-only-20260831-002`: 12,000/12,000 emitted events, zero HTTP failures, zero dropped iterations, final live Lag 0.
+- Accepted Replay Only run `phase7-replay-only-20260831-002`: 4,500/4,500 emitted replay events, zero HTTP failures, zero dropped iterations, final replay Lag 0, replay Redis state created.
+- Accepted concurrent Live + Replay runs `phase7-live-plus-20260831-001` and `phase7-replay-plus-20260831-001`: live/replay final Lag 0, DB counts aligned with emitted events, cross-namespace Redis collision checks stayed 0.
+- Captured Grafana Phase 7 live/replay dashboard evidence through Google Chrome at `docs/evidence/v3-phase7/09-grafana-live-replay-isolation.png`.
+
+Interpretation boundary:
+
+- V3 Phase 7 is accepted as logical replay isolation across Kafka topic, Consumer group, and Redis key namespace.
+- It does not claim full physical isolation because PostgreSQL and Redis runtime remain shared in the local Docker environment.
+
 ## Phase 12 Review
 
 ### 잘한 점

@@ -1,0 +1,19 @@
+LIVE GROUP
+
+GROUP                TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+fraud-event-consumer transaction-events 0          12056           12056           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 4          12721           12721           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 1          10801           10801           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 5          12069           12069           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 3          11134           11134           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+fraud-event-consumer transaction-events 2          13440           13440           0               consumer-fraud-event-consumer-1-5be34511-338a-4e60-86e8-28ae5a992714 /172.19.0.1     consumer-fraud-event-consumer-1
+
+REPLAY GROUP
+
+GROUP                       TOPIC                     PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                                 HOST            CLIENT-ID
+fraud-event-replay-consumer transaction-events-replay 3          2156            2156            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 1          2401            2401            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 2          2183            2183            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 4          2321            2321            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 0          2425            2425            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 5          1993            1993            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
