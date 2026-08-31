@@ -17,9 +17,10 @@ public class DeadLetterReprocessPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void publish(TransactionEventMessage message) {
+    public void publish(TransactionEventMessage message, String sourceTopic) {
+        String targetTopic = validateSourceTopic(sourceTopic);
         try {
-            kafkaTemplate.send(KafkaTopicNames.TRANSACTION_EVENTS, message.userId(), message)
+            kafkaTemplate.send(targetTopic, message.userId(), message)
                     .get(5, TimeUnit.SECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -29,5 +30,13 @@ public class DeadLetterReprocessPublisher {
         } catch (Exception exception) {
             throw new DeadLetterPublishFailedException(exception);
         }
+    }
+
+    private String validateSourceTopic(String sourceTopic) {
+        if (KafkaTopicNames.TRANSACTION_EVENTS.equals(sourceTopic)
+                || KafkaTopicNames.TRANSACTION_EVENTS_REPLAY.equals(sourceTopic)) {
+            return sourceTopic;
+        }
+        throw new DeadLetterStateConflictException("unsupported DLT source topic: " + sourceTopic);
     }
 }

@@ -121,6 +121,89 @@ Phase 1 can be marked complete for local Docker evidence because capacity discov
 - Consumer p99 increased after adding parallelism, so later phases should check stage-level p99 under higher rates and skew.
 - Partition skew and hot-key behavior remain intentionally outside this phase.
 
+## V3 Phase 7 Historical Replay Isolation Review
+
+Date: 2026-08-30
+
+### Accepted changes
+
+- Added `transaction-events-replay` as the V3 historical replay input topic while preserving `userId` as the Kafka key.
+- Made app-api producer topic configurable with default `transaction-events`.
+- Made app-consumer listener topic configurable with default `transaction-events`.
+- Added Redis sliding-window namespace configuration with default `live`.
+- Changed Redis keys to `fraud:tx:{namespace}:user:{userId}:events` and `fraud:tx:{namespace}:event:{eventId}`.
+- Added a Phase 7 historical replay workload manifest and k6 runner.
+- Added a local preflight script that checks live/replay Consumer Lag and deletes only replay namespace Redis keys.
+- Added tests for configured replay producer topic and live/replay Redis namespace separation.
+
+### Checks applied
+
+- Did not change the default live topic, default live Consumer group, or Kafka partition key.
+- Did not use `eventId` as replay partition key; replay keeps same-user ordering semantics.
+- Did not flush the full Redis DB in the Phase 7 preflight because that would destroy live-state evidence.
+- Did not add eventId, userId, traceId, runId, or offset as metric tags.
+- Did not mark V3 Phase 7 complete before runtime evidence exists.
+
+### Remaining evidence
+
+- Live Only run evidence.
+- Replay Only run evidence.
+- Live + Replay concurrent run evidence.
+- Grafana screenshot comparing live and replay Lag.
+- Redis namespace comparison showing zero live collision keys.
+
+### Review follow-up
+
+Date: 2026-08-31
+
+Blocked issues fixed before merge:
+
+- Replay workload used 24-hour-old `eventTime`, but replay Consumer still applied the live `allowed-lateness` Redis skip policy. Replay mode now bypasses that live freshness skip so `fraud:tx:replay:*` state is actually populated.
+- Phase 7 k6 could silently send replay events to default live API port `8080`. The replay scenario now requires `REPLAY_API_BASE_URL` and rejects the default live port.
+- DLT reprocess always republished to `transaction-events`, which could move replay failures into live processing. Reprocess now republishes to the original `sourceTopic` after an allowlist check for `transaction-events` or `transaction-events-replay`.
+- Runtime mode combinations are now startup-validated. Live mode must use live topic/group/namespace, and replay mode must use replay topic/group/namespace.
+- Phase 7 Redis cleanup now validates replay namespace and refuses `live`.
+
+Still not complete:
+
+- Runtime evidence for Live Only, Replay Only, and Live + Replay remains required before V3 Phase 7 can be marked `Done`.
+
+### Second review follow-up
+
+Date: 2026-08-31
+
+Additional issues fixed before runtime evidence:
+
+- Moved stream routing validation from `ApplicationRunner` to `InitializingBean` so invalid topic/group/namespace combinations fail during bean initialization, before runner execution.
+- Added `fraudStream` details to `/actuator/info` for app-api and app-consumer.
+- Added Phase 7 preflight validation against replay API `/actuator/info`; port `8082` alone is not treated as proof of replay routing.
+- Tightened the Phase 7 k6 gate to require zero HTTP failures, all checks passing, zero dropped iterations, and exact manifest request count.
+- Added V3 Grafana Phase 7 panels that split live/replay Lag, Consumer p99, Redis p99, and Event Ingress Age p99.
+- Clarified that Phase 7 does not claim full physical isolation because PostgreSQL remains shared; shared DB resource contention must be measured in Live + Replay evidence.
+- Changed Kafka Consumer Lag preflight to fail closed on Docker/Kafka CLI errors. Only missing consumer groups are accepted as a zero-baseline skip condition.
+- Added Phase 7 static verification to `ci-check`: shell script syntax, Docker Compose and observability provisioning, and V3 workload manifest validation.
+- Added optional replay Consumer `/actuator/info` preflight validation for `mode`, topic, group id, and Redis namespace.
+- Clarified that Redis runtime is also physically shared; Phase 7 validates logical Redis key namespace isolation while measuring shared Redis contention through live/replay p99 panels.
+
+### Runtime evidence acceptance
+
+Date: 2026-08-31
+
+Accepted evidence:
+
+- Ran Docker Compose local infrastructure, live API/Consumer, and replay API/Consumer.
+- Accepted Live Only run `phase7-live-only-20260831-002`: 12,000/12,000 emitted events, zero HTTP failures, zero dropped iterations, final live Lag 0.
+- Accepted Replay Only run `phase7-replay-only-20260831-002`: 4,500/4,500 emitted replay events, zero HTTP failures, zero dropped iterations, final replay Lag 0, replay Redis state created.
+- Accepted concurrent Live + Replay runs `phase7-live-plus-20260831-001` and `phase7-replay-plus-20260831-001`: live/replay final Lag 0, DB counts aligned with emitted events, cross-namespace Redis collision checks stayed 0.
+- Added supplemental Redis user sliding-window evidence using `phase7-user-window-live-20260831-001` and `phase7-user-window-replay-20260831-001`: replay users under live namespace 0, replay users under replay namespace 500, live users under replay namespace 0, live users under live namespace 1,000, with sampled `TYPE=zset`.
+- Captured Grafana Phase 7 live/replay dashboard evidence through Google Chrome at `docs/evidence/v3-phase7/09-grafana-live-replay-isolation.png`.
+
+Interpretation boundary:
+
+- V3 Phase 7 is accepted as logical replay isolation across Kafka topic, Consumer group, and Redis key namespace.
+- It does not claim full physical isolation because PostgreSQL and Redis runtime remain shared in the local Docker environment.
+- Live latency movement during concurrent runs is recorded as an observation only. Shared-resource contention is a possible contributor, but this evidence does not establish causality.
+
 ## Phase 12 Review
 
 ### 잘한 점

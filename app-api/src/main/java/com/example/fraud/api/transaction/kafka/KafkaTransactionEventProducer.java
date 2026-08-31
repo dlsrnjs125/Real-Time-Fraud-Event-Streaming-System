@@ -1,6 +1,6 @@
 package com.example.fraud.api.transaction.kafka;
 
-import com.example.fraud.api.kafka.KafkaTopicNames;
+import com.example.fraud.api.kafka.FraudStreamProperties;
 import com.example.fraud.api.transaction.application.KafkaPublishFailedException;
 import com.example.fraud.common.event.TransactionEventMessage;
 import java.util.concurrent.ExecutionException;
@@ -13,15 +13,20 @@ import org.springframework.stereotype.Component;
 public class KafkaTransactionEventProducer implements TransactionEventProducer {
 
     private final KafkaTemplate<String, TransactionEventMessage> kafkaTemplate;
+    private final FraudStreamProperties streamProperties;
 
-    public KafkaTransactionEventProducer(KafkaTemplate<String, TransactionEventMessage> kafkaTemplate) {
+    public KafkaTransactionEventProducer(
+            KafkaTemplate<String, TransactionEventMessage> kafkaTemplate,
+            FraudStreamProperties streamProperties
+    ) {
         this.kafkaTemplate = kafkaTemplate;
+        this.streamProperties = streamProperties;
     }
 
     @Override
     public void publish(TransactionEventMessage message) {
         try {
-            kafkaTemplate.send(KafkaTopicNames.TRANSACTION_EVENTS, message.userId(), message)
+            kafkaTemplate.send(streamProperties.resolvedProducerTopic(), message.userId(), message)
                     .get(5, TimeUnit.SECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

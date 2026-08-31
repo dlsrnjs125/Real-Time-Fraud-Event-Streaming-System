@@ -109,7 +109,8 @@ Consumer는 DLT 저장 중 duplicate constraint가 발생하면 기존 row를 �
 
 - 재처리 시 원본 `eventId`를 유지합니다.
 - 재처리는 `PENDING` 또는 `REPROCESS_FAILED` 상태에서만 허용합니다.
-- 재처리 요청은 DB row lock을 잡고 status를 `REPROCESSING`으로 바꾸며 `reprocess_attempts`를 증가시킨 뒤 `transaction-events`로 원본 payload를 재발행합니다.
+- 재처리 요청은 DB row lock을 잡고 status를 `REPROCESSING`으로 바꾸며 `reprocess_attempts`를 증가시킨 뒤 original `sourceTopic`으로 원본 payload를 재발행합니다.
+- DLT reprocess target topic은 `transaction-events` 또는 `transaction-events-replay` allowlist를 통과해야 합니다. Replay source event는 live topic으로 재발행하지 않습니다.
 - Kafka publish 성공 시 `REPROCESSED`, 실패 시 `REPROCESS_FAILED`로 남기고 API는 `503 KAFKA_PUBLISH_FAILED`를 반환합니다.
 - `REPROCESSED`와 `DISCARDED`는 종료 상태이며 재처리 요청 시 `409 Conflict`를 반환합니다.
 - Phase 14부터 `reprocess_attempts >= dlt.reprocess.max-attempts`이면 `409 MAX_REPROCESS_ATTEMPTS_EXCEEDED`를 반환하고 Kafka publish를 호출하지 않습니다.

@@ -72,6 +72,10 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
         validate_lateness_profile(manifest)
     elif manifest["latenessProfile"] is not None:
         raise ManifestError("latenessProfile is only allowed for LATE_OUT_OF_ORDER workloads")
+    if role == "HISTORICAL_REPLAY":
+        validate_replay_isolation_profile(manifest)
+    elif manifest.get("replayIsolationProfile") is not None:
+        raise ManifestError("replayIsolationProfile is only allowed for HISTORICAL_REPLAY workloads")
 
 
 def validate_source_delay_profile(
@@ -248,6 +252,32 @@ def validate_lateness_profile(manifest: dict[str, Any]) -> None:
         ]
         if pattern_lateness == sorted(pattern_lateness):
             raise ManifestError("outOfOrderPattern must contain a non-monotonic lateness sequence")
+
+
+def validate_replay_isolation_profile(manifest: dict[str, Any]) -> None:
+    profile = manifest.get("replayIsolationProfile")
+    if profile is None:
+        raise ManifestError("HISTORICAL_REPLAY requires replayIsolationProfile")
+    if manifest["sourceProfile"] != "HISTORICAL":
+        raise ManifestError("HISTORICAL_REPLAY requires HISTORICAL sourceProfile")
+    if manifest["driverType"] != "HTTP_K6":
+        raise ManifestError("HISTORICAL_REPLAY requires HTTP_K6 for the app-api replay-topic route")
+    if manifest["replayRate"] != manifest["targetEps"]:
+        raise ManifestError("HISTORICAL_REPLAY replayRate must equal targetEps")
+    if manifest["targetPartitionDistribution"] is not None or manifest["partitionAffinityStrategy"] is not None:
+        raise ManifestError("HISTORICAL_REPLAY must not use partition affinity")
+    if manifest["targetUserConcentration"] is not None or manifest["heavyUserRatio"] != 0:
+        raise ManifestError("HISTORICAL_REPLAY must keep user distribution uniform")
+    if profile["liveTopic"] == profile["replayTopic"]:
+        raise ManifestError("replayTopic must be different from liveTopic")
+    if profile["liveConsumerGroup"] == profile["replayConsumerGroup"]:
+        raise ManifestError("replayConsumerGroup must be different from liveConsumerGroup")
+    if profile["liveRedisNamespace"] == profile["replayRedisNamespace"]:
+        raise ManifestError("replayRedisNamespace must be different from liveRedisNamespace")
+    if profile["expectedLiveRedisCollisionKeys"] != 0:
+        raise ManifestError("expectedLiveRedisCollisionKeys must be 0 for isolated replay")
+    if profile["expectedReplayAcceptedEvents"] != manifest["eventLimit"]:
+        raise ManifestError("expectedReplayAcceptedEvents must equal eventLimit")
 
 
 def validate_stages(manifest: dict[str, Any]) -> None:

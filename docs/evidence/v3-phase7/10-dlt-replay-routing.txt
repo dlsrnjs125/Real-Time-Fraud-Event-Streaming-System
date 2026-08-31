@@ -1,0 +1,40 @@
+Synthetic Replay DLT reprocess evidence
+eventId=v3-phase7-dlt-replay-routing-20260831-001
+dlqId=1
+
+DLT row before reprocess
+ id |                 event_id                  |       source_topic        | status  | reprocess_attempts 
+----+-------------------------------------------+---------------------------+---------+--------------------
+  1 | v3-phase7-dlt-replay-routing-20260831-001 | transaction-events-replay | PENDING |                  0
+(1 row)
+
+
+Reprocess API response
+{"dlqId":1,"status":"REPROCESSED","reprocessAttemptId":"1","traceId":"trace-9e973007-cb03-48d9-90f7-95ba0e79c18a"}
+
+DLT row after reprocess
+ id |                 event_id                  |       source_topic        |   status    | reprocess_attempts 
+----+-------------------------------------------+---------------------------+-------------+--------------------
+  1 | v3-phase7-dlt-replay-routing-20260831-001 | transaction-events-replay | REPROCESSED |                  1
+(1 row)
+
+
+Wait for replay consumer to process re-published event
+fraud_result_count=1
+
+Final result count
+ fraud_results 
+---------------
+             1
+(1 row)
+
+
+Replay group lag after synthetic DLT reprocess
+
+GROUP                       TOPIC                     PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                                 HOST            CLIENT-ID
+fraud-event-replay-consumer transaction-events-replay 3          2156            2156            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 1          2401            2401            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 2          2183            2183            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 4          2321            2321            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 0          2426            2426            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1
+fraud-event-replay-consumer transaction-events-replay 5          1993            1993            0               consumer-fraud-event-replay-consumer-1-1996bcc1-4578-4895-9410-6ebcc40a6b0e /172.19.0.1     consumer-fraud-event-replay-consumer-1

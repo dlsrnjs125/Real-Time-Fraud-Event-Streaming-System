@@ -50,3 +50,8 @@ security:
 dlt:
   reprocess:
     max-attempts: ${DLT_REPROCESS_MAX_ATTEMPTS:3}
+
+fraud:
+  stream:
+    mode: ${FRAUD_STREAM_MODE:LIVE}
+    producer-topic: ${FRAUD_PRODUCER_TOPIC:}

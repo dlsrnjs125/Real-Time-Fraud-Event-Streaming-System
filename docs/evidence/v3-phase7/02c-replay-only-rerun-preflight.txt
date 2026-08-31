@@ -1,0 +1,7 @@
+Preparing V3 Phase 7 historical replay isolation run
+Scope: LOCAL EXPERIMENT ONLY. Only Redis keys matching fraud:tx:replay:* will be deleted.
+Kafka pre-run Consumer Lag is 0 for fraud-event-consumer.
+Kafka pre-run Consumer Lag is 0 for fraud-event-replay-consumer.
+Replay API routing verified at http://localhost:8082.
+Replay Consumer routing verified at http://localhost:8083.
+Deleted 4979 Redis keys from replay namespace replay.

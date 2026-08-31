@@ -67,7 +67,7 @@ public class TransactionEventListener {
         this.slowEventThreshold = slowEventThreshold;
     }
 
-    @KafkaListener(topics = KafkaTopicNames.TRANSACTION_EVENTS)
+    @KafkaListener(topics = "${fraud.consumer.topic:" + KafkaTopicNames.TRANSACTION_EVENTS + "}")
     public void onMessage(ConsumerRecord<String, TransactionEventMessage> record, Acknowledgment acknowledgment) {
         Instant processingStartedAt = clock.instant();
         TransactionEventMessage message = record.value();

@@ -1,0 +1,31 @@
+{
+  "workloadId": "v3-phase2-state-size-baseline",
+  "workloadVersion": "v1",
+  "manifestName": "state-size-baseline-v1.json",
+  "runId": "phase7-live-plus-20260831-001",
+  "commitSha": "d5f425b",
+  "driverType": "HTTP_K6",
+  "eventTimeMode": "REBASE_TO_ARRIVAL",
+  "targetEps": 100,
+  "duration": "120s",
+  "configuredEventLimit": 12000,
+  "emittedEventCount": 12000,
+  "achievedEps": 99.99751172858315,
+  "httpRequestFailedRate": 0,
+  "droppedIterations": null,
+  "checksRate": 1,
+  "httpRequestDurationP95Ms": 12.801449999999996,
+  "userCardinality": 1000,
+  "statefulWindowProfile": {
+    "runtimeWindow": "5m",
+    "expectedEventsPerUserInWindow": 12,
+    "expectedMaxEventsPerUserInWindow": 12,
+    "eventAmount": 250000,
+    "expectedAmountSumPerUserInWindow": 3000000,
+    "note": "Uniform low-density Redis sliding-window baseline. The 120s run fits inside the 5m runtime window."
+  },
+  "achievedEventsPerUserInWindowAverage": 12,
+  "achievedMaxEventsPerUserInWindow": 12,
+  "achievedAmountSumPerUserInWindowAverage": 3000000,
+  "stateEvidenceNote": "Use Prometheus fraud.redis.window.event.count, fraud.redis.window.amount.sum, fraud.redis.state.latency, Consumer service latency, Redis memory, and Consumer Lag for runtime evidence."
+}

@@ -23,6 +23,7 @@ API Server는 거래 이벤트를 `transaction-events` topic에 append하고, Fr
 | Topic | Producer | Consumer | Key | 목적 |
 |---|---|---|---|---|
 | `transaction-events` | app-api | app-consumer | userId | 거래 이벤트 원본 |
+| `transaction-events-replay` | app-api replay profile | app-consumer replay profile | userId | V3 Phase 7 historical replay 전용 원본 이벤트 |
 | `fraud-risk-events` | app-consumer | future consumers | userId | 이상거래 탐지 결과 |
 | `fraud-alert-events` | app-consumer | notification worker | userId | 알림 대상 이벤트 |
 | `transaction-events.retry` | app-consumer | app-consumer | userId | 일시 실패 재처리 |
@@ -33,6 +34,7 @@ API Server는 거래 이벤트를 `transaction-events` topic에 append하고, Fr
 - 원본 이벤트와 탐지 결과 이벤트를 분리합니다.
 - 탐지 결과와 알림 대상 이벤트를 분리합니다.
 - 일시 실패 재처리와 최종 실패 보관을 분리합니다.
+- V3 Phase 7 Historical Replay는 live stream 오염을 피하기 위해 `transaction-events`와 `transaction-events-replay`를 분리합니다.
 - 후속 Consumer가 원본 이벤트 로그를 독립적으로 소비할 수 있게 합니다.
 
 ## 5. Consumer Group 분리 기준
@@ -40,6 +42,7 @@ API Server는 거래 이벤트를 `transaction-events` topic에 append하고, Fr
 Consumer group은 처리 목적별로 분리합니다.
 
 - Fraud Consumer Group: 이상거래 탐지
+- Replay Fraud Consumer Group: historical replay 검증
 - Audit Consumer Group: 감사 로그 저장
 - Alert Consumer Group: 알림 대상 처리
 - Analytics Consumer Group: 통계/분석
@@ -100,11 +103,11 @@ transaction-events
 -> 일시 실패: transaction-events.retry
 -> 처리 불가: transaction-events-dlt
 -> 운영자 확인
--> 재처리 가능: transaction-events 재발행
+-> 재처리 가능: original source topic 재발행
 -> 재처리 불가: DISCARDED 또는 FAILED_PERMANENT
 ```
 
-DLT 재처리 시 원본 `eventId`를 유지하고, `eventId` unique constraint로 중복 FraudResult 생성을 방어합니다.
+DLT 재처리 시 원본 `eventId`를 유지하고, `eventId` unique constraint로 중복 FraudResult 생성을 방어합니다. 재처리 target은 DLT row의 `sourceTopic`이며, 허용 topic은 `transaction-events`와 `transaction-events-replay`로 제한합니다.
 
 Phase 9의 구현 topic은 `transaction-events-dlt`입니다. DLT record key는 `eventId`를 사용합니다. 정상 거래 처리의 partition key는 사용자별 순서를 위해 `userId`이지만, DLT 이벤트는 운영자가 원본 이벤트 단위로 조회/재처리하므로 `eventId`가 더 직접적인 식별자입니다.
 
@@ -123,6 +126,7 @@ DLT value는 다음 정보를 담은 envelope JSON입니다.
 | Topic | Retention | Cleanup | 이유 |
 |---|---:|---|---|
 | `transaction-events` | 3d | delete | 원본 이벤트 재처리 가능 기간 |
+| `transaction-events-replay` | 3d | delete | V3 historical replay 격리 검증 |
 | `fraud-risk-events` | 7d | delete | 후속 분석/알림 재처리 |
 | `fraud-alert-events` | 7d | delete | 알림 실패 재처리 |
 | `transaction-events.retry` | 1d | delete | 일시 실패 재처리 전용 |
@@ -161,3 +165,29 @@ API가 빠르게 응답하더라도 Consumer Lag이 계속 증가하면 이상�
 Kafka는 이벤트가 topic에 남기 때문에 스키마 변경 기준이 필요합니다.
 
 초기 schemaVersion은 `v1`로 둡니다. Consumer는 지원하지 않는 `schemaVersion`을 처리하지 않고 DLT로 보냅니다.
+
+## 15. V3 Phase 7 Historical Replay Isolation
+
+Phase 7에서는 live processing과 historical replay를 같은 Kafka topic, Consumer group, Redis namespace에 섞지 않습니다.
+
+기본 live 설정:
+
+```text
+app-api: FRAUD_STREAM_MODE=LIVE
+app-consumer: fraud.consumer.topic=transaction-events
+app-consumer: spring.kafka.consumer.group-id=fraud-event-consumer
+app-consumer: fraud.sliding-window.namespace=live
+```
+
+Replay 설정:
+
+```text
+app-api: FRAUD_STREAM_MODE=REPLAY
+app-consumer: FRAUD_CONSUMER_TOPIC=transaction-events-replay
+app-consumer: spring.kafka.consumer.group-id=fraud-event-replay-consumer
+app-consumer: FRAUD_SLIDING_WINDOW_NAMESPACE=replay
+```
+
+`FRAUD_STREAM_MODE=REPLAY`인 app-api는 `transaction-events-replay`로 publish합니다. app-consumer는 replay mode에서 `transaction-events-replay`, `fraud-event-replay-consumer`, `replay` namespace 조합이 아니면 startup fail합니다.
+
+Replay topic도 key는 `userId`입니다. Historical replay에서도 사용자별 event-time ordering과 partition skew 관측 가능성을 유지하기 위해서입니다. Live와 replay 결과는 같은 PostgreSQL unique constraint의 보호를 받지만, Phase 7의 핵심 격리 기준은 Kafka Lag, Consumer group offset, Redis live state, live latency가 replay traffic에 오염되지 않는지 확인하는 것입니다.

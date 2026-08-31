@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.example.fraud.common.event.TransactionEventType;
+import com.example.fraud.consumer.kafka.FraudStreamMode;
+import com.example.fraud.consumer.kafka.FraudStreamProperties;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
@@ -68,8 +70,10 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
                         5,
                         BigDecimal.valueOf(3_000_000),
                         Duration.ofMinutes(10),
-                        Duration.ofMinutes(5)
+                        Duration.ofMinutes(5),
+                        "live"
                 ),
+                new FraudStreamProperties(FraudStreamMode.LIVE),
                 new FraudConsumerMetrics(new SimpleMeterRegistry())
         );
     }
@@ -248,6 +252,39 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
         assertThat(redisTemplate.hasKey(eventKey("evt-it-too-late"))).isFalse();
     }
 
+    @Test
+    void separatesLiveAndReplayNamespacesForSameUserAndEvent() {
+        TransactionEventMessage message = message(
+                "evt-it-replay-shared",
+                "user-it-replay-shared",
+                BigDecimal.valueOf(100_000),
+                "2026-06-19T10:00:00Z"
+        );
+        RedisRecentTransactionWindowStore replayStore = new RedisRecentTransactionWindowStore(
+                redisTemplate,
+                new SlidingWindowProperties(
+                        Duration.ofMinutes(5),
+                        5,
+                        BigDecimal.valueOf(3_000_000),
+                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(5),
+                        "replay"
+                ),
+                new FraudStreamProperties(FraudStreamMode.REPLAY),
+                new FraudConsumerMetrics(new SimpleMeterRegistry())
+        );
+
+        store.recordAndGetWindow(message);
+        replayStore.recordAndGetWindow(message);
+
+        assertThat(redisTemplate.opsForZSet().range(userEventsKey("live", "user-it-replay-shared"), 0, -1))
+                .containsExactly("evt-it-replay-shared");
+        assertThat(redisTemplate.opsForZSet().range(userEventsKey("replay", "user-it-replay-shared"), 0, -1))
+                .containsExactly("evt-it-replay-shared");
+        assertThat(redisTemplate.hasKey(eventKey("live", "evt-it-replay-shared"))).isTrue();
+        assertThat(redisTemplate.hasKey(eventKey("replay", "evt-it-replay-shared"))).isTrue();
+    }
+
     private TransactionEventMessage message(
             String eventId,
             String userId,
@@ -284,11 +321,19 @@ class RedisRecentTransactionWindowStoreIntegrationTest {
     }
 
     private String userEventsKey(String userId) {
-        return "fraud:tx:user:" + userId + ":events";
+        return userEventsKey("live", userId);
     }
 
     private String eventKey(String eventId) {
-        return "fraud:tx:event:" + eventId;
+        return eventKey("live", eventId);
+    }
+
+    private String userEventsKey(String namespace, String userId) {
+        return "fraud:tx:" + namespace + ":user:" + userId + ":events";
+    }
+
+    private String eventKey(String namespace, String eventId) {
+        return "fraud:tx:" + namespace + ":event:" + eventId;
     }
 
     private double millis(String time) {

@@ -116,7 +116,7 @@ Rule threshold는 Phase 5에서 코드 상수로 관리합니다. 이는 테스�
 | 점수 | +30 |
 | 필요 데이터 | 사용자별 최근 거래 이벤트 |
 | Redis 필요 여부 | 필요 |
-| Redis 구조 | `ZSET fraud:tx:user:{userId}:events` |
+| Redis 구조 | `ZSET fraud:tx:{namespace}:user:{userId}:events` |
 | 장애 시 동작 | SKIPPED 처리하고 `degraded=true` 기록 |
 | 오탐 가능성 | 콘서트 예매, 명절 송금, 공동구매 |
 | 측정 지표 | matched count, skipped count, Redis command latency |
@@ -133,7 +133,7 @@ ZSET score는 `eventTime` epoch millis, value는 `eventId`입니다.
 | 점수 | +40 |
 | 필요 데이터 | 사용자별 최근 거래 이벤트와 amount metadata |
 | Redis 필요 여부 | 필요 |
-| Redis 구조 | `ZSET fraud:tx:user:{userId}:events` + `HASH fraud:tx:event:{eventId}` |
+| Redis 구조 | `ZSET fraud:tx:{namespace}:user:{userId}:events` + `HASH fraud:tx:{namespace}:event:{eventId}` |
 | 장애 시 동작 | SKIPPED 처리하고 `degraded=true` 기록 |
 | 오탐 가능성 | 정상적인 분할 결제, 공동구매, 대량 송금 |
 | 측정 지표 | matched count, skipped count, Redis degraded count |

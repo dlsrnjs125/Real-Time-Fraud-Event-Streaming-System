@@ -109,6 +109,35 @@
         "note": {"type": "string"}
       }
     },
+    "replayIsolationProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "liveTopic",
+        "replayTopic",
+        "liveConsumerGroup",
+        "replayConsumerGroup",
+        "liveRedisNamespace",
+        "replayRedisNamespace",
+        "historicalAge",
+        "eventAmount",
+        "expectedLiveRedisCollisionKeys",
+        "expectedReplayAcceptedEvents"
+      ],
+      "properties": {
+        "liveTopic": {"type": "string", "minLength": 1},
+        "replayTopic": {"type": "string", "minLength": 1},
+        "liveConsumerGroup": {"type": "string", "minLength": 1},
+        "replayConsumerGroup": {"type": "string", "minLength": 1},
+        "liveRedisNamespace": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "replayRedisNamespace": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "historicalAge": {"type": "string", "pattern": "^[1-9][0-9]*(s|m|h)$"},
+        "eventAmount": {"type": "number", "minimum": 0},
+        "expectedLiveRedisCollisionKeys": {"type": "integer", "minimum": 0},
+        "expectedReplayAcceptedEvents": {"type": "integer", "minimum": 0},
+        "note": {"type": "string"}
+      }
+    },
     "replayRate": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "statefulWindowProfile": {
       "type": ["object", "null"],

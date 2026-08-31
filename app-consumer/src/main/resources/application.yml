@@ -24,7 +24,10 @@ spring:
       timeout: 500ms
 
 fraud:
+  stream:
+    mode: ${FRAUD_STREAM_MODE:LIVE}
   consumer:
+    topic: ${FRAUD_CONSUMER_TOPIC:transaction-events}
     concurrency: ${FRAUD_CONSUMER_CONCURRENCY:1}
     redelivery-drill:
       enabled: false
@@ -38,6 +41,7 @@ fraud:
     amount-threshold: 3000000
     ttl: 10m
     allowed-lateness: 5m
+    namespace: ${FRAUD_SLIDING_WINDOW_NAMESPACE:live}
 
 server:
   port: 8081

@@ -7,6 +7,7 @@ import com.example.fraud.api.admin.dto.DlqDiscardResponse;
 import com.example.fraud.api.admin.dto.DlqEventSummaryResponse;
 import com.example.fraud.api.admin.dto.DlqReprocessResponse;
 import com.example.fraud.api.admin.dto.PageResponse;
+import com.example.fraud.api.kafka.KafkaTopicNames;
 import com.example.fraud.api.support.exception.ApiException;
 import com.example.fraud.common.event.TransactionEventMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -81,14 +82,22 @@ public class DeadLetterEventAdminService {
                 );
             }
             event.startReprocessing(now);
+            validateReprocessSourceTopic(event);
             TransactionEventMessage payload = readPayload(event);
-            publisher.publish(payload);
+            publisher.publish(payload, event.getSourceTopic());
             event.markReprocessed(now);
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.SUCCESS, "reprocessed");
             metrics.incrementReprocessRequested("success");
         } catch (DeadLetterPublishFailedException exception) {
             event.markReprocessFailed(now);
             recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, "publish_failed");
+            metrics.incrementReprocessRequested("failed");
+            throw exception;
+        } catch (DeadLetterStateConflictException exception) {
+            if (event.getStatus() == DeadLetterStatus.REPROCESSING) {
+                event.markReprocessFailed(now);
+            }
+            recordReprocessAudit(event, actor, reason, traceId, AdminAuditResult.FAILED, exception.errorCode().name());
             metrics.incrementReprocessRequested("failed");
             throw exception;
         } catch (ApiException exception) {
@@ -101,6 +110,18 @@ public class DeadLetterEventAdminService {
                 event.getStatus().name(),
                 String.valueOf(event.getReprocessAttempts()),
                 traceId
+        );
+    }
+
+    private void validateReprocessSourceTopic(DeadLetterEventEntity event) {
+        String sourceTopic = event.getSourceTopic();
+        if (KafkaTopicNames.TRANSACTION_EVENTS.equals(sourceTopic)
+                || KafkaTopicNames.TRANSACTION_EVENTS_REPLAY.equals(sourceTopic)) {
+            return;
+        }
+        throw new DeadLetterStateConflictException(
+                event.getId(),
+                "unsupported DLT source topic " + sourceTopic
         );
     }
 

@@ -1,6 +1,7 @@
 package com.example.fraud.consumer.redis;
 
 import com.example.fraud.common.event.TransactionEventMessage;
+import com.example.fraud.consumer.kafka.FraudStreamProperties;
 import com.example.fraud.consumer.metrics.FraudConsumerMetrics;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -18,20 +19,22 @@ import org.springframework.stereotype.Component;
 public class RedisRecentTransactionWindowStore implements RecentTransactionWindowStore {
 
     private static final Logger log = LoggerFactory.getLogger(RedisRecentTransactionWindowStore.class);
-    private static final String USER_EVENTS_KEY_PREFIX = "fraud:tx:user:";
-    private static final String EVENT_KEY_PREFIX = "fraud:tx:event:";
+    private static final String KEY_PREFIX = "fraud:tx:";
 
     private final StringRedisTemplate redisTemplate;
     private final SlidingWindowProperties properties;
+    private final FraudStreamProperties streamProperties;
     private final FraudConsumerMetrics metrics;
 
     public RedisRecentTransactionWindowStore(
             StringRedisTemplate redisTemplate,
             SlidingWindowProperties properties,
+            FraudStreamProperties streamProperties,
             FraudConsumerMetrics metrics
     ) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
+        this.streamProperties = streamProperties;
         this.metrics = metrics;
     }
 
@@ -112,6 +115,9 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
     }
 
     private boolean isTooLateForLiveWindow(TransactionEventMessage message) {
+        if (streamProperties.replay()) {
+            return false;
+        }
         if (message.eventTime() == null || message.receivedAt() == null) {
             return false;
         }
@@ -124,10 +130,10 @@ public class RedisRecentTransactionWindowStore implements RecentTransactionWindo
     }
 
     private String userEventsKey(String userId) {
-        return USER_EVENTS_KEY_PREFIX + userId + ":events";
+        return KEY_PREFIX + properties.namespace() + ":user:" + userId + ":events";
     }
 
     private String eventKey(String eventId) {
-        return EVENT_KEY_PREFIX + eventId;
+        return KEY_PREFIX + properties.namespace() + ":event:" + eventId;
     }
 }
