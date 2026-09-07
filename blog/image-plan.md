@@ -1,70 +1,48 @@
-# Blog Image Plan
+# V3 Blog Image Plan
 
-이미지는 모든 글에 넣지 않습니다. 문제 재현, 성능 측정, 운영 evidence를 설명하는 데 필요한 경우만 사용합니다.
+본문의 논리를 바꾸지 않는 장식 이미지는 추가하지 않습니다. 시각 자료는 여러 시계열의 관계, partition 편향, live/replay 격리처럼 텍스트만으로 비교하기 어려운 부분에만 사용합니다.
 
-## Current Status
+## 선택 원칙
 
-Initial evidence screenshots have been added for Prometheus scrape target health, the local Grafana observability dashboard, Kafka Consumer Lag dashboard evidence, k6 duplicate replay interpretation, Redis degraded drill evidence, DLT admin operation evidence, and PaySim evaluation summary evidence. Mermaid diagrams remain embedded directly in the relevant posts where they are enough to explain the flow.
+- architecture와 처리 순서는 Mermaid로 충분하면 본문에 직접 둡니다.
+- 측정 결과는 accepted run의 기존 `docs/evidence/` screenshot을 원본으로 사용합니다.
+- 게시 플랫폼에 맞춰 복사할 때는 crop만 허용하고 수치나 축을 편집하지 않습니다.
+- screenshot에는 synthetic ID만 사용하며 token, raw payload, accountId, deviceId, local salt를 노출하지 않습니다.
+- discarded run 이미지를 결과 대표 이미지로 사용하지 않습니다.
+- “No data” panel을 채우기 위해 임의 이벤트를 만든 screenshot은 사용하지 않습니다.
 
-## Image Candidates
+## 12편별 시각 자료 결정
 
-| Priority | Series | Image | Type | Planned File Name | Purpose | Status |
-|---:|---:|---|---|---|---|---|
-| 1 | 1 | 전체 아키텍처 흐름 | Mermaid in post | N/A | API, Kafka, Consumer, Redis, PostgreSQL, DLT 흐름 설명 | Done as Mermaid |
-| 2 | 3 | Consumer processing sequence | Mermaid in post | N/A | manual ack와 persistence 이후 ack 순서 설명 | Done as Mermaid |
-| 3 | 4 | Redis degraded mode flow | Mermaid in post | N/A | Redis 장애 시 skipped rule과 degraded result 설명 | Done as Mermaid |
-| 4 | 5 | DLT reprocess/discard flow | Mermaid in post | N/A | 운영자 조작과 audit log 설명 | Done as Mermaid |
-| 5 | 6 | Prometheus scrape targets | Screenshot | `blog/images/06-prometheus-targets-api-consumer-up.png` | Prometheus scrape target health for app-api and app-consumer | Added |
-| 6 | 6 | Grafana observability dashboard | Screenshot | `blog/images/06-grafana-observability-dashboard.png` | Local Grafana dashboard for API status, p95, Redis degraded, processing latency, and DLT operation counter | Added |
-| 6 | 4 | k6 Redis down summary | Screenshot | `blog/images/04-k6-redis-down-summary.png` | `make k6-redis-down` terminal summary with degraded/skipped metric before-after values | Added |
-| 6 | 4 | Prometheus Redis degraded metric | Screenshot | `blog/images/04-prometheus-redis-window-degraded-total.png` | Prometheus graph for `fraud_redis_window_degraded_total` after Redis down drill | Added |
-| 6 | 6 | Grafana Kafka Consumer Lag panel | Screenshot | `blog/images/06-kafka-consumer-lag-dashboard.png` | Kafka consumer group lag panel after backlog drill | Added |
-| 6 | 4 | Grafana Redis degraded dashboard | Screenshot | `blog/images/04-grafana-redis-degraded-dashboard.png` | Redis 장애 시 degraded/skipped signal 확인 | Capture candidate |
-| 7 | 7 | Grafana API status count | Screenshot | `blog/images/07-grafana-api-status-count.png` | duplicate replay 이후 status bucket 확인 | Capture candidate |
-| 8 | 7 | k6 duplicate replay summary | Screenshot | `blog/images/07-k6-duplicate-replay-summary.png` | k6 duplicate replay summary showing high `http_req_failed` with 100% `accepted or duplicate` checks | Added |
-| 9 | 5 | DLT admin drill result | Screenshot | `blog/images/05-dlt-admin-drill-result.png` | `make failure-drill-dlt` terminal summary showing Admin discard API, audit log, and `fraud_dlt_discarded_total` increase | Added |
-| 9 | 5 | Grafana DLT operation counters | Screenshot | `blog/images/05-grafana-dlt-operation-counters.png` | Grafana DLT operation counter after DLT admin drill; operation counter, not backlog gauge | Added |
-| 10 | 9 | PaySim evaluation summary | Screenshot | `blog/images/09-paysim-evaluation-summary.png` | PaySim evaluation report JSON 화면으로 precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 | Added |
-| 11 | 8 | PaySim preprocessing pipeline | Mermaid in post | N/A | raw -> processed -> sample -> replay 흐름 설명 | Done as Mermaid |
-| 12 | 10 | ruleVersion traceability flow | Mermaid in post | N/A | active -> stored -> admin/evaluator 연결 설명 | Done as Mermaid |
-| 13 | 11 | runbook decision flow | Mermaid in post | N/A | pre-check -> deploy/hold -> post-check -> rollback readiness 설명 | Done as Mermaid |
-| 14 | 12 | retrospective learning map | Mermaid in post | N/A | API latency, Consumer Lag, Redis degraded, DLT, PaySim evaluation, ruleVersion을 회고 관점으로 연결 | Done as Mermaid |
+| Series | 시각 자료 | 원본 | 상태/이유 |
+|---:|---|---|---|
+| 01 | API→Kafka→Consumer→state/sink 흐름 | 본문 Mermaid | 포함 |
+| 02 | dataset/workload/time 분리 | 텍스트 표 | 별도 이미지 불필요 |
+| 03 | stage observability map | 본문 Mermaid, `infra/grafana/dashboards/v3-stream-foundation.json` | Mermaid 포함; dashboard는 선택 |
+| 04 | concurrency 1 vs 6 Lag | `docs/evidence/v3-phase1/01-before-lag-growth.png`, `05-after-lag-contained.png` | 본문 배치 완료 |
+| 05 | high-density Redis latency | `docs/evidence/v3-phase2/02-pressure-window-latency.png` | 본문 배치 완료 |
+| 06 | balanced vs hot P2 | `docs/evidence/v3-phase3/06-balanced-vs-hot-summary.png`, `04-hot-p2-partition-lag.png` | 본문 배치 완료 |
+| 07 | redelivery Lag/latency | `docs/evidence/v3-phase4/07-grafana-lag-throughput.png` | 본문 배치 완료; 성능 수치가 아닌 drill 맥락으로 사용 |
+| 08 | freshness cause counters | `docs/evidence/v3-phase5/07-grafana-event-freshness.png` | 본문 배치 완료; `No data` panel의 한계 명시 |
+| 09 | organic vs catch-up delay attribution | `docs/evidence/v3-phase6/09-grafana-delay-attribution.png` | 본문 배치 완료 |
+| 10 | live/replay isolation dashboard | `docs/evidence/v3-phase7/09-grafana-live-replay-isolation.png` | 본문 배치 완료 |
+| 11 | safety-rail 흐름 | 필요 시 Mermaid | screenshot 불필요 |
+| 12 | phase result map | 본문 표 | 별도 이미지 불필요 |
 
-## First Screenshot Set
+## 게시용 복사 이름
 
-이미지를 한 번에 많이 만들기보다 evidence 역할이 큰 항목부터 추가합니다.
+실제 게시 준비 시 필요한 파일만 `blog/images/`로 복사합니다. 기존 evidence 원본은 이동하거나 덮어쓰지 않습니다.
 
-| Order | File | Why First |
+| 우선순위 | 게시용 파일명 | 출처 |
 |---:|---|---|
-| 1 | `blog/images/06-grafana-observability-dashboard.png` | local dashboard가 provisioning으로 자동 로딩되는지 보여줌 |
-| 2 | `blog/images/04-grafana-redis-degraded-dashboard.png` | Redis 장애가 전체 성공/실패가 아니라 degraded/skipped signal로 기록된다는 점을 보여줌 |
-| 3 | `blog/images/07-grafana-api-status-count.png` | duplicate replay 이후 status bucket이 서버 metric으로 보이는지 보여줌 |
-| 4 | `blog/images/07-k6-duplicate-replay-summary.png` | client 관점의 p95/p99와 duplicate 해석 기준을 보여줌 |
-| 5 | `blog/images/05-dlt-admin-drill-result.png` | 재처리/폐기 조작이 audit evidence로 남는다는 점을 보여줌 |
-| 6 | `blog/images/09-paysim-evaluation-summary.png` | PaySim evaluation report JSON 화면으로 precision/recall보다 denominator, missing, excluded count를 먼저 보여줌 |
+| 1 | `04-phase1-lag-before-after.png` | Phase 1 before/after 이미지를 나란히 배치한 무수정 캡처 |
+| 2 | `05-phase2-state-density.png` | Phase 2 baseline/pressure |
+| 3 | `06-phase3-balanced-hot-p2.png` | Phase 3 summary |
+| 4 | `08-phase5-event-freshness.png` | Phase 5 freshness dashboard |
+| 5 | `09-phase6-delay-attribution.png` | Phase 6 delay attribution |
+| 6 | `10-phase7-live-replay-isolation.png` | Phase 7 isolation dashboard |
 
-## Screenshot Capture Candidates
+저장소 안에서 읽을 때는 accepted evidence 원본을 상대 경로로 직접 연결합니다. 외부 게시 플랫폼이 `docs/` 상대 경로를 보존하지 못하는 경우에만 위 이름으로 `blog/images/`에 복사하고 링크를 교체합니다.
 
-| File | Target Post Section | Capture Source | Must Hide |
-|---|---|---|---|
-| `blog/images/06-grafana-observability-dashboard.png` | `06`의 `확인한 증거` 섹션 | Grafana dashboard after local run | host secrets, raw identifiers, tokens |
-| `blog/images/06-kafka-consumer-lag-dashboard.png` | `06`의 `확인한 증거` 섹션 | Grafana Kafka Consumer Lag panel after backlog drill | raw payload, accountId, deviceId, host secrets |
-| `blog/images/04-grafana-redis-degraded-dashboard.png` | `04`의 `확인한 증거` 섹션 | Grafana Redis degraded/skipped panels after Redis down drill | accountId, deviceId, raw payload |
-| `blog/images/07-grafana-api-status-count.png` | `07`의 `검증` 섹션 | Grafana API status panel after duplicate replay | local paths containing sensitive names, raw request payloads |
-| `blog/images/07-k6-duplicate-replay-summary.png` | `07`의 `검증` 섹션 | k6 duplicate replay terminal summary | local paths containing sensitive names, raw request payloads |
-| `blog/images/05-dlt-admin-drill-result.png` | `05`의 `확인한 증거` 섹션 | sanitized DLT admin operation drill result | admin token, accountId, deviceId, raw payload |
-| `blog/images/05-grafana-dlt-operation-counters.png` | `05`의 `확인한 증거` 섹션 | Grafana DLT Operation Counters panel after admin drill | tokens, raw payload, backlog/count ambiguity |
-| `blog/images/09-paysim-evaluation-summary.png` | `09`의 `확인한 증거` 섹션 | sanitized `paysim-evaluation-report.json` 화면 | raw PaySim rows, raw identifiers, local salt |
+## 기존 `blog/images/`
 
-DLT Operation Counters in Grafana may show No data until a DLT publish/reprocess/discard operation is generated. For DLT evidence, run `make failure-drill-dlt` first. The first-choice image is a sanitized terminal drill result showing the Admin discard operation, audit log check, and operation metric increase; a Grafana DLT Operation Counters capture is secondary evidence. Do not mix Consumer DLT publish evidence with Admin DLT operation evidence. For screenshots, use only synthetic eventId/traceId values or mask them partially, in addition to hiding tokens, raw payload, accountId, and deviceId.
-
-DLT evidence is not a screenshot made just to fill an empty dashboard panel. It should show that an event isolated in DLT can be discarded or reprocessed through an operator flow, with audit log and operation counter evidence.
-
-## Boundaries
-
-- Do not add images that only decorate the post.
-- Do not capture raw/full PaySim data.
-- Do not show secrets, admin tokens, local credentials, account identifiers, or device identifiers.
-- Prefer diagrams for architecture/process flow and screenshots only for measured or operational evidence.
-- Do not add broken image links to posts before the files exist.
-- Store future image files under `blog/images/` unless a later decision chooses another directory.
+기존 이미지는 Core/V2 시리즈에서 사용한 sanitized evidence입니다. 새 V3 본문에서는 억지로 재사용하지 않지만, 과거 기록 보존을 위해 삭제하지 않습니다. 새 시리즈 게시가 확정된 뒤 사용 여부를 별도로 판단합니다.

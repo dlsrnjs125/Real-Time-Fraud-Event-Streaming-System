@@ -20,7 +20,7 @@
 | Phase 13 | Done | Load and Failure Test Evidence | Phase 13 result template, runbook, review, security note | follow-up metric/dashboard evidence |
 | Phase 14 | Done | Operational Security and Automation | admin token protection, audit log, max reprocess attempts | JWT/RBAC, audit query API, gateway rate limit |
 | Phase 17 | Done | Local observability dashboard hardening | Grafana datasource/provider/dashboard, Prometheus local alert rules, processing latency, DLT operation counters, Kafka Consumer Lag exporter/panel, `make observability-check` | Alertmanager routing, lag spike/recovery screenshot capture |
-| Final Docs/Blog Closure | In Progress | Blog series publication candidate text complete; image capture remains separate | docs index, blog series body, draft archive, image plan | add selected screenshots only when evidence images are captured |
+| Final Docs/Blog Closure | In Progress | V3 Phase 0~7 기준 12편 publication candidate 재구성 완료; 게시용 이미지 선별은 별도 | docs index, V3 blog series body, draft archive, V3 image plan | accepted evidence 중 게시에 필요한 이미지만 선택 |
 | V2 Planning | Done | PaySim preprocessing-first fraud workflow design 문서화 완료 | data provenance, preprocessing, validation, sampling, replay, Rule V2, action/case 설계 문서 | V2 Phase 1 data guardrail 구현 |
 | V2 Phase 1 | Done | PaySim raw/processed data guardrail 구현 완료 | `data/.gitkeep`, `.gitignore`, data policy check, `scripts/data` README, docs/blog | V2 Phase 2 preprocessing script |
 | V2 Phase 2 | Done | PaySim raw acquisition helper and preprocessing normalization 구현 완료 | KaggleHub helper, streaming normalization script, fixture unittest, Makefile targets, docs/blog | V2 Phase 3 validation/rejected/sampling 고도화 |
